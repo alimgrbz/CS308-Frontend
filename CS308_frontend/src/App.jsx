@@ -7,7 +7,7 @@ function App() {
   return (
 
     <div>
-      boş proje :D
+      boş proje  :D
     </div>
   )
 }
