@@ -1,15 +1,21 @@
-import { useState } from 'react'
-
+import React, { useState } from "react";
+import LoginForm from "./components/LoginForm";
+import ThemeToggle from "./components/ThemeToggle";
+import "./App.css";
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [theme, setTheme] = useState("light"); // Default theme
+
+  const toggleTheme = () => {
+    setTheme((prevTheme) => (prevTheme === "light" ? "dark" : "light"));
+  };
 
   return (
-
-    <div>
-      boş proje  :D
+    <div className={`app-container ${theme}`}>
+      <ThemeToggle toggleTheme={toggleTheme} />
+      <LoginForm theme={theme} />
     </div>
-  )
+  );
 }
 
-export default App
+export default App;

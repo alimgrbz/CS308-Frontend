@@ -1,0 +1,16 @@
+.app-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    transition: background 0.3s ease-in-out;
+  }
+  
+  .app-container.light {
+    background: #fffdf0;
+  }
+  
+  .app-container.dark {
+    background: #231239;
+  }
+  
