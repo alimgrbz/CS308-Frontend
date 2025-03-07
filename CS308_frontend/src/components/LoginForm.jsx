@@ -1,6 +1,7 @@
 import React from "react";
-import "./LoginForm.css"; // Import styles
-import logo from "../assets/logo.png"; // Import the image
+import "./LoginForm.css"; 
+import logo from "../assets/logo.png"; 
+import { Link } from "react-router-dom";
 
 const LoginForm = ({ theme }) => {
   return (
@@ -10,8 +11,10 @@ const LoginForm = ({ theme }) => {
           <h2>Driftmood Coffee</h2>
         <input type="email" placeholder="Email address" className="input-field" />
         <input type="password" placeholder="Password" className="input-field" />
-        <button className="login-button">Sign in</button>
-        <button className="login-button">Sign up</button>
+        <button className="login-button">Log in</button>
+        <p className="signup-link"> If you don't have an account? <a href="/signup">Sign up</a></p>
+
+        
       </div>
     </div>
   );
