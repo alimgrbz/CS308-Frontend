@@ -1,4 +1,3 @@
-
 .navbar {
   background-color: var(--cream);
   padding: 15px 0;
@@ -35,7 +34,8 @@
 .nav-menu {
   display: flex;
   list-style: none;
-  margin-right: 20px;
+  margin: 0;
+  padding: 0;
 }
 
 .nav-item {
@@ -47,6 +47,8 @@
   font-weight: 500;
   position: relative;
   padding-bottom: 5px;
+  text-decoration: none;
+  transition: color 0.3s ease;
 }
 
 .nav-link:after {
@@ -64,18 +66,44 @@
   width: 100%;
 }
 
+.nav-link.login-button {
+  background-color: var(--forest-green);
+  color: white;
+  padding: 8px 20px;
+  border-radius: 25px;
+  transition: background-color 0.3s ease;
+}
+
+.nav-link.login-button:hover {
+  background-color: var(--dark-forest);
+}
+
+.nav-link.login-button:after {
+  display: none;
+}
+
 .nav-actions {
   display: flex;
   align-items: center;
+  margin-left: 20px;
 }
 
 .nav-icon {
-  margin-left: 20px;
   position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--forest-green);
+  transition: color 0.3s ease;
+}
+
+.nav-icon:hover {
+  color: var(--dark-forest);
 }
 
 .nav-icon svg {
-  color: var(--forest-green);
+  width: 24px;
+  height: 24px;
 }
 
 .cart-count {
@@ -91,12 +119,16 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  font-weight: 600;
 }
 
 .mobile-toggle {
   display: none;
   flex-direction: column;
   cursor: pointer;
+  background: none;
+  border: none;
+  padding: 5px;
 }
 
 .mobile-toggle span {
@@ -105,37 +137,52 @@
   background-color: var(--forest-green);
   margin-bottom: 4px;
   border-radius: 2px;
+  transition: all 0.3s ease;
 }
 
 @media (max-width: 768px) {
   .mobile-toggle {
     display: flex;
-    margin-right: 15px;
   }
 
-  .nav-menu {
-    position: absolute;
+  .nav-menu-container {
+    position: fixed;
     top: 70px;
     left: 0;
-    flex-direction: column;
-    width: 100%;
+    right: 0;
     background-color: var(--cream);
-    box-shadow: 0 10px 10px rgba(0, 0, 0, 0.1);
     padding: 20px;
     transform: translateY(-100%);
     opacity: 0;
     visibility: hidden;
-    transition: all 0.3s ease-in-out;
-    margin-right: 0;
+    transition: all 0.3s ease;
   }
 
-  .nav-menu.active {
+  .nav-menu-container.active {
     transform: translateY(0);
     opacity: 1;
     visibility: visible;
   }
 
+  .nav-menu {
+    flex-direction: column;
+    align-items: center;
+  }
+
   .nav-item {
     margin: 10px 0;
+  }
+
+  .nav-link {
+    font-size: 1.1rem;
+  }
+
+  .nav-actions {
+    margin-left: 15px;
+  }
+
+  .nav-icon svg {
+    width: 20px;
+    height: 20px;
   }
 }
