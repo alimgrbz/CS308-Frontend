@@ -1,12 +1,18 @@
-
 .logo {
+  text-decoration: none;
   display: flex;
   align-items: center;
+  padding: 0.5rem 0;
 }
 
 .logo-image {
-  max-height: 100px;
+  max-height: 50px;
   width: auto;
+  transition: transform 0.3s ease;
+}
+
+.logo:hover .logo-image {
+  transform: scale(1.05);
 }
 
 .logo-small .logo-image {
@@ -23,7 +29,7 @@
 
 @media (max-width: 768px) {
   .logo-image {
-    max-height: 80px;
+    max-height: 40px;
   }
   
   .logo-medium .logo-image {
