@@ -1,6 +1,38 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import ProductCard from '../components/ProductCard';
 import '../styles/HomePage.css';
+
+const featuredProducts = [
+  {
+    id: 1,
+    name: 'Sumatra Dark Roast',
+    price: 16.99,
+    description: 'Bold, earthy flavors with low acidity and a smooth finish.',
+    inStock: true
+  },
+  {
+    id: 2,
+    name: 'Ethiopia Light Roast',
+    price: 18.99,
+    description: 'Bright and fruity with notes of blueberry and citrus.',
+    inStock: true
+  },
+  {
+    id: 3,
+    name: 'Colombia Medium Roast',
+    price: 15.99,
+    description: 'Sweet caramel notes with a hint of nuttiness and cocoa.',
+    inStock: false
+  },
+  {
+    id: 4,
+    name: 'Driftmood Espresso Blend',
+    price: 17.99,
+    description: 'Rich, full-bodied blend perfect for espresso machines.',
+    inStock: true
+  }
+];
 
 const HomePage = () => {
   return (
@@ -8,12 +40,9 @@ const HomePage = () => {
       <section className="hero-section">
         <div className="container">
           <div className="hero-content">
-            <h1>Experience Coffee in Every Sip</h1>
-            <p>Artisanal coffee roasted to perfection, delivered to your doorstep.</p>
-            <div className="hero-buttons">
-              <Link to="/products" className="button">Shop Now</Link>
-              <Link to="/about" className="button secondary">Our Story</Link>
-            </div>
+            <h1>Welcome to DriftMood Coffee</h1>
+            <p>Let your mood drift with every sip</p>
+            <Link to="/products" className="cta-button">Shop Now</Link>
           </div>
         </div>
       </section>
@@ -42,6 +71,30 @@ const HomePage = () => {
                 <h3>Gift Sets</h3>
               </div>
             </Link>
+          </div>
+        </div>
+      </section>
+
+      <section className="featured-products-section">
+        <div className="container">
+          <h2 className="section-title">Featured Products</h2>
+          <div className="products-grid">
+            {featuredProducts.map(product => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+          <div className="view-all-link">
+            <Link to="/products">View All Products</Link>
+          </div>
+        </div>
+      </section>
+
+      <section className="subscription-section">
+        <div className="container">
+          <div className="subscription-content">
+            <h2>Never Run Out of Great Coffee</h2>
+            <p>Join our subscription service and receive freshly roasted coffee at your doorstep as often as you'd like.</p>
+            <Link to="/subscriptions" className="button">Start Your Subscription</Link>
           </div>
         </div>
       </section>
