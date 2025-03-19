@@ -41,7 +41,7 @@ const HomePage = () => {
         <div className="container">
           <div className="hero-content">
             <h1>Welcome to DriftMood Coffee</h1>
-            <p>Discover our premium selection of coffee beans and brewing equipment</p>
+            <p>Let your mood drift with every sip</p>
             <Link to="/products" className="cta-button">Shop Now</Link>
           </div>
         </div>
