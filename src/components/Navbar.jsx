@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import Logo from './Logo';
@@ -12,7 +11,13 @@ const Navbar = () => {
     <nav className="navbar">
       <div className="navbar-container">
         <div className="logo-container">
-          <Logo size="medium" />
+          <Link to="/">
+            <img 
+              src="/lovable-uploads/logo.png"
+              alt="DriftMood Logo" 
+              className="h-20 w-auto"
+            />
+          </Link>
         </div>
         
         <div className="nav-menu-container">

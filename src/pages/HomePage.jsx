@@ -41,11 +41,11 @@ const HomePage = () => {
       <section className="hero-section">
         <div className="container">
           <div className="hero-content">
-            <h1>Experience Coffee in Every Sip</h1>
-            <p>Artisanal coffee roasted to perfection, delivered to your doorstep.</p>
+            <h1>Welcome to DriftMood Coffee</h1>
+            <p> Let your mood drift with every sip </p>
             <div className="hero-buttons">
               <Link to="/products" className="button">Shop Now</Link>
-              <Link to="/about" className="button secondary">Our Story</Link>
+              <Link to="/about" className="button secondary"> View More</Link>
             </div>
           </div>
         </div>

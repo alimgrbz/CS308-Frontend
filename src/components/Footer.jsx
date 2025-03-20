@@ -1,7 +1,6 @@
-
 import React from 'react';
 import { Link } from 'react-router-dom';
-import Logo from './Logo';
+import Logo from './Logo.tsx';
 import '../styles/Footer.css';
 
 const Footer = () => {
@@ -10,7 +9,7 @@ const Footer = () => {
       <div className="container">
         <div className="footer-content">
           <div className="footer-brand">
-            <Logo size="small" />
+            <Logo />
             <p>Premium coffee for the discerning taste. Ethically sourced, lovingly roasted.</p>
             <div className="social-icons">
               <a href="https://facebook.com" target="_blank" rel="noopener noreferrer">
