@@ -8,6 +8,7 @@ import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
 import NotFound from "./pages/NotFound";
 import Cart from "./pages/Cart";
+import ProductIndex from "./pages/ProductIndex"; 
 import "./styles/colors.css";
 import "./styles/global.css";
 
@@ -24,7 +25,7 @@ const App = () => (
             <Route path="/" element={<HomePage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/cart" element={<Cart />} />
-            {/* ADD ADDITIONAL ROUTES HERE */}
+            <Route path="/products" element={<ProductIndex />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </main>
