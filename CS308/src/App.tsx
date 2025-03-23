@@ -9,7 +9,7 @@ import LoginPage from "./pages/LoginPage";
 import NotFound from "./pages/NotFound";
 import Cart from "./pages/Cart";
 import About from './pages/About';
-import Contacts from './pages/Contact';
+//import Contacts from './pages/Contact';
 import "./styles/colors.css";
 import "./styles/global.css";
 import { Contact } from "lucide-react";
@@ -28,7 +28,6 @@ const App = () => (
             <Route path="/login" element={<LoginPage />} />
             <Route path="/cart" element={<Cart />} />
             <Route path="/about" element={<About />}/>
-            <Route path="/contact" element={<Contacts />}/>
             <Route path="*" element={<NotFound />} />
           </Routes>
         </main>
