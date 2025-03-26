@@ -1,8 +1,7 @@
 
 import React, { useState } from 'react';
-import { Link,useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import '../styles/LoginPage.css';
-import {signin, signup} from "../api/userApi";
 
 const LoginPage = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -13,9 +12,6 @@ const LoginPage = () => {
     confirmPassword: ''
   });
   const [errors, setErrors] = useState({});
-  const [serverError, setServerError] = useState(''); // New state for API errors
-
-  const navigate = useNavigate(); // Initialize navigate hook
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -39,6 +35,7 @@ const LoginPage = () => {
     } else if (formData.password.length < 6) {
       newErrors.password = 'Password must be at least 6 characters';
     }
+    
     if (!isLogin) {
       if (!formData.name) {
         newErrors.name = 'Name is required';
@@ -53,43 +50,14 @@ const LoginPage = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-
-  // If user is signed up, we should go to sign in screen. after sign in, we should go to main page and start session.
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
-    setServerError(''); // Reset error before new submission
-
+    
     if (validateForm()) {
       if (isLogin) {
-        const user = {
-          email: formData.email,
-          password: formData.password
-        }
-        try{
-          const userResponse = await signin(user);
-          navigate('/'); // Redirect to HomePage on successful login
-        }
-        catch (error){
-          setServerError(error.response?.data?.message || 'Sign-in failed. Please try again.');
-          // the error message should be displayed on screen
-        }
-
-      } 
-      else {
-        const newuser = {
-          name: formData.name,
-          email: formData.email,
-          password: formData.password
-        }
-        try{
-          const newuserResponse = await signup(newuser);
-          setIsLogin(true); // Switch to sign-in mode
-          navigate('/login'); // Redirect to login page
-        }
-        catch (error){
-          setServerError(error.response?.data?.message || 'Sign-up failed. Please try again.');
-          // the error message should be displayed on screen
-        }
+        console.log('Logging in user with:', formData.email);
+      } else {
+        console.log('Registering new user:', formData.name, formData.email);
       }
     }
   };
@@ -97,7 +65,6 @@ const LoginPage = () => {
   const toggleMode = () => {
     setIsLogin(!isLogin);
     setErrors({});
-    setServerError(''); // Reset error when switching modes
   };
 
   return (
@@ -171,8 +138,7 @@ const LoginPage = () => {
               <Link to="/forgot-password">Forgot your password?</Link>
             </div>
           )}
-          {serverError && <div className="server-error-message">{serverError}</div>} {/* Display API error */}
-
+          
           <button type="submit" className="auth-button">
             {isLogin ? 'Sign In' : 'Create Account'}
           </button>
