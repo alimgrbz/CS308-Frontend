@@ -9,6 +9,8 @@ import LoginPage from "./pages/LoginPage";
 import NotFound from "./pages/NotFound";
 import Cart from "./pages/Cart";
 import ProductIndex from "./pages/ProductIndex"; 
+import About from './pages/About';
+import Contacts from './pages/Contact';
 import "./styles/colors.css";
 import "./styles/global.css";
 
@@ -26,6 +28,8 @@ const App = () => (
             <Route path="/login" element={<LoginPage />} />
             <Route path="/cart" element={<Cart />} />
             <Route path="/products" element={<ProductIndex />} />
+            <Route path="/about" element={<About />}/>
+            <Route path="/contact" element={<Contacts />}/>
             <Route path="*" element={<NotFound />} />
           </Routes>
         </main>
