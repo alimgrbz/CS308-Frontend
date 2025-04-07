@@ -253,6 +253,8 @@ const ProductIndex = () => {
   const [sortOption, setSortOption] = useState('popularity');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [inStockOnly, setInStockOnly] = useState(false);
+  const [selectedRoast, setSelectedRoast] = useState<string | null>(null);
+  const [selectedOrigin, setSelectedOrigin] = useState<string | null>(null);
   
   // Get unique categories from products
   const categories = useMemo(() => {
@@ -269,6 +271,13 @@ const ProductIndex = () => {
   }, []);
   
   const [priceRange, setPriceRange] = useState<[number, number]>([minPrice, maxPrice]);
+  
+  // Get unique coffee origins
+  const coffeeOrigins = useMemo(() => {
+    return Array.from(new Set(PRODUCTS
+      .filter(product => product.category === "Coffee Beans")
+      .map(product => product.origin)));
+  }, []);
   
   // Filter products based on search, category, price, and availability
   const filteredProducts = useMemo(() => {
@@ -287,13 +296,23 @@ const ProductIndex = () => {
       filtered = filtered.filter(product => product.category === selectedCategory);
     }
 
+    // Apply roast level filter
+    if (selectedRoast && selectedCategory === "Coffee Beans") {
+      filtered = filtered.filter(product => product.roastLevel === selectedRoast);
+    }
+
+    // Apply origin filter
+    if (selectedOrigin && selectedCategory === "Coffee Beans") {
+      filtered = filtered.filter(product => product.origin === selectedOrigin);
+    }
+
     // Apply price filter
     if (inStockOnly) {
       filtered = filtered.filter(product => product.inStock);
     }
 
     return filtered;
-  }, [searchTerm, selectedCategory, inStockOnly]);
+  }, [searchTerm, selectedCategory, selectedRoast, selectedOrigin, inStockOnly]);
   
   // Sort products
   const sortedProducts = useMemo(() => {
@@ -345,6 +364,11 @@ const ProductIndex = () => {
               onInStockChange={setInStockOnly}
               minPrice={minPrice}
               maxPrice={maxPrice}
+              selectedRoast={selectedRoast}
+              onRoastChange={setSelectedRoast}
+              selectedOrigin={selectedOrigin}
+              onOriginChange={setSelectedOrigin}
+              coffeeOrigins={coffeeOrigins}
             />
           </div>
           
@@ -366,6 +390,8 @@ const ProductIndex = () => {
                     setPriceRange([minPrice, maxPrice]);
                     setInStockOnly(false);
                     setSortOption('popularity');
+                    setSelectedRoast(null);
+                    setSelectedOrigin(null);
                   }}
                 >
                   Clear All Filters

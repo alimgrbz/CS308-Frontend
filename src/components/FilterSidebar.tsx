@@ -9,8 +9,13 @@ interface FilterSidebarProps {
   onPriceRangeChange: (range: [number, number]) => void;
   inStockOnly: boolean;
   onInStockChange: (inStock: boolean) => void;
+  selectedRoast?: string | null;
+  onRoastChange?: (roast: string | null) => void;
+  selectedOrigin?: string | null;
+  onOriginChange?: (origin: string | null) => void;
   minPrice: number;
   maxPrice: number;
+  coffeeOrigins?: string[];
 }
 
 const FilterSidebar: React.FC<FilterSidebarProps> = ({
@@ -21,8 +26,13 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
   onPriceRangeChange,
   inStockOnly,
   onInStockChange,
+  selectedRoast,
+  onRoastChange,
+  selectedOrigin,
+  onOriginChange,
   minPrice,
   maxPrice,
+  coffeeOrigins,
 }) => {
   return (
     <div className="bg-white border border-driftmood-lightlime rounded-xl p-5 h-fit sticky top-24">
@@ -37,6 +47,8 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
               onCategoryChange(null);
               onPriceRangeChange([minPrice, maxPrice]);
               onInStockChange(false);
+              onRoastChange?.(null);
+              onOriginChange?.(null);
             }}
             className="text-sm text-driftmood-brown hover:text-driftmood-dark transition-colors flex items-center mb-4"
           >
@@ -146,6 +158,52 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
           </div>
         </div>
       </div>
+
+      {selectedCategory === "Coffee Beans" && (
+        <>
+        <div className="mb-6">
+          <h4 className="font-medium text-sm mb-3">Roast Level</h4>
+          <div className="space-y-2">
+            {["Light", "Medium", "Dark"].map((roast) => (
+              <button
+              key={roast}
+              className={`w-full text-left px-3 py-1.5 rounded-md text-sm transition-colors ${
+              selectedRoast === roast
+                ? "bg-driftmood-lightlime font-medium text-driftmood-dark"
+                : "text-driftmood-brown hover:bg-driftmood-cream"
+            }`}
+            onClick={() =>
+              onRoastChange?.(selectedRoast === roast ? null : roast)
+            }
+            >
+              {roast}
+              </button>
+            ))}
+            </div>
+            </div>
+
+    <div className="mb-6">
+      <h4 className="font-medium text-sm mb-3">Origin</h4>
+      <div className="space-y-2">
+        {coffeeOrigins?.map((origin) => (
+          <button
+            key={origin}
+            className={`w-full text-left px-3 py-1.5 rounded-md text-sm transition-colors ${
+              selectedOrigin === origin
+                ? "bg-driftmood-lightlime font-medium text-driftmood-dark"
+                : "text-driftmood-brown hover:bg-driftmood-cream"
+            }`}
+            onClick={() =>
+              onOriginChange?.(selectedOrigin === origin ? null : origin)
+            }
+          >
+            {origin}
+          </button>
+        ))}
+      </div>
+    </div>
+  </>
+)}
       
       <div>
         <h4 className="font-medium text-sm mb-3">Availability</h4>
