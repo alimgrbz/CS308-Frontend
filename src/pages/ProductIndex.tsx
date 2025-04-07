@@ -9,26 +9,65 @@ import { Link } from 'react-router-dom';
 
 // Sample product data
 const PRODUCTS = [
+  // Coffee Beans
   {
     id: 1,
-    name: "Morning Blend Coffee",
-    description: "Medium roast with notes of caramel and chocolate.",
-    longDescription: "Our signature Morning Blend is perfect for starting your day. This medium roast coffee features beans from Ethiopia and Colombia, creating a balanced cup with sweet notes of caramel and dark chocolate. The smooth finish makes it ideal for everyday drinking.",
-    price: 14.99,
-    image: "https://images.unsplash.com/photo-1598530222482-9a558111416d?auto=format&fit=crop&q=80&w=1000",
-    rating: 4.5,
-    numReviews: 28,
+    name: "Ethiopian Yirgacheffe Beans",
+    description: "Floral and citrusy light roast coffee beans.",
+    longDescription: "Sourced from the Yirgacheffe region, these light roast beans offer floral aromatics and bright citrus flavors. Perfect for pour-over and filter brewing methods.",
+    price: 16.99,
+    image: "https://images.unsplash.com/photo-1587730746644-3fbc4c37ab44?auto=format&fit=crop&q=80&w=1000",
+    rating: 4.8,
+    numReviews: 45,
     inStock: true,
-    category: "Coffee",
-    popularity: 9,
-    ingredients: ["Arabica beans", "Robusta beans"],
-    origin: "Ethiopia & Colombia"
+    category: "Coffee Beans",
+    popularity: 10,
+    badges: ["Best Seller"],
+    ingredients: ["100% Arabica beans"],
+    roastLevel: "Light",
+    origin: "Ethiopia"
   },
   {
     id: 2,
+    name: "Cold Brew Blend",
+    description: "Coarse ground beans perfect for cold brew.",
+    longDescription: "A smooth and rich blend crafted for cold brewing. With notes of chocolate and almond, it's refreshing and bold when steeped overnight.",
+    price: 15.50,
+    image: "https://images.unsplash.com/photo-1566378249362-804c4112a3d3?auto=format&fit=crop&q=80&w=1000",
+    rating: 4.6,
+    numReviews: 34,
+    inStock: true,
+    category: "Coffee Beans",
+    popularity: 9,
+    badges: [],
+    ingredients: ["Arabica blend"],
+    roastLevel: "Medium",
+    origin: "Colombia & Brazil"
+  },
+  {
+    id: 3,
+    name: "Dark Roast Espresso",
+    description: "Bold and intense espresso blend.",
+    longDescription: "Deep roast with a smoky aroma and bold taste, best for espresso lovers.",
+    price: 17.99,
+    image: "https://images.unsplash.com/photo-1587305701203-c4b4cc2436d7?auto=format&fit=crop&q=80&w=1000",
+    rating: 4.7,
+    numReviews: 39,
+    inStock: true,
+    category: "Coffee Beans",
+    popularity: 9,
+    badges: [],
+    ingredients: ["Arabica", "Robusta"],
+    roastLevel: "Dark",
+    origin: "Brazil & Indonesia"
+  },
+
+  // Tea
+  {
+    id: 12,
     name: "Jasmine Green Tea",
-    description: "Delicate green tea scented with jasmine blossoms.",
-    longDescription: "Our Jasmine Green Tea is a classic favorite. We start with high-quality green tea leaves from the mountains of China, then scent them with fresh jasmine blossoms. The result is a delicate, aromatic tea with a smooth, slightly sweet finish.",
+    description: "Delicate green tea with jasmine blossoms.",
+    longDescription: "Green tea leaves from China, scented with jasmine. Light and aromatic.",
     price: 12.99,
     image: "https://images.unsplash.com/photo-1627435601361-ec25f5b1d0e5?auto=format&fit=crop&q=80&w=1000",
     rating: 4.2,
@@ -36,29 +75,15 @@ const PRODUCTS = [
     inStock: true,
     category: "Tea",
     popularity: 7,
-    ingredients: ["Green tea leaves", "Jasmine blossoms"],
+    badges: ["Best Seller"],
+    ingredients: ["Green tea", "Jasmine"],
     origin: "China"
   },
   {
-    id: 3,
-    name: "Dark Roast Espresso",
-    description: "Bold and intense with rich crema, perfect for espresso machines.",
-    longDescription: "Our Dark Roast Espresso blend delivers a bold, intense flavor profile with a rich crema. Crafted specifically for espresso machines, this blend combines beans from Brazil and Indonesia for notes of dark chocolate and a subtle smokiness.",
-    price: 16.99,
-    image: "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&q=80&w=1000",
-    rating: 4.8,
-    numReviews: 42,
-    inStock: true,
-    category: "Coffee",
-    popularity: 10,
-    ingredients: ["Arabica beans", "Robusta beans"],
-    origin: "Brazil & Indonesia"
-  },
-  {
-    id: 4,
-    name: "Chai Tea Blend",
-    description: "Spicy and aromatic with cinnamon, cardamom, and ginger.",
-    longDescription: "Our signature Chai Tea Blend combines premium black tea with aromatic spices including cinnamon, cardamom, ginger, and cloves. This traditional recipe creates a warming, spicy cup that can be enjoyed with milk for a classic chai experience.",
+    id: 13,
+    name: "Chai Spice Blend",
+    description: "Traditional black tea with aromatic spices.",
+    longDescription: "Aromatic blend with cinnamon, cardamom, cloves. Brew with milk for masala chai.",
     price: 13.99,
     image: "https://images.unsplash.com/photo-1571934811356-5cc061b6821f?auto=format&fit=crop&q=80&w=1000",
     rating: 4.6,
@@ -66,29 +91,15 @@ const PRODUCTS = [
     inStock: false,
     category: "Tea",
     popularity: 8,
-    ingredients: ["Black tea", "Cinnamon", "Cardamom", "Ginger", "Cloves"],
+    badges: [],
+    ingredients: ["Black tea", "Spices"],
     origin: "India"
   },
   {
-    id: 5,
-    name: "Vanilla Caramel Coffee",
-    description: "Sweet and smooth with natural vanilla and caramel flavors.",
-    longDescription: "Our Vanilla Caramel Coffee combines medium roasted beans with natural vanilla and caramel flavors for a sweet, smooth cup. The perfect indulgence for those who enjoy flavored coffee without overwhelming sweetness.",
-    price: 15.99,
-    image: "https://images.unsplash.com/photo-1442512595331-e89e73853f31?auto=format&fit=crop&q=80&w=1000",
-    rating: 4.3,
-    numReviews: 19,
-    inStock: true,
-    category: "Coffee",
-    popularity: 7,
-    ingredients: ["Arabica beans", "Natural vanilla flavor", "Natural caramel flavor"],
-    origin: "Colombia"
-  },
-  {
-    id: 6,
+    id: 14,
     name: "Earl Grey Supreme",
-    description: "Classic black tea infused with bergamot oil and blue cornflower petals.",
-    longDescription: "Our Earl Grey Supreme enhances the classic recipe with additional bergamot oil and blue cornflower petals. The result is a more aromatic, flavorful cup with the characteristic citrus notes that Earl Grey lovers appreciate.",
+    description: "Citrusy black tea with bergamot oil.",
+    longDescription: "Classic Earl Grey recipe upgraded with blue cornflower petals and extra bergamot.",
     price: 12.99,
     image: "https://images.unsplash.com/photo-1594631252845-29fc4cc8cde9?auto=format&fit=crop&q=80&w=1000",
     rating: 4.7,
@@ -96,9 +107,144 @@ const PRODUCTS = [
     inStock: true,
     category: "Tea",
     popularity: 8,
-    ingredients: ["Black tea", "Bergamot oil", "Blue cornflower petals"],
+    badges: [],
+    ingredients: ["Black tea", "Bergamot"],
     origin: "Sri Lanka & India"
+  },  
+
+  // Brewing Equipment
+  {
+    id: 4,
+    name: "French Press Brewer",
+    description: "Classic 1-liter glass French Press.",
+    longDescription: "Crafted with borosilicate glass and stainless steel, our 1-liter French Press delivers full-bodied coffee with ease.",
+    price: 29.99,
+    image: "https://images.unsplash.com/photo-1577985025774-699de1fe52f0?auto=format&fit=crop&q=80&w=1000",
+    rating: 4.7,
+    numReviews: 25,
+    inStock: true,
+    category: "Brewing Equipment",
+    popularity: 8,
+    badges: ["Best Seller"],
+    ingredients: [],
+    origin: "Imported"
   },
+  {
+    id: 5,
+    name: "Manual Coffee Grinder",
+    description: "Stainless steel burr grinder with precision settings.",
+    longDescription: "A compact manual grinder with adjustable settings for pour-over, espresso, or French press.",
+    price: 24.95,
+    image: "https://images.unsplash.com/photo-1559115264-25824d92f71f?auto=format&fit=crop&q=80&w=1000",
+    rating: 4.4,
+    numReviews: 18,
+    inStock: false,
+    category: "Brewing Equipment",
+    popularity: 7,
+    badges: [],
+    ingredients: [],
+    origin: "Japan"
+  },
+  {
+    id: 6,
+    name: "Gooseneck Pour Over Kettle",
+    description: "Precision pour kettle with thermometer.",
+    longDescription: "Stainless steel kettle with a slim spout and integrated thermometer for perfect pour control.",
+    price: 39.99,
+    image: "https://images.unsplash.com/photo-1661251487856-3e547df0bfc3?auto=format&fit=crop&q=80&w=1000",
+    rating: 4.9,
+    numReviews: 32,
+    inStock: true,
+    category: "Brewing Equipment",
+    popularity: 10,
+    badges: [],
+    ingredients: [],
+    origin: "Korea"
+  },
+
+  // Accessories & Merch
+  {
+    id: 7,
+    name: "DriftMood Mug",
+    description: "Matte black ceramic mug with logo.",
+    longDescription: "12 oz matte ceramic mug. Microwave/dishwasher safe. Minimalist design.",
+    price: 11.99,
+    image: "https://images.unsplash.com/photo-1517686469429-8bdb7a6b84cd?auto=format&fit=crop&q=80&w=1000",
+    rating: 4.5,
+    numReviews: 22,
+    inStock: true,
+    category: "Accessories & Merch",
+    popularity: 9,
+    badges: ["Best Seller"],
+    ingredients: [],
+    origin: "Turkey"
+  },
+  {
+    id: 8,
+    name: "Barista Tote Bag",
+    description: "Cotton tote bag with coffee art.",
+    longDescription: "Eco tote bag made from organic cotton, printed with barista-themed artwork.",
+    price: 14.99,
+    image: "https://images.unsplash.com/photo-1621170728027-5892d26d4411?auto=format&fit=crop&q=80&w=1000",
+    rating: 4.3,
+    numReviews: 15,
+    inStock: true,
+    category: "Accessories & Merch",
+    popularity: 6,
+    badges: [],
+    ingredients: [],
+    origin: "Turkey"
+  },
+  {
+    id: 9,
+    name: "Coffee Sticker Set",
+    description: "Set of 3 stickers: bean, mug, grinder.",
+    longDescription: "Add flair to your bag or jacket with this sticker trio inspired by coffee life.",
+    price: 9.99,
+    image: "https://images.unsplash.com/photo-1558449028-8b28fe774c73?auto=format&fit=crop&q=80&w=1000",
+    rating: 4.2,
+    numReviews: 12,
+    inStock: true,
+    category: "Accessories & Merch",
+    popularity: 5,
+    badges: [],
+    ingredients: [],
+    origin: "USA"
+  },
+
+  // Gift Sets
+  {
+    id: 10,
+    name: "Morning Ritual Gift Box",
+    description: "Beans, mug, and brewing guide.",
+    longDescription: "Perfect gift for new coffee lovers. Comes in a reusable box with coffee gear and instructions.",
+    price: 39.99,
+    image: "https://images.unsplash.com/photo-1670594061876-cc8f3e3ad998?auto=format&fit=crop&q=80&w=1000",
+    rating: 4.9,
+    numReviews: 52,
+    inStock: true,
+    category: "Gift Sets",
+    popularity: 10,
+    badges: ["Best Seller"],
+    ingredients: ["Coffee Beans", "Mug", "Guide"],
+    origin: "Mixed"
+  },
+  {
+    id: 11,
+    name: "Holiday Cheer Coffee Set",
+    description: "2 seasonal blends + festive wrap.",
+    longDescription: "Celebrate with our special holiday blend duo, wrapped in festive packaging and ready to gift.",
+    price: 34.95,
+    image: "https://images.unsplash.com/photo-1600096194940-5b3b5fdf12d2?auto=format&fit=crop&q=80&w=1000",
+    rating: 4.7,
+    numReviews: 40,
+    inStock: true,
+    category: "Gift Sets",
+    popularity: 9,
+    badges: [],
+    ingredients: ["Holiday Roast A", "Holiday Roast B"],
+    origin: "Guatemala & Honduras"
+  }
 ];
 
 const ProductIndex = () => {
@@ -228,21 +374,7 @@ const ProductIndex = () => {
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {sortedProducts.map((product) => (
-                  <ProductCard
-                    key={product.id}
-                    product={{
-                      id: product.id,
-                      name: product.name,
-                      description: product.description,
-                      price: product.price,
-                      image: product.image,
-                      rating: product.rating,
-                      numReviews: product.numReviews,
-                      inStock: product.inStock,
-                      category: product.category,
-                      popularity: product.popularity
-                    }}
-                  />
+                <ProductCard key={product.id} product={product} />
                 ))}
               </div>
             )}

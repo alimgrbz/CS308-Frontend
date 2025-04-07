@@ -16,6 +16,7 @@ interface Product {
   inStock: boolean;
   category: string;
   popularity?: number;
+  badges?: string[];
 }
 
 interface ProductCardProps {
@@ -24,7 +25,7 @@ interface ProductCardProps {
 
 const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const { toast } = useToast();
-  const { id, name, price, description, inStock, image, category, rating, numReviews } = product;
+  const { id, name, price, description, inStock, image, category, rating, numReviews, badges } = product;
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -61,6 +62,13 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
               <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
                 <span className="bg-driftmood-dark text-white px-4 py-2 rounded-md font-medium">
                   Out of Stock
+                </span>
+              </div>
+            )}
+            {product.badges?.includes("Best Seller") && (
+              <div className="absolute top-3 left-3">
+                <span className="chip bg-yellow-300 text-driftmood-dark font-semibold">
+                  Best Seller
                 </span>
               </div>
             )}
