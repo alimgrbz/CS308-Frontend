@@ -13,6 +13,7 @@ import About from './pages/About';
 import Contacts from './pages/Contact';
 import "./styles/colors.css";
 import "./styles/global.css";
+import ProductDetailPage from "./pages/ProductDetailPage";
 
 const queryClient = new QueryClient();
 
@@ -28,6 +29,7 @@ const App = () => (
             <Route path="/login" element={<LoginPage />} />
             <Route path="/cart" element={<Cart />} />
             <Route path="/products" element={<ProductIndex />} />
+            <Route path="/product/:id" element={<ProductDetailPage />} />
             <Route path="/about" element={<About />}/>
             <Route path="/contact" element={<Contacts />}/>
             <Route path="*" element={<NotFound />} />

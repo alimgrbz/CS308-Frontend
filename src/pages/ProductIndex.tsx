@@ -412,3 +412,4 @@ const ProductIndex = () => {
 };
 
 export default ProductIndex;
+export { PRODUCTS };
