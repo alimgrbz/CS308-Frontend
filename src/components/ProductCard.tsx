@@ -1,7 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
-import { ShoppingCart, Star } from 'lucide-react';
+import { ShoppingCart, Star, Award } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import '../styles/ProductCard.css';
 
@@ -66,16 +67,21 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
               </div>
             )}
             {product.badges?.includes("Best Seller") && (
-              <div className="absolute top-3 left-3">
-                <span className="chip bg-yellow-300 text-driftmood-dark font-semibold">
-                  Best Seller
-                </span>
-              </div>
+              <Badge 
+                variant="outline" 
+                className="absolute top-3 left-3 z-10 bg-yellow-100 border-yellow-300 text-yellow-800 px-2 py-1 text-[10px] font-bold rounded-full flex items-center gap-1"
+              >
+                <Award size={12} fill="#FFC107" stroke="#FFC107" strokeWidth={2} />
+                Best Seller
+              </Badge>
             )}
             <div className="absolute top-3 right-3">
-              <span className="chip bg-driftmood-lime text-driftmood-dark">
+              <Badge 
+                variant="outline" 
+                className="bg-driftmood-lightlime border-driftmood-lime text-driftmood-dark px-2 py-1 text-[10px] font-bold rounded-full"
+              >
                 {category}
-              </span>
+              </Badge>
             </div>
           </div>
           
