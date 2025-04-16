@@ -5,6 +5,7 @@ import ProductCard from '@/components/ProductCard';
 import ProductFilters from '@/components/ProductFilters';
 import FilterSidebar from '@/components/FilterSidebar';
 import { getAllProducts } from '@/api/productApi';
+import { getAllCategories } from '@/api/categoryApi';
 import Logo from '@/components/Logo';
 import { Link } from 'react-router-dom';
 /*
@@ -347,6 +348,11 @@ const products = [
 ];
 */
 
+interface Category {
+  categoryId: number;
+  categoryType: string;
+}
+
 const ProductIndex = () => {
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -356,51 +362,61 @@ const ProductIndex = () => {
   const [inStockOnly, setInStockOnly] = useState(false);
   const [selectedRoast, setSelectedRoast] = useState<string | null>(null);
   const [selectedOrigin, setSelectedOrigin] = useState<string | null>(null);
-  const [products, setproducts] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState<Category[]>([]);
 
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // Fetch products
+        const productsResponse = await getAllProducts();
+        console.log('Raw products data from backend:', productsResponse);
+        
+        // Handle different response formats
+        let productsData = [];
+        if (Array.isArray(productsResponse)) {
+          productsData = productsResponse;
+        } else if (productsResponse.products) {
+          productsData = productsResponse.products;
+        } else if (productsResponse.data) {
+          productsData = productsResponse.data;
+        }
 
-useEffect(() => {
-  const fetchproducts = async () => {
-    try {
-      const response = await getAllProducts();
-      console.log('Raw products data from backend:', response);
-      
-      // Handle different response formats
-      let productsData = [];
-      if (Array.isArray(response)) {
-        productsData = response;
-      } else if (response.products) {
-        productsData = response.products;
-      } else if (response.data) {
-        productsData = response.data;
+        // Fetch categories
+        const categoriesResponse = await getAllCategories();
+        setCategories(categoriesResponse);
+
+        // Transform the data to match the expected structure
+        const transformedProducts = productsData.map(product => ({
+          ...product,
+          productId: product.id || product.productId,
+          picture: product.imageUrl || product.picture,
+          stock: product.inStock || product.stock,
+          categoryId: product.categoryId || product.category,
+          price: Number(product.price) || 0,
+          rating: Number(product.rating) || 0,
+          numReviews: Number(product.numReviews) || 0,
+          popularity: Number(product.popularity) || 0,
+          categoryType: categoriesResponse.find(cat => cat.categoryId === (product.categoryId || product.category))?.categoryType || "Unknown Category"
+        }));
+
+        console.log('Transformed products:', transformedProducts);
+        setProducts(transformedProducts);
+      } catch (error) {
+        console.error('Error fetching data:', error);
       }
+    };
 
-      // Transform the data to match the expected structure
-      const transformedProducts = productsData.map(product => ({
-        ...product,
-        productId: product.id || product.productId, // Use id if productId doesn't exist
-        picture: product.imageUrl || product.picture, // Use imageUrl if picture doesn't exist
-        stock: product.inStock || product.stock, // Use inStock if stock doesn't exist
-        categoryId: product.categoryId || product.category, // Use category if categoryId doesn't exist
-        price: Number(product.price) || 0, // Ensure price is a number
-        rating: Number(product.rating) || 0, // Ensure rating is a number
-        numReviews: Number(product.numReviews) || 0 // Ensure numReviews is a number
-      }));
-
-      console.log('Transformed products:', transformedProducts);
-      setproducts(transformedProducts);
-    } catch (error) {
-      console.error('Error fetching products:', error);
-    }
-  };
-
-  fetchproducts();
-}, []);
+    fetchData();
+  }, []);
 
   // Get unique categories from products
-  const categories = useMemo(() => {
-    return Array.from(new Set(products.map(product => product.categoryId)));
-  }, [products]);
+  const uniqueCategories = useMemo(() => {
+    return categories.map(category => ({
+      id: category.categoryId,
+      name: category.categoryType
+    }));
+  }, [categories]);
   
   // Calculate min and max prices from products
   const { minPrice, maxPrice } = useMemo(() => {
@@ -409,7 +425,7 @@ useEffect(() => {
       minPrice: Math.floor(Math.min(...prices)),
       maxPrice: Math.ceil(Math.max(...prices))
     };
-  }, []);
+  }, [products]);
   
   const [priceRange, setPriceRange] = useState<[number, number]>([minPrice, maxPrice]);
   
@@ -504,9 +520,9 @@ useEffect(() => {
           {/* Sidebar with filters */}
           <div className="md:w-1/4 lg:w-1/5">
             <FilterSidebar
-              categories={categories}
-              selectedCategory={selectedCategory}
-              onCategoryChange={setSelectedCategory}
+              categories={uniqueCategories.map(cat => cat.name)}
+              selectedCategory={selectedCategory?.toString() || null}
+              onCategoryChange={(category) => setSelectedCategory(category ? parseInt(category) : null)}
               priceRange={priceRange}
               onPriceRangeChange={setPriceRange}
               inStockOnly={inStockOnly}
@@ -549,7 +565,7 @@ useEffect(() => {
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {sortedproducts.map((product) => (
-                <ProductCard key={product.productId} product={product} />
+                  <ProductCard key={product.productId} product={product} />
                 ))}
               </div>
             )}

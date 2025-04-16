@@ -1,41 +1,39 @@
-
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import ProductCard from '../components/ProductCard';
 import '../styles/HomePage.css';
-
-const featuredProducts = [
-  {
-    id: 1,
-    name: 'Sumatra Dark Roast',
-    price: 16.99,
-    description: 'Bold, earthy flavors with low acidity and a smooth finish.',
-    inStock: true
-  },
-  {
-    id: 2,
-    name: 'Ethiopia Light Roast',
-    price: 18.99,
-    description: 'Bright and fruity with notes of blueberry and citrus.',
-    inStock: true
-  },
-  {
-    id: 3,
-    name: 'Colombia Medium Roast',
-    price: 15.99,
-    description: 'Sweet caramel notes with a hint of nuttiness and cocoa.',
-    inStock: false
-  },
-  {
-    id: 4,
-    name: 'Driftmood Espresso Blend',
-    price: 17.99,
-    description: 'Rich, full-bodied blend perfect for espresso machines.',
-    inStock: true
-  }
-];
+import { getAllProducts } from '../api/productApi';
 
 const HomePage = () => {
+  const [featuredProducts, setFeaturedProducts] = useState([]);
+
+  useEffect(() => {
+    const fetchAndSetRandomProducts = async () => {
+      try {
+        const response = await getAllProducts();
+        const products = response.products || response.data || response;
+        
+        // Function to get random products
+        const getRandomProducts = (products, count) => {
+          const shuffled = [...products].sort(() => 0.5 - Math.random());
+          return shuffled.slice(0, count);
+        };
+
+        const randomProducts = getRandomProducts(products, 4);
+        // Ensure each product has a consistent ID field
+        const processedProducts = randomProducts.map(product => ({
+          ...product,
+          productId: product.id || product.productId // Use id if productId doesn't exist
+        }));
+        setFeaturedProducts(processedProducts);
+      } catch (error) {
+        console.error('Error fetching products:', error);
+      }
+    };
+
+    fetchAndSetRandomProducts();
+  }, []);
+
   return (
     <div className="home-page">
       <section className="hero-section">
@@ -84,7 +82,7 @@ const HomePage = () => {
           <h2 className="section-title">Featured Products</h2>
           <div className="products-grid">
             {featuredProducts.map(product => (
-              <ProductCard key={product.id} product={product} />
+              <ProductCard key={product.productId} product={product} />
             ))}
           </div>
           <div className="view-all-link">

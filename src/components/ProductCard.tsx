@@ -16,6 +16,7 @@ interface Product {
   numReviews: number;
   stock: boolean;
   categoryId: number;
+  categoryType: string;
   popularity?: number;
   badges?: string[];
   longDescription?: string;
@@ -35,24 +36,29 @@ interface ProductCardProps {
   product: Product;
 }
 
-const getCategoryName = (categoryId: number): string => {
-  switch (categoryId) {
-    case 1:
-      return "Coffee Beans";
-    case 2:
-      return "Brewing Equipment";
-    case 3:
-      return "Accessories";
-    case 4:
-      return "Gift Sets";
-    default:
-      return "Unknown Category";
-  }
+const getStarRatingFromPopularity = (popularity: number): number => {
+  if (popularity <= 20) return 1;
+  if (popularity <= 40) return 2;
+  if (popularity <= 60) return 3;
+  if (popularity <= 80) return 4;
+  return 5;
 };
 
 const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const { toast } = useToast();
-  const { productId, name, price, description, stock, picture, categoryId, rating, numReviews, badges } = product;
+  const {
+    productId,
+    name,
+    description,
+    price,
+    picture,
+    rating,
+    numReviews,
+    stock,
+    categoryId,
+    categoryType,
+    badges
+  } = product;
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -92,7 +98,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                 </span>
               </div>
             )}
-            {product.badges?.includes("Best Seller") && (
+            {badges?.includes("Best Seller") && (
               <Badge 
                 variant="outline" 
                 className="absolute top-3 left-3 z-10 bg-yellow-100 border-yellow-300 text-yellow-800 px-2 py-1 text-[10px] font-bold rounded-full flex items-center gap-1"
@@ -106,7 +112,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                 variant="outline" 
                 className="bg-driftmood-lightlime border-driftmood-lime text-driftmood-dark px-2 py-1 text-[10px] font-bold rounded-full"
               >
-                {getCategoryName(categoryId)}
+                {categoryType || "Unknown Category"}
               </Badge>
             </div>
           </div>
@@ -122,9 +128,9 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                     key={star}
                     size={16}
                     className={cn(
-                      star <= Math.round(rating) ? "rating-star-filled" : "rating-star"
+                      star <= getStarRatingFromPopularity(product.popularity) ? "rating-star-filled" : "rating-star"
                     )}
-                    fill={star <= Math.round(rating) ? "currentColor" : "none"}
+                    fill={star <= getStarRatingFromPopularity(product.popularity) ? "currentColor" : "none"}
                   />
                 ))}
               </div>

@@ -5,59 +5,81 @@ import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import '../ProductDetailPage.css';
 import { getAllProducts } from '@/api/productApi';
+import { getAllCategories } from '@/api/categoryApi';
 import { useEffect, useState } from 'react';
+
+const getStarRatingFromPopularity = (popularity: number): number => {
+  if (popularity <= 20) return 1;
+  if (popularity <= 40) return 2;
+  if (popularity <= 60) return 3;
+  if (popularity <= 80) return 4;
+  return 5;
+};
 
 const ProductDetailPage = () => {
   const { id } = useParams();
   const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [activeTab, setActiveTab] = React.useState('description');
   const [quantity, setQuantity] = React.useState(1);
   const { toast } = useToast();
 
   useEffect(() => {
-    console.log('Component mounted, starting to fetch products...');
-    
-    const fetchProducts = async () => {
-      console.log('Starting fetchProducts function...');
+    const fetchData = async () => {
       try {
-        console.log('Calling getAllProducts API...');
-        const response = await getAllProducts();
-        console.log('API Response:', response);
+        // Fetch products
+        const productsResponse = await getAllProducts();
+        console.log('API Response:', productsResponse);
         
-        if (!response) {
+        if (!productsResponse) {
           console.error('No response from API');
           return;
         }
 
         // Handle different response formats
         let productsData = [];
-        if (Array.isArray(response)) {
-          productsData = response;
-        } else if (response.products) {
-          productsData = response.products;
-        } else if (response.data) {
-          productsData = response.data;
+        if (Array.isArray(productsResponse)) {
+          productsData = productsResponse;
+        } else if (productsResponse.products) {
+          productsData = productsResponse.products;
+        } else if (productsResponse.data) {
+          productsData = productsResponse.data;
         }
 
-        console.log('Processed products data:', productsData);
-        setProducts(productsData);
+        // Transform the data to match the expected structure
+        const transformedProducts = productsData.map(product => ({
+          ...product,
+          productId: product.id || product.productId,
+          picture: product.imageUrl || product.picture,
+          stock: product.inStock || product.stock,
+          categoryId: product.categoryId || product.category,
+          price: Number(product.price) || 0,
+          popularity: Number(product.popularity) || 0
+        }));
+
+        console.log('Transformed products:', transformedProducts);
+        setProducts(transformedProducts);
+
+        // Fetch categories
+        const categoriesResponse = await getAllCategories();
+        setCategories(categoriesResponse);
       } catch (error) {
-        console.error('Detailed error in fetchProducts:', error);
+        console.error('Error fetching data:', error);
         toast({
           title: "Error",
-          description: "Failed to load products",
+          description: "Failed to load data",
           variant: "destructive",
         });
       }
     };
 
-    fetchProducts();
+    fetchData();
   }, []);
 
   console.log('Rendering with products:', products);
   console.log('Current ID from URL:', id);
   
-  const product = products.find((p) => p.id === parseInt(id || '', 10));
+  const product = products.find((p) => p.productId === parseInt(id || '', 10));
   console.log('Found product:', product);
 
   if (!product) {
@@ -92,6 +114,11 @@ const ProductDetailPage = () => {
     }
   ];
 
+  const getCategoryName = (categoryId: number): string => {
+    const category = categories.find(cat => cat.categoryId === categoryId);
+    return category ? category.categoryType : "Unknown Category";
+  };
+
   return (
     <div className="min-h-screen bg-driftmood-cream p-8">
       <div className="max-w-6xl mx-auto bg-white rounded-xl shadow-md p-6">
@@ -112,20 +139,20 @@ const ProductDetailPage = () => {
                   key={star}
                   size={18}
                   className={cn(
-                    star <= Math.round(product.rating) ? "rating-star-filled" : "rating-star"
+                    star <= getStarRatingFromPopularity(product.popularity) ? "rating-star-filled" : "rating-star"
                   )}
-                  fill={star <= Math.round(product.rating) ? "currentColor" : "none"}
+                  fill={star <= getStarRatingFromPopularity(product.popularity) ? "currentColor" : "none"}
                 />
               ))}
               <span className="text-sm text-driftmood-brown">
-                {product.rating.toFixed(1)} ({product.numReviews})
+                {getStarRatingFromPopularity(product.popularity).toFixed(1)} ({product.numReviews})
               </span>
             </div>
 
             <div className="text-xl font-bold">${product.price.toFixed(2)}</div>
 
             <div className="flex gap-2 flex-wrap">
-              <span className="chip bg-driftmood-lime text-driftmood-dark">{product.categoryId}</span>
+              <span className="chip bg-driftmood-lime text-driftmood-dark">{getCategoryName(product.categoryId)}</span>
               {product.origin && (
                 <span className="chip bg-driftmood-cream text-driftmood-brown">Origin: {product.origin}</span>
               )}
