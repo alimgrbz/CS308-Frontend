@@ -2,13 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import Logo from './Logo';
 import SearchBar from './SearchBar';
+import { User } from 'lucide-react';
 import '../styles/Navbar.css';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const location = useLocation();
 
-  // Function to get cart items from localStorage
   const getCartItems = () => {
     const storedItems = localStorage.getItem('cartItems');
     return storedItems ? JSON.parse(storedItems) : [];
@@ -23,6 +24,12 @@ const Navbar = () => {
       setCartItemCount(getCartItems().length);
     };
 
+    const checkLoginStatus = () => {
+      const token = localStorage.getItem('token');
+      setIsLoggedIn(!!token);
+    };
+
+    checkLoginStatus();
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
   }, [location.pathname]);
@@ -39,44 +46,42 @@ const Navbar = () => {
             />
           </Link>
         </div>
-        
+
         <div className="nav-menu-container">
           <div className="mobile-toggle" onClick={() => setIsOpen(!isOpen)}>
             <span></span>
             <span></span>
             <span></span>
           </div>
-          
+
           <ul className={`nav-menu ${isOpen ? 'active' : ''}`}>
-            <li className="nav-item">
-              <Link to="/" className="nav-link">Home</Link>
-            </li>
-            <li className="nav-item">
-              <Link to="/products" className="nav-link">Shop</Link>
-            </li>
-            <li className="nav-item">
-              <Link to="/about" className="nav-link">About</Link>
-            </li>
-            <li className="nav-item">
-              <Link to="/contact" className="nav-link">Contact</Link>
-            </li>
+            <li className="nav-item"><Link to="/" className="nav-link">Home</Link></li>
+            <li className="nav-item"><Link to="/products" className="nav-link">Shop</Link></li>
+            <li className="nav-item"><Link to="/about" className="nav-link">About</Link></li>
+            <li className="nav-item"><Link to="/contact" className="nav-link">Contact</Link></li>
           </ul>
-          
+
           <SearchBar />
-          
+
           <div className="nav-actions">
-            <Link to="/login" className="nav-icon login-icon">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" 
-                viewBox="0 0 24 24" fill="none" stroke="currentColor" 
-                strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                <circle cx="12" cy="7" r="4"></circle>
-              </svg>
-            </Link>
+            {isLoggedIn ? (
+              <a
+                href="http://localhost:8080/profile"
+                className="p-2 rounded-full hover:bg-coffee-green/10 transition-colors"
+              >
+                <User size={24} className="text-coffee-brown" />
+              </a>
+            ) : (
+              <Link to="/login" className="nav-icon login-button">
+                <button className="bg-forest-green text-white px-4 py-2 rounded-md hover:bg-dark-green transition-colors">
+                  Login
+                </button>
+              </Link>
+            )}
 
             <Link to="/cart" className="nav-icon cart-icon relative">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" 
-                viewBox="0 0 24 24" fill="none" stroke="currentColor" 
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                viewBox="0 0 24 24" fill="none" stroke="currentColor"
                 strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="9" cy="21" r="1"></circle>
                 <circle cx="20" cy="21" r="1"></circle>

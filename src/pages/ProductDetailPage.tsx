@@ -1,22 +1,74 @@
 import React from 'react';
 import { useParams } from 'react-router-dom';
-import { PRODUCTS } from './ProductIndex';
 import { Star, ShoppingCart, BarChart3 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import '../ProductDetailPage.css';
+import { getAllProducts } from '@/api/productApi';
+import { useEffect, useState } from 'react';
 
 const ProductDetailPage = () => {
   const { id } = useParams();
-  const product = PRODUCTS.find((p) => p.id === parseInt(id || '', 10));
+  const [products, setProducts] = useState([]);
   const [activeTab, setActiveTab] = React.useState('description');
   const [quantity, setQuantity] = React.useState(1);
   const { toast } = useToast();
+
+  useEffect(() => {
+    console.log('Component mounted, starting to fetch products...');
+    
+    const fetchProducts = async () => {
+      console.log('Starting fetchProducts function...');
+      try {
+        console.log('Calling getAllProducts API...');
+        const response = await getAllProducts();
+        console.log('API Response:', response);
+        
+        if (!response) {
+          console.error('No response from API');
+          return;
+        }
+
+        // Handle different response formats
+        let productsData = [];
+        if (Array.isArray(response)) {
+          productsData = response;
+        } else if (response.products) {
+          productsData = response.products;
+        } else if (response.data) {
+          productsData = response.data;
+        }
+
+        console.log('Processed products data:', productsData);
+        setProducts(productsData);
+      } catch (error) {
+        console.error('Detailed error in fetchProducts:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load products",
+          variant: "destructive",
+        });
+      }
+    };
+
+    fetchProducts();
+  }, []);
+
+  console.log('Rendering with products:', products);
+  console.log('Current ID from URL:', id);
+  
+  const product = products.find((p) => p.id === parseInt(id || '', 10));
+  console.log('Found product:', product);
 
   if (!product) {
     return (
       <div className="text-center py-10">
         <h2 className="text-xl font-semibold">Product not found</h2>
+        <p className="text-gray-500">ID: {id}</p>
+        <p className="text-gray-500">Available products: {products.length}</p>
+        <pre className="text-left mt-4 p-4 bg-gray-100 rounded">
+          {JSON.stringify(products, null, 2)}
+        </pre>
       </div>
     );
   }
@@ -46,7 +98,7 @@ const ProductDetailPage = () => {
         <div className="flex flex-col md:flex-row gap-8">
           {/* Image */}
           <div className="md:w-1/2">
-            <img src={product.image} alt={product.name} className="w-full rounded-lg object-cover" />
+            <img src={product.picture} alt={product.name} className="w-full rounded-lg object-cover" />
           </div>
 
           {/* Info */}
@@ -73,14 +125,14 @@ const ProductDetailPage = () => {
             <div className="text-xl font-bold">${product.price.toFixed(2)}</div>
 
             <div className="flex gap-2 flex-wrap">
-              <span className="chip bg-driftmood-lime text-driftmood-dark">{product.category}</span>
+              <span className="chip bg-driftmood-lime text-driftmood-dark">{product.categoryId}</span>
               {product.origin && (
                 <span className="chip bg-driftmood-cream text-driftmood-brown">Origin: {product.origin}</span>
               )}
               {product.roastLevel && (
                 <span className="chip bg-driftmood-cream text-driftmood-brown">Roast: {product.roastLevel}</span>
               )}
-              {product.inStock ? (
+              {product.stock ? (
                 <span className="chip bg-green-100 text-green-800">In Stock</span>
               ) : (
                 <span className="chip bg-red-100 text-red-800">Out of Stock</span>
@@ -114,9 +166,9 @@ const ProductDetailPage = () => {
               <button
                 className={cn(
                   "btn-primary flex-1 flex items-center justify-center",
-                  !product.inStock && "opacity-50 cursor-not-allowed"
+                  !product.stock && "opacity-50 cursor-not-allowed"
                 )}
-                disabled={!product.inStock}
+                disabled={!product.stock}
                 onClick={() => {
                   toast({
                     title: "Added to cart",
@@ -126,7 +178,7 @@ const ProductDetailPage = () => {
                 }}
               >
                 <ShoppingCart size={18} className="mr-2" />
-                {product.inStock ? "Add to Cart" : "Sold Out"}
+                {product.stock ? "Add to Cart" : "Sold Out"}
               </button>
             </div>
           </div>
@@ -170,6 +222,30 @@ const ProductDetailPage = () => {
                 <h4 className="font-medium">Origin</h4>
                 <p className="text-sm">{product.origin}</p>
               </div>
+              {product.distributor && (
+                <div>
+                  <h4 className="font-medium">Distributor</h4>
+                  <p className="text-sm">{product.distributor}</p>
+                </div>
+              )}
+              {product.warrantyStatus && (
+                <div>
+                  <h4 className="font-medium">Warranty</h4>
+                  <p className="text-sm">{product.warrantyStatus}</p>
+                </div>
+              )}
+              {product.serialNumber && (
+                <div>
+                  <h4 className="font-medium">Serial Number</h4>
+                  <p className="text-sm">{product.serialNumber}</p>
+                </div>
+              )}
+              {product.model && (
+                <div>
+                  <h4 className="font-medium">Model</h4>
+                  <p className="text-sm">{product.model}</p>
+                </div>
+              )}
             </div>
           )}
 

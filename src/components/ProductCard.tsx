@@ -7,32 +7,58 @@ import { cn } from '@/lib/utils';
 import '../styles/ProductCard.css';
 
 interface Product {
-  id: number;
+  productId: number;
   name: string;
   description: string;
   price: number;
-  image: string;
+  picture: string;
   rating: number;
   numReviews: number;
-  inStock: boolean;
-  category: string;
+  stock: boolean;
+  categoryId: number;
   popularity?: number;
   badges?: string[];
+  longDescription?: string;
+  ingredients?: string[];
+  roastLevel?: string;
+  origin?: string;
+  distributor?: string;
+  discount?: number;
+  status?: string;
+  warrantyStatus?: string;
+  costRatio?: number;
+  serialNumber?: string;
+  model?: string;
 }
 
 interface ProductCardProps {
   product: Product;
 }
 
+const getCategoryName = (categoryId: number): string => {
+  switch (categoryId) {
+    case 1:
+      return "Coffee Beans";
+    case 2:
+      return "Brewing Equipment";
+    case 3:
+      return "Accessories";
+    case 4:
+      return "Gift Sets";
+    default:
+      return "Unknown Category";
+  }
+};
+
 const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const { toast } = useToast();
-  const { id, name, price, description, inStock, image, category, rating, numReviews, badges } = product;
+  const { productId, name, price, description, stock, picture, categoryId, rating, numReviews, badges } = product;
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     
-    if (!inStock) {
+    if (!stock) {
       toast({
         title: "Product unavailable",
         description: "This item is currently out of stock.",
@@ -49,17 +75,17 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   };
 
   return (
-    <div className={`product-card ${!inStock ? 'out-of-stock' : ''}`}>
+    <div className={`product-card ${!stock ? 'out-of-stock' : ''}`}>
       <div className="product-content">
-        <Link to={`/product/${id}`}>
+        <Link to={`/product/${productId}`}>
           <div className="relative overflow-hidden">
             <img 
-              src={image} 
+              src={picture} 
               alt={name}
               className="w-full h-64 object-cover"
               loading="lazy"
             />
-            {!inStock && (
+            {!stock && (
               <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
                 <span className="bg-driftmood-dark text-white px-4 py-2 rounded-md font-medium">
                   Out of Stock
@@ -80,7 +106,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                 variant="outline" 
                 className="bg-driftmood-lightlime border-driftmood-lime text-driftmood-dark px-2 py-1 text-[10px] font-bold rounded-full"
               >
-                {category}
+                {getCategoryName(categoryId)}
               </Badge>
             </div>
           </div>
@@ -114,11 +140,11 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
       
       <button 
         className="add-to-cart-btn flex items-center justify-center mt-auto" 
-        disabled={!inStock}
+        disabled={!stock}
         onClick={handleAddToCart}
       >
         <ShoppingCart size={18} className="mr-2" />
-        {inStock ? 'Add to Cart' : 'Out of Stock'}
+        {stock ? 'Add to Cart' : 'Out of Stock'}
       </button>
     </div>
   );

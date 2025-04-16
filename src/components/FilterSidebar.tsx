@@ -2,9 +2,9 @@ import React from 'react';
 import { Filter, Tag, Coffee, Coffee as CoffeeIcon, PieChart, Sliders } from 'lucide-react';
 
 interface FilterSidebarProps {
-  categories: string[];
-  selectedCategory: string | null;
-  onCategoryChange: (category: string | null) => void;
+  categories: number[];
+  selectedCategory: number | null;
+  onCategoryChange: (category: number | null) => void;
   priceRange: [number, number];
   onPriceRangeChange: (range: [number, number]) => void;
   inStockOnly: boolean;
@@ -34,6 +34,21 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
   maxPrice,
   coffeeOrigins,
 }) => {
+  const getCategoryName = (categoryId: number): string => {
+    switch (categoryId) {
+      case 1:
+        return "Coffee Beans";
+      case 2:
+        return "Brewing Equipment";
+      case 3:
+        return "Accessories";
+      case 4:
+        return "Gift Sets";
+      default:
+        return "Unknown Category";
+    }
+  };
+
   return (
     <div className="bg-white border border-driftmood-lightlime rounded-xl p-5 h-fit sticky top-24">
       <div className="mb-6">
@@ -86,12 +101,12 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
               onClick={() => onCategoryChange(category)}
             >
               <div className="flex items-center">
-                {category === 'Coffee' ? (
+                {category === 1 ? (
                   <CoffeeIcon size={14} className="mr-2" />
                 ) : (
                   <Coffee size={14} className="mr-2" />
                 )}
-                {category}
+                {getCategoryName(category)}
               </div>
             </button>
           ))}
@@ -159,7 +174,7 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
         </div>
       </div>
 
-      {selectedCategory === "Coffee Beans" && (
+      {selectedCategory === 1 && (
         <>
         <div className="mb-6">
           <h4 className="font-medium text-sm mb-3">Roast Level</h4>
