@@ -133,7 +133,9 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
               </span>
             </div>
             
-            <div className="product-price">${price.toFixed(2)}</div>
+            <div className="product-price">
+              ${typeof price === 'number' ? price.toFixed(2) : '0.00'}
+            </div>
           </div>
         </Link>
       </div>

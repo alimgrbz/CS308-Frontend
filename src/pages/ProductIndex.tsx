@@ -359,12 +359,36 @@ const ProductIndex = () => {
   const [products, setproducts] = useState([]);
 
 
-useEffect (() => {
+useEffect(() => {
   const fetchproducts = async () => {
     try {
-      const data = await getAllProducts();
-      console.log('Products from backend:', data);
-      setproducts(data);
+      const response = await getAllProducts();
+      console.log('Raw products data from backend:', response);
+      
+      // Handle different response formats
+      let productsData = [];
+      if (Array.isArray(response)) {
+        productsData = response;
+      } else if (response.products) {
+        productsData = response.products;
+      } else if (response.data) {
+        productsData = response.data;
+      }
+
+      // Transform the data to match the expected structure
+      const transformedProducts = productsData.map(product => ({
+        ...product,
+        productId: product.id || product.productId, // Use id if productId doesn't exist
+        picture: product.imageUrl || product.picture, // Use imageUrl if picture doesn't exist
+        stock: product.inStock || product.stock, // Use inStock if stock doesn't exist
+        categoryId: product.categoryId || product.category, // Use category if categoryId doesn't exist
+        price: Number(product.price) || 0, // Ensure price is a number
+        rating: Number(product.rating) || 0, // Ensure rating is a number
+        numReviews: Number(product.numReviews) || 0 // Ensure numReviews is a number
+      }));
+
+      console.log('Transformed products:', transformedProducts);
+      setproducts(transformedProducts);
     } catch (error) {
       console.error('Error fetching products:', error);
     }
@@ -398,6 +422,7 @@ useEffect (() => {
   
   // Filter products based on search, category, price, and availability
   const filteredproducts = useMemo(() => {
+    console.log('Current products state:', products);
     let filtered = [...products];
 
     // Apply search filter
@@ -423,16 +448,18 @@ useEffect (() => {
       filtered = filtered.filter(product => product.origin === selectedOrigin);
     }
 
-    // Apply price filter
+    // Apply stock filter
     if (inStockOnly) {
       filtered = filtered.filter(product => product.stock);
     }
 
+    console.log('Filtered products:', filtered);
     return filtered;
-  }, [searchTerm, selectedCategory, selectedRoast, selectedOrigin, inStockOnly]);
+  }, [products, searchTerm, selectedCategory, selectedRoast, selectedOrigin, inStockOnly]);
   
   // Sort products
   const sortedproducts = useMemo(() => {
+    console.log('Filtered products before sorting:', filteredproducts);
     let filtered = [...filteredproducts];
 
     // Apply sorting
@@ -453,6 +480,7 @@ useEffect (() => {
         filtered.sort((a, b) => b.popularity - a.popularity);
     }
 
+    console.log('Sorted products:', filtered);
     return filtered;
   }, [filteredproducts, sortOption]);
 
