@@ -8,7 +8,8 @@ import { getAllProducts } from '@/api/productApi';
 import { getAllCategories } from '@/api/categoryApi';
 import { useEffect, useState } from 'react';
 import { addToCart } from '@/api/cartApi';
-import { addToLocalCart } from '@/utils/cartUtils'; // adjust path if needed
+import { addToLocalCart } from '@/utils/cartUtils';
+import { getRatingsByProduct } from '@/api/rateApi';
 
 const getStarRatingFromPopularity = (popularity: number): number => {
   if (popularity <= 20) return 1;
@@ -24,6 +25,8 @@ const ProductDetailPage = () => {
   const [categories, setCategories] = useState([]);
   const [activeTab, setActiveTab] = React.useState('description');
   const [quantity, setQuantity] = React.useState(1);
+  const [ratings, setRatings] = useState<number[]>([]);
+  const [averageRating, setAverageRating] = useState<number | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -47,6 +50,27 @@ const ProductDetailPage = () => {
         } else if (productsResponse.data) {
           productsData = productsResponse.data;
         }
+
+        if (id) {
+          try {
+            const ratingsResponse = await getRatingsByProduct(Number(id));
+          
+            const ratingValues = Array.isArray(ratingsResponse.ratings)
+              ? ratingsResponse.ratings.map((r) => Number(r.rate))
+              : [];
+          
+            setRatings(ratingValues);
+          
+            if (ratingValues.length > 0) {
+              const avg = ratingValues.reduce((sum, val) => sum + val, 0) / ratingValues.length;
+              setAverageRating(avg);
+            } else {
+              setAverageRating(null);
+            }
+          } catch (error) {
+            console.error("Error fetching ratings:", error);
+          }
+        }        
 
         // Transform the data to match the expected structure
         const transformedProducts = productsData.map(product => ({
@@ -76,7 +100,7 @@ const ProductDetailPage = () => {
     };
 
     fetchData();
-  }, []);
+  }, [id]);
 
   console.log('Rendering with products:', products);
   console.log('Current ID from URL:', id);
@@ -170,19 +194,19 @@ const ProductDetailPage = () => {
             <p className="text-driftmood-brown">{product.description}</p>
 
             <div className="flex items-center space-x-2">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <Star
-                  key={star}
-                  size={18}
-                  className={cn(
-                    star <= getStarRatingFromPopularity(product.popularity) ? "rating-star-filled" : "rating-star"
-                  )}
-                  fill={star <= getStarRatingFromPopularity(product.popularity) ? "currentColor" : "none"}
-                />
-              ))}
-              <span className="text-sm text-driftmood-brown">
-                {getStarRatingFromPopularity(product.popularity).toFixed(1)} ({product.numReviews})
-              </span>
+            {[1, 2, 3, 4, 5].map((star) => (
+              <Star
+                key={star}
+                size={18}
+                className={cn(
+                  averageRating !== null && star <= Math.round(averageRating) ? "rating-star-filled" : "rating-star"
+                )}
+                fill={averageRating !== null && star <= Math.round(averageRating) ? "currentColor" : "none"}
+              />
+            ))}
+            <span className="text-sm text-driftmood-brown">
+              {averageRating !== null ? averageRating.toFixed(1) : 'No ratings yet'}
+            </span>
             </div>
 
             <div className="text-xl font-bold">${product.price.toFixed(2)}</div>
