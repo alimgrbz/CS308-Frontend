@@ -18,6 +18,7 @@ import Checkout from './pages/Checkout';
 import "./styles/colors.css";
 import "./styles/global.css";
 import ProductDetailPage from "./pages/ProductDetailPage";
+import { useEffect } from "react";
 
 const queryClient = new QueryClient();
 
@@ -48,5 +49,6 @@ const App = () => (
     </TooltipProvider>
   </QueryClientProvider>
 );
+
 
 export default App;

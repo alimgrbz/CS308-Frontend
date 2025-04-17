@@ -7,6 +7,9 @@ import '../ProductDetailPage.css';
 import { getAllProducts } from '@/api/productApi';
 import { getAllCategories } from '@/api/categoryApi';
 import { useEffect, useState } from 'react';
+import { addToCart } from '@/api/cartApi';
+import { addToLocalCart } from '@/utils/cartUtils';
+import { getRatingsByProduct } from '@/api/rateApi';
 
 const getStarRatingFromPopularity = (popularity: number): number => {
   if (popularity <= 20) return 1;
@@ -22,6 +25,8 @@ const ProductDetailPage = () => {
   const [categories, setCategories] = useState([]);
   const [activeTab, setActiveTab] = React.useState('description');
   const [quantity, setQuantity] = React.useState(1);
+  const [ratings, setRatings] = useState<number[]>([]);
+  const [averageRating, setAverageRating] = useState<number | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -45,6 +50,27 @@ const ProductDetailPage = () => {
         } else if (productsResponse.data) {
           productsData = productsResponse.data;
         }
+
+        if (id) {
+          try {
+            const ratingsResponse = await getRatingsByProduct(Number(id));
+          
+            const ratingValues = Array.isArray(ratingsResponse.ratings)
+              ? ratingsResponse.ratings.map((r) => Number(r.rate))
+              : [];
+          
+            setRatings(ratingValues);
+          
+            if (ratingValues.length > 0) {
+              const avg = ratingValues.reduce((sum, val) => sum + val, 0) / ratingValues.length;
+              setAverageRating(avg);
+            } else {
+              setAverageRating(null);
+            }
+          } catch (error) {
+            console.error("Error fetching ratings:", error);
+          }
+        }        
 
         // Transform the data to match the expected structure
         const transformedProducts = productsData.map(product => ({
@@ -74,7 +100,7 @@ const ProductDetailPage = () => {
     };
 
     fetchData();
-  }, []);
+  }, [id]);
 
   console.log('Rendering with products:', products);
   console.log('Current ID from URL:', id);
@@ -119,6 +145,40 @@ const ProductDetailPage = () => {
     return category ? category.categoryType : "Unknown Category";
   };
 
+  const handleAddToCart = async () => {
+    if (!product.stock) return;
+  
+    const token = localStorage.getItem('token');
+    console.log('Token in handleAddToCart:', token); // <--- this should be null
+
+    try {
+      if (token) {
+        await addToCart(token, [{ productId: product.productId, quantity }]);
+      } else {
+        addToLocalCart({
+          productId: product.productId,
+          name: product.name,
+          price: product.price,
+          picture: product.picture,
+          quantity,
+        });
+      }
+      window.dispatchEvent(new Event('cart-updated'));
+      toast({
+        title: "Added to cart",
+        description: `${product.name} (x${quantity}) has been added to your cart.`,
+        duration: 3000,
+      });
+    } catch (error) {
+      console.error("Add to cart error:", error);
+      toast({
+        title: "Error",
+        description: "Could not add item to cart.",
+        variant: "destructive",
+      });
+    }
+  };
+  
   return (
     <div className="min-h-screen bg-driftmood-cream p-8">
       <div className="max-w-6xl mx-auto bg-white rounded-xl shadow-md p-6">
@@ -134,19 +194,19 @@ const ProductDetailPage = () => {
             <p className="text-driftmood-brown">{product.description}</p>
 
             <div className="flex items-center space-x-2">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <Star
-                  key={star}
-                  size={18}
-                  className={cn(
-                    star <= getStarRatingFromPopularity(product.popularity) ? "rating-star-filled" : "rating-star"
-                  )}
-                  fill={star <= getStarRatingFromPopularity(product.popularity) ? "currentColor" : "none"}
-                />
-              ))}
-              <span className="text-sm text-driftmood-brown">
-                {getStarRatingFromPopularity(product.popularity).toFixed(1)} ({product.numReviews})
-              </span>
+            {[1, 2, 3, 4, 5].map((star) => (
+              <Star
+                key={star}
+                size={18}
+                className={cn(
+                  averageRating !== null && star <= Math.round(averageRating) ? "rating-star-filled" : "rating-star"
+                )}
+                fill={averageRating !== null && star <= Math.round(averageRating) ? "currentColor" : "none"}
+              />
+            ))}
+            <span className="text-sm text-driftmood-brown">
+              {averageRating !== null ? averageRating.toFixed(1) : 'No ratings yet'}
+            </span>
             </div>
 
             <div className="text-xl font-bold">${product.price.toFixed(2)}</div>
@@ -196,13 +256,7 @@ const ProductDetailPage = () => {
                   !product.stock && "opacity-50 cursor-not-allowed"
                 )}
                 disabled={!product.stock}
-                onClick={() => {
-                  toast({
-                    title: "Added to cart",
-                    description: `${product.name} (x${quantity}) has been added to your cart.`,
-                    duration: 3000,
-                  });
-                }}
+                onClick={handleAddToCart}
               >
                 <ShoppingCart size={18} className="mr-2" />
                 {product.stock ? "Add to Cart" : "Sold Out"}

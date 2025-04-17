@@ -5,12 +5,32 @@ import Navbar from '@/components/Navbar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ButtonCustom } from '@/components/ui/button-custom';
 import { Package, ShoppingBag, UserRound, Settings, LogOut, Star, Repeat } from 'lucide-react';
+import { useEffect } from 'react';
+import { getUserProfile } from '@/api/userApi'; // adjust path if needed
+
 
 const Profile = () => {
-  const [userName] = useState('Coffee Lover');
-  const [email] = useState('coffee@example.com');
+  const [userName, setUserName] = useState('');
+  const [email, setEmail] = useState('');
   const [activeTab, setActiveTab] = useState('all');
   const navigate = useNavigate();
+
+  useEffect(() => {
+  const fetchUserData = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    try {
+      const user = await getUserProfile(token);
+      setUserName(user.name);
+      setEmail(user.email);
+    } catch (error) {
+      console.error('Failed to fetch user info:', error);
+    }
+  };
+
+  fetchUserData();
+}, []);
 
   const handleSignOut = () => {
     localStorage.removeItem('token');
@@ -96,63 +116,7 @@ const Profile = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.4 }}
         >
-          <Card className="bg-white shadow-sm">
-            <CardHeader>
-              <CardTitle className="text-xl font-serif text-coffee-green mb-2">Orders</CardTitle>
-              <div className="flex gap-2 mt-2">
-                {['all', 'ongoing', 'past'].map(tab => (
-                  <button
-                    key={tab}
-                    className={`px-4 py-1.5 rounded-md font-medium text-sm ${
-                      activeTab === tab
-                        ? 'bg-coffee-green text-white'
-                        : 'bg-coffee-green-light/20 text-coffee-brown'
-                    }`}
-                    onClick={() => setActiveTab(tab)}
-                  >
-                    {tab === 'all' ? 'All Orders' : tab === 'ongoing' ? 'Ongoing Orders' : 'Past Orders'}
-                  </button>
-                ))}
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {filteredOrders.length > 0 ? (
-                  filteredOrders.map(order => (
-                    <div key={order.id} className="border border-coffee-green/10 rounded-md p-4">
-                      <div className="flex justify-between mb-2">
-                        <span className="text-sm text-coffee-brown">Order #{order.id}</span>
-                        <span className="text-sm font-medium text-coffee-green">{order.date}</span>
-                      </div>
-                      <div className="flex justify-between mb-2">
-                        <span className="font-medium text-coffee-brown">Items: {order.items}</span>
-                        <span className="font-medium text-coffee-green">${order.total.toFixed(2)}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span 
-                          className={`px-3 py-1 rounded-full text-xs font-medium ${statusColors[order.status]}`}
-                        >
-                          {order.status}
-                        </span>
-                        <Link to={`/past-orders#${order.id}`}>
-                          <ButtonCustom size="sm" variant="ghost">
-                            Details
-                          </ButtonCustom>
-                        </Link>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center p-6">
-                    <p className="text-coffee-brown mb-4">You haven't placed any orders yet.</p>
-                    <Link to="/shop">
-                      <ButtonCustom>Browse Products</ButtonCustom>
-                    </Link>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+
         </motion.div>
       </div>
     </div>
