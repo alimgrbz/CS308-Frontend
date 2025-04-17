@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import CartItem from '@/components/CartItem';
 import CartSummary from '@/components/CartSummary';
 import { ButtonCustom } from '@/components/ui/button-custom';
-import { getCart, removeCartItem } from '@/api/cartApi'; 
+import { getCart, removeCartItem, addToCart } from '@/api/cartApi'; 
 
 
 
@@ -178,12 +178,38 @@ const Cart = () => {
   }
 };
 
-  const handleQuantityChange = (id: string, newQuantity: number) => {
-    setCartItems(prevItems => 
-      prevItems.map(item => 
-        item.id === id ? { ...item, quantity: newQuantity } : item
-      )
-    );
+  const handleQuantityChange = async (productId: string, newQuantity: number) => {
+    if (!token) return;
+
+    const item = cartItems.find(item => item.product.id.toString() === productId);
+    if (!item) return;
+
+    const currentQuantity = item.count;
+
+    console.log("+ or - operation!");
+    try {
+      if (newQuantity > currentQuantity) {
+        // User clicked '+'
+        await addToCart(token, [
+          { productId: Number(productId), quantity: 1 }
+        ]);
+      } else if (newQuantity < currentQuantity) {
+        // User clicked '−'
+        await removeCartItem(token, Number(productId), 1);
+      }
+
+      // Update frontend
+      setCartItems(prevItems =>
+        prevItems.map(item =>
+          item.product.id.toString() === productId
+            ? { ...item, count: newQuantity }
+            : item
+        )
+      );
+    } catch (err) {
+      console.error('Failed to sync quantity:', err);
+      toast.error('Failed to update cart');
+    }
   };
 
   const handleClearCart = () => {
