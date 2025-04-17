@@ -7,6 +7,8 @@ import '../ProductDetailPage.css';
 import { getAllProducts } from '@/api/productApi';
 import { getAllCategories } from '@/api/categoryApi';
 import { useEffect, useState } from 'react';
+import { addToCart } from '@/api/cartApi';
+import { addToLocalCart } from '@/utils/cartUtils'; // adjust path if needed
 
 const getStarRatingFromPopularity = (popularity: number): number => {
   if (popularity <= 20) return 1;
@@ -119,6 +121,40 @@ const ProductDetailPage = () => {
     return category ? category.categoryType : "Unknown Category";
   };
 
+  const handleAddToCart = async () => {
+    if (!product.stock) return;
+  
+    const token = localStorage.getItem('token');
+    console.log('Token in handleAddToCart:', token); // <--- this should be null
+
+    try {
+      if (token) {
+        await addToCart(token, [{ productId: product.productId, quantity }]);
+      } else {
+        addToLocalCart({
+          productId: product.productId,
+          name: product.name,
+          price: product.price,
+          picture: product.picture,
+          quantity,
+        });
+      }
+  
+      toast({
+        title: "Added to cart",
+        description: `${product.name} (x${quantity}) has been added to your cart.`,
+        duration: 3000,
+      });
+    } catch (error) {
+      console.error("Add to cart error:", error);
+      toast({
+        title: "Error",
+        description: "Could not add item to cart.",
+        variant: "destructive",
+      });
+    }
+  };
+  
   return (
     <div className="min-h-screen bg-driftmood-cream p-8">
       <div className="max-w-6xl mx-auto bg-white rounded-xl shadow-md p-6">
@@ -196,13 +232,7 @@ const ProductDetailPage = () => {
                   !product.stock && "opacity-50 cursor-not-allowed"
                 )}
                 disabled={!product.stock}
-                onClick={() => {
-                  toast({
-                    title: "Added to cart",
-                    description: `${product.name} (x${quantity}) has been added to your cart.`,
-                    duration: 3000,
-                  });
-                }}
+                onClick={handleAddToCart}
               >
                 <ShoppingCart size={18} className="mr-2" />
                 {product.stock ? "Add to Cart" : "Sold Out"}

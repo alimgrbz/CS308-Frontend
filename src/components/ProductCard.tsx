@@ -4,6 +4,9 @@ import { useToast } from '@/hooks/use-toast';
 import { ShoppingCart, Star, Award } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { addToCart } from '../api/cartApi'; // adjust path if needed
+import { addToLocalCart } from '../utils/cartUtils'; // adjust path
+
 import '../styles/ProductCard.css';
 
 interface Product {
@@ -62,7 +65,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
 
   const starRating = getStarRatingFromPopularity(popularity);
 
-  const handleAddToCart = (e: React.MouseEvent) => {
+  const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     
@@ -75,11 +78,28 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
       return;
     }
     
-    toast({
-      title: "Added to cart",
-      description: `${name} has been added to your cart.`,
-      duration: 3000,
-    });
+    const token = localStorage.getItem('token');
+
+    try {
+      if (token) {
+        await addToCart(token, [{ productId, quantity: 1 }]);
+      } else {
+        addToLocalCart({ productId, name, price, picture });
+      }
+  
+      toast({
+        title: "Added to cart",
+        description: `${name} has been added to your cart.`,
+        duration: 3000,
+      });
+    } catch (err) {
+      console.error(err);
+      toast({
+        title: "Error",
+        description: "Could not add to cart. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
