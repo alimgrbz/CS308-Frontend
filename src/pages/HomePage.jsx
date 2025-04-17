@@ -3,31 +3,40 @@ import { Link } from 'react-router-dom';
 import ProductCard from '../components/ProductCard';
 import '../styles/HomePage.css';
 import { getAllProducts } from '../api/productApi';
+import { getAllCategories } from '../api/categoryApi';
 
 const HomePage = () => {
   const [featuredProducts, setFeaturedProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
 
   useEffect(() => {
     const fetchAndSetRandomProducts = async () => {
       try {
-        const response = await getAllProducts();
-        const products = response.products || response.data || response;
-        
-        // Function to get random products
+        const [productResponse, categoryResponse] = await Promise.all([
+          getAllProducts(),
+          getAllCategories()
+        ]);
+
+        const products = productResponse.products || productResponse.data || productResponse;
+        const categoriesMap = new Map(categoryResponse.map(cat => [cat.id, cat.name]));
+
         const getRandomProducts = (products, count) => {
           const shuffled = [...products].sort(() => 0.5 - Math.random());
           return shuffled.slice(0, count);
         };
 
         const randomProducts = getRandomProducts(products, 4);
-        // Ensure each product has a consistent ID field
         const processedProducts = randomProducts.map(product => ({
           ...product,
-          productId: product.id || product.productId // Use id if productId doesn't exist
+          productId: product.id || product.productId,
+          price: Number(product.price) || 0,
+          categoryType: categoriesMap.get(product.category_id) || "Unknown"
         }));
+
         setFeaturedProducts(processedProducts);
+        setCategories(categoryResponse);
       } catch (error) {
-        console.error('Error fetching products:', error);
+        console.error('Error fetching products or categories:', error);
       }
     };
 

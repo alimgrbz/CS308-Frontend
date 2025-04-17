@@ -6,7 +6,13 @@ import { toast } from 'sonner';
 import CartItem from '@/components/CartItem';
 import CartSummary from '@/components/CartSummary';
 import { ButtonCustom } from '@/components/ui/button-custom';
-import { getCart } from '@/api/cartApi'; 
+import { getCart, removeCartItem, addToCart, clearCart as clearCartAPI } from '@/api/cartApi'; 
+import {
+  removeFromLocalCart,
+  updateQuantityInLocalCart,
+  clearLocalCart,
+  getLocalCart
+} from '@/utils/cartUtils'; // adjust path if needed
 
 
 // Mock data for initial cart items - these will be replaced with localStorage items
@@ -143,8 +149,24 @@ const Cart = () => {
           toast.error('Failed to load cart');
         }
       } else {
-        // No token = not logged in = empty cart
-        setCartItems([]);
+        // Guest cart from localStorage
+        const guestCartRaw = localStorage.getItem('guest_cart');
+        if (guestCartRaw) {
+          const guestCart = JSON.parse(guestCartRaw);
+          const transformed = guestCart.map(item => ({
+            product: {
+              id: item.productId,
+              name: item.name,
+              price: item.price,
+              image: item.image,
+              grind: item.grind || null
+            },
+            count: item.quantity
+          }));
+          setCartItems(transformed);
+        } else {
+          setCartItems([]);
+        }
       }
       setIsLoading(false);
     };
@@ -161,21 +183,116 @@ const Cart = () => {
     window.dispatchEvent(new Event('storage'));
   }, [cartItems]);*/
 
-  const handleRemoveItem = (id: string) => {
-    setCartItems(prevItems => prevItems.filter(item => item.id !== id));
+  const handleRemoveItem = async (productId: string) => {
+    if (token) {
+      // Logged in user
+      const itemToRemove = cartItems.find(item => item.product.id.toString() === productId);
+      const quantity = itemToRemove?.count || 1;
+
+      try {
+        await removeCartItem(token, Number(productId), quantity); // 👈 important to send correct type
+        setCartItems(prev => prev.filter(item => item.product.id.toString() !== productId));
+        toast.success('Item removed from cart');
+      } catch (err) {
+        console.error(err);
+        toast.error('Failed to remove item');
+      }
+    }
+
+    else {
+      // Guest user
+      removeFromLocalCart(Number(productId));
+      const updated = getLocalCart();
+      setCartItems(
+        updated.map(item => ({
+          product: {
+            id: item.productId,
+            name: item.name,
+            price: item.price,
+            image: item.image,
+            grind: item.grind
+          },
+          count: item.quantity
+        }))
+      );
+      toast.success('Item removed from cart');
+    }
+    window.dispatchEvent(new Event('cart-updated'));
   };
 
-  const handleQuantityChange = (id: string, newQuantity: number) => {
-    setCartItems(prevItems => 
-      prevItems.map(item => 
-        item.id === id ? { ...item, quantity: newQuantity } : item
-      )
-    );
+
+
+
+  const handleQuantityChange = async (productId: string, newQuantity: number) => {
+    if (token) {
+      const item = cartItems.find(item => item.product.id.toString() === productId);
+      if (!item) return;
+
+      const currentQuantity = item.count;
+
+      console.log("+ or - operation!");
+      try {
+        if (newQuantity > currentQuantity) {
+          // User clicked '+'
+          await addToCart(token, [
+            { productId: Number(productId), quantity: 1 }
+          ]);
+        } else if (newQuantity < currentQuantity) {
+          // User clicked '−'
+          await removeCartItem(token, Number(productId), 1);
+        }
+
+        // Update frontend
+        setCartItems(prevItems =>
+          prevItems.map(item =>
+            item.product.id.toString() === productId
+              ? { ...item, count: newQuantity }
+              : item
+          )
+        );
+      } catch (err) {
+        console.error('Failed to sync quantity:', err);
+        toast.error('Failed to update cart');
+      }
+    } 
+
+  else {
+      // Guest user
+      updateQuantityInLocalCart(Number(productId), newQuantity);
+      const updated = getLocalCart();
+      setCartItems(
+        updated.map(item => ({
+          product: {
+            id: item.productId,
+            name: item.name,
+            price: item.price,
+            image: item.image,
+            grind: item.grind
+          },
+          count: item.quantity
+        }))
+      );
+    }
+    window.dispatchEvent(new Event('cart-updated'));
   };
 
-  const handleClearCart = () => {
-    setCartItems([]);
-    toast.success('Cart cleared');
+  const handleClearCart = async () => {
+    if (token) {
+      try {
+            await clearCartAPI(token); // clear backend
+            setCartItems([]);          // update frontend
+            toast.success('Cart cleared');
+          } catch (err) {
+            console.error('Error clearing cart:', err);
+            toast.error('Failed to clear cart');
+          }
+    }
+    else {
+        clearLocalCart();
+        setCartItems([]);
+        toast.success('Cart cleared');
+      }
+      window.dispatchEvent(new Event('cart-updated'));
   };
 
   const handleCheckout = () => {
@@ -184,7 +301,11 @@ const Cart = () => {
   };
 
   // Calculate cart totals
-  const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const subtotal = cartItems.reduce((sum, item) => {
+    const price = Number(item.product.price) || 0;
+    const quantity = item.count || 0;
+    return sum + price * quantity;
+  }, 0);
   const tax = subtotal * 0.08; // 8% tax rate
   const shipping = subtotal > 35 ? 0 : 5.99;
   const total = subtotal + tax + shipping;

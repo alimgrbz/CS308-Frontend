@@ -86,7 +86,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
       } else {
         addToLocalCart({ productId, name, price, picture });
       }
-  
+      window.dispatchEvent(new Event('cart-updated'));
       toast({
         title: "Added to cart",
         description: `${name} has been added to your cart.`,

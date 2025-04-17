@@ -163,7 +163,7 @@ const ProductDetailPage = () => {
           quantity,
         });
       }
-  
+      window.dispatchEvent(new Event('cart-updated'));
       toast({
         title: "Added to cart",
         description: `${product.name} (x${quantity}) has been added to your cart.`,

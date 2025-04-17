@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import '../styles/LoginPage.css';
 import { signin, signup } from '../api/userApi';
+import { addToCart } from '../api/cartApi';
 
 const LoginPage = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -66,6 +67,25 @@ const LoginPage = () => {
           const userResponse = await signin(user);
           localStorage.setItem('token', userResponse.token); // Save token to localStorage
           console.log("User token:", localStorage.getItem('token'));
+
+          const token = userResponse.token;
+
+          const guestCart = JSON.parse(localStorage.getItem('guest_cart') || '[]');
+
+          if (guestCart.length > 0) {
+            const formattedProducts = guestCart.map(item => ({
+              productId: item.productId,
+              quantity: item.quantity || 1,
+            }));
+          
+            try {
+              await addToCart(token, formattedProducts);
+              console.log('Guest cart merged into user cart');
+            } catch (err) {
+              console.error('Failed to merge guest cart:', err);
+            }
+            localStorage.removeItem('guest_cart');
+          }
           navigate('/'); // Redirect to home
         } catch (error) {
           setServerError(error.response?.data?.message || 'Sign-in failed. Please try again.');
