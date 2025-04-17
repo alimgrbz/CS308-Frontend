@@ -6,7 +6,8 @@ import { toast } from 'sonner';
 import CartItem from '@/components/CartItem';
 import CartSummary from '@/components/CartSummary';
 import { ButtonCustom } from '@/components/ui/button-custom';
-import { getCart } from '@/api/cartApi'; 
+import { getCart, removeCartItem } from '@/api/cartApi'; 
+
 
 
 // Mock data for initial cart items - these will be replaced with localStorage items
@@ -161,9 +162,21 @@ const Cart = () => {
     window.dispatchEvent(new Event('storage'));
   }, [cartItems]);*/
 
-  const handleRemoveItem = (id: string) => {
-    setCartItems(prevItems => prevItems.filter(item => item.id !== id));
-  };
+  const handleRemoveItem = async (productId: string) => {
+  if (!token) return;
+
+  const itemToRemove = cartItems.find(item => item.product.id.toString() === productId);
+  const quantity = itemToRemove?.count || 1;
+
+  try {
+    await removeCartItem(token, Number(productId), quantity); // 👈 important to send correct type
+    setCartItems(prev => prev.filter(item => item.product.id.toString() !== productId));
+    toast.success('Item removed from cart');
+  } catch (err) {
+    console.error(err);
+    toast.error('Failed to remove item');
+  }
+};
 
   const handleQuantityChange = (id: string, newQuantity: number) => {
     setCartItems(prevItems => 
@@ -184,7 +197,11 @@ const Cart = () => {
   };
 
   // Calculate cart totals
-  const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const subtotal = cartItems.reduce((sum, item) => {
+    const price = Number(item.product.price) || 0;
+    const quantity = item.count || 0;
+    return sum + price * quantity;
+  }, 0);
   const tax = subtotal * 0.08; // 8% tax rate
   const shipping = subtotal > 35 ? 0 : 5.99;
   const total = subtotal + tax + shipping;
