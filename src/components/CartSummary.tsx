@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { ButtonCustom } from '@/components/ui/button-custom';
 import { ArrowRight } from 'lucide-react';
 
@@ -7,10 +8,15 @@ interface CartSummaryProps {
   tax: number;
   shipping: number;
   total: number;
-  onCheckout: () => void;
 }
 
-const CartSummary = ({ subtotal, tax, shipping, total, onCheckout }: CartSummaryProps) => {
+const CartSummary = ({ subtotal, tax, shipping, total }: CartSummaryProps) => {
+  const navigate = useNavigate();
+
+  const handleCheckout = () => {
+    navigate('/checkout');
+  };
+
   return (
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
@@ -43,7 +49,7 @@ const CartSummary = ({ subtotal, tax, shipping, total, onCheckout }: CartSummary
       </div>
       
       <ButtonCustom
-        onClick={onCheckout}
+        onClick={handleCheckout}
         size="lg"
         className="w-full group"
       >
