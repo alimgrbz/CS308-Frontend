@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -46,6 +45,18 @@ const Checkout = () => {
     try {
       // This would be replaced with an actual payment processing API call
       await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Save order details for the receipt
+      const orderDetails = {
+        items: cartItems,
+        subtotal,
+        tax,
+        shipping,
+        total,
+        customerInfo: formData,
+        date: new Date().toISOString()
+      };
+      localStorage.setItem('lastOrder', JSON.stringify(orderDetails));
       
       // Clear the cart
       localStorage.setItem('cartItems', JSON.stringify([]));

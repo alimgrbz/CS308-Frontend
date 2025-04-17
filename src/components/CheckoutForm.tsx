@@ -5,10 +5,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Button } from '@/components/ui/button';
+import { ButtonCustom } from '@/components/ui/button-custom';
 import { CreditCard, Mail, Map, User } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
-import { getAddressInfo, updateAddress } from '@/api/addressApi';
+import { Link } from 'react-router-dom';
 
 // Define form validation schema
 const checkoutFormSchema = z.object({
@@ -18,9 +17,9 @@ const checkoutFormSchema = z.object({
   city: z.string().optional(),
   state: z.string().optional(),
   zipCode: z.string().optional(),
-  cardNumber: z.string(),
-  cardExpiry: z.string(),
-  cardCvc: z.string(),
+  cardNumber: z.string().regex(/^\d{16}$/, 'Card number must be 16 digits'),
+  cardExpiry: z.string().regex(/^\d{2}\/\d{2}$/, 'Expiry date must be in MM/YY format'),
+  cardCvc: z.string().regex(/^\d{3,4}$/, 'CVC must be 3 or 4 digits'),
   specialInstructions: z.string().optional(),
 });
 
@@ -40,18 +39,18 @@ interface CheckoutFormProps {
 }
 
 const CheckoutForm = ({ onSubmit, isProcessing, userData }: CheckoutFormProps) => {
-  const navigate = useNavigate();
   const [isAddressExpanded, setIsAddressExpanded] = useState(false);
-  const isLoggedIn = !!userData;
-  const [addressData, setAddressData] = useState<any>(null);
+  const isLoggedIn = !!localStorage.getItem('token');
 
   const form = useForm<CheckoutFormValues>({
     resolver: zodResolver(checkoutFormSchema),
     defaultValues: {
-      address: '',
-      city: '',
-      state: '',
-      zipCode: '',
+      fullName: userData?.fullName || '',
+      email: userData?.email || '',
+      address: userData?.address || '',
+      city: userData?.city || '',
+      state: userData?.state || '',
+      zipCode: userData?.zipCode || '',
       cardNumber: '',
       cardExpiry: '',
       cardCvc: '',
@@ -60,78 +59,20 @@ const CheckoutForm = ({ onSubmit, isProcessing, userData }: CheckoutFormProps) =
   });
 
   useEffect(() => {
-    const fetchAddressData = async () => {
-      if (isLoggedIn) {
-        try {
-          const data = await getAddressInfo();
-          setAddressData(data);
-
-          if (data.address) {
-            const addressParts = data.address.split(',');
-            form.setValue('address', addressParts[0]?.trim() || '');
-            form.setValue('city', addressParts[1]?.trim() || '');
-            form.setValue('state', addressParts[2]?.trim() || '');
-            form.setValue('zipCode', addressParts[3]?.trim() || '');
-            setIsAddressExpanded(true);
-          }
-        } catch (error) {
-          console.error('Error fetching address:', error);
-        }
-      }
-    };
-
-    fetchAddressData();
-  }, [isLoggedIn, form]);
-
-  const handleAddressUpdate = async () => {
-    const values = form.getValues();
-    const fullAddress = `${values.address}, ${values.city}, ${values.state}, ${values.zipCode}`.trim();
-
-    try {
-      await updateAddress(fullAddress);
-    } catch (error) {
-      console.error('Error updating address:', error);
+    if (userData?.address) {
+      setIsAddressExpanded(true);
     }
-  };
+  }, [userData]);
 
-  const handleCheckout = (e: React.FormEvent) => {
-    e.preventDefault();
-    const { cardNumber, cardExpiry, cardCvc } = form.getValues();
-
-    const isValidCard = /^\d{16}$/.test(cardNumber || '');
-    const isValidExpiry = /^\d{2}\/\d{2}$/.test(cardExpiry || '');
-    const isValidCvc = /^\d{3,4}$/.test(cardCvc || '');
-
-    if (!isValidCard || !isValidExpiry || !isValidCvc) {
-      alert('Please fill all card information correctly.');
-      return;
-    }
-
-    if (isLoggedIn) {
-      navigate('/order-success');
-    }
-  };
-
-  const handleProceedOrder = () => {
-    const { cardNumber, cardExpiry, cardCvc } = form.getValues();
-
-    const isValidCard = /^\d{16}$/.test(cardNumber || '');
-    const isValidExpiry = /^\d{2}\/\d{2}$/.test(cardExpiry || '');
-    const isValidCvc = /^\d{3,4}$/.test(cardCvc || '');
-
-    if (!isValidCard || !isValidExpiry || !isValidCvc) {
-      alert('Please fill all card information correctly.');
-      return;
-    }
-
-    window.location.href = 'http://localhost:8080/order-success';
+  const handleSubmit = (values: CheckoutFormValues) => {
+    onSubmit(values);
   };
 
   return (
     <div className="bg-white p-6 rounded-lg border border-coffee-green/10 shadow-sm">
       <Form {...form}>
-        <form onSubmit={handleCheckout} className="space-y-6">
-          {/* Contact Info */}
+        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+          {/* Contact Information */}
           <div className="space-y-4">
             <h2 className="text-xl font-medium text-coffee-green flex items-center gap-2">
               <User size={20} />
@@ -147,19 +88,8 @@ const CheckoutForm = ({ onSubmit, isProcessing, userData }: CheckoutFormProps) =
             </h2>
 
             {isLoggedIn ? (
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <FormLabel>Full Name</FormLabel>
-                  <div className="h-10 px-4 py-2 border border-coffee-green/20 rounded bg-coffee-green/5 flex items-center">
-                    {userData?.fullName}
-                  </div>
-                </div>
-                <div>
-                  <FormLabel>Email</FormLabel>
-                  <div className="h-10 px-4 py-2 border border-coffee-green/20 rounded bg-coffee-green/5 flex items-center">
-                    {userData?.email}
-                  </div>
-                </div>
+              <div className="text-coffee-brown font-medium text-base">
+                Continue your order, {userData?.fullName || 'Guest'}
               </div>
             ) : (
               <div className="text-center py-4">
@@ -168,7 +98,7 @@ const CheckoutForm = ({ onSubmit, isProcessing, userData }: CheckoutFormProps) =
             )}
           </div>
 
-          {/* Shipping Address */}
+          {/* Optional Shipping Address */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-medium text-coffee-green flex items-center gap-2">
@@ -199,6 +129,7 @@ const CheckoutForm = ({ onSubmit, isProcessing, userData }: CheckoutFormProps) =
                     </FormItem>
                   )}
                 />
+
                 <div className="grid md:grid-cols-3 gap-4">
                   <FormField
                     control={form.control}
@@ -213,6 +144,7 @@ const CheckoutForm = ({ onSubmit, isProcessing, userData }: CheckoutFormProps) =
                       </FormItem>
                     )}
                   />
+
                   <FormField
                     control={form.control}
                     name="state"
@@ -226,6 +158,7 @@ const CheckoutForm = ({ onSubmit, isProcessing, userData }: CheckoutFormProps) =
                       </FormItem>
                     )}
                   />
+
                   <FormField
                     control={form.control}
                     name="zipCode"
@@ -240,76 +173,98 @@ const CheckoutForm = ({ onSubmit, isProcessing, userData }: CheckoutFormProps) =
                     )}
                   />
                 </div>
-
-                {isLoggedIn && (
-                  <Button
-                    type="button"
-                    size="sm"
-                    className="bg-coffee-green hover:bg-coffee-green/90 text-white"
-                    onClick={handleAddressUpdate}
-                  >
-                    Save Address
-                  </Button>
-                )}
               </div>
             )}
           </div>
 
-          {/* Card Fields */}
+          {/* Payment Information */}
           <div className="space-y-4">
             <h2 className="text-xl font-medium text-coffee-green flex items-center gap-2">
               <CreditCard size={20} />
-              <span>Card Information</span>
+              <span>Payment Details</span>
             </h2>
-            <FormField
-              control={form.control}
-              name="cardNumber"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Card Number</FormLabel>
-                  <FormControl>
-                    <Input maxLength={16} placeholder="1234567812345678" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <div className="grid grid-cols-2 gap-4">
+
+            <div className="space-y-4">
               <FormField
                 control={form.control}
-                name="cardExpiry"
+                name="cardNumber"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Expiry Date</FormLabel>
+                    <FormLabel>Card Number</FormLabel>
                     <FormControl>
-                      <Input maxLength={5} placeholder="MM/YY" {...field} />
+                      <Input
+                        placeholder="1234 5678 9012 3456"
+                        {...field}
+                        maxLength={16}
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/\D/g, '');
+                          field.onChange(value);
+                        }}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              <FormField
-                control={form.control}
-                name="cardCvc"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>CVC</FormLabel>
-                    <FormControl>
-                      <Input maxLength={4} placeholder="123" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="cardExpiry"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Expiry Date (MM/YY)</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="MM/YY"
+                          {...field}
+                          maxLength={5}
+                          onChange={(e) => {
+                            let value = e.target.value.replace(/\D/g, '');
+                            if (value.length > 2) {
+                              value = `${value.substring(0, 2)}/${value.substring(2, 4)}`;
+                            }
+                            field.onChange(value);
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="cardCvc"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>CVC</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="123"
+                          {...field}
+                          maxLength={4}
+                          onChange={(e) => {
+                            const value = e.target.value.replace(/\D/g, '');
+                            field.onChange(value);
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
             </div>
           </div>
 
-          {/* Instructions */}
+          {/* Special Instructions */}
           <div className="space-y-4">
             <h2 className="text-xl font-medium text-coffee-green flex items-center gap-2">
               <Mail size={20} />
               <span>Special Instructions</span>
             </h2>
+
             <FormField
               control={form.control}
               name="specialInstructions"
@@ -317,7 +272,10 @@ const CheckoutForm = ({ onSubmit, isProcessing, userData }: CheckoutFormProps) =
                 <FormItem>
                   <FormLabel>Notes (optional)</FormLabel>
                   <FormControl>
-                    <Textarea placeholder="Any notes?" {...field} />
+                    <Textarea
+                      placeholder="Add any special instructions or notes here..."
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -325,16 +283,14 @@ const CheckoutForm = ({ onSubmit, isProcessing, userData }: CheckoutFormProps) =
             />
           </div>
 
-          {/* Buttons */}
-          <Button
+          <ButtonCustom
             type="submit"
             size="lg"
-            className="w-full mt-6 bg-green-800 hover:bg-green-900 text-white"
+            className="w-full mt-6"
             loading={isProcessing}
-            disabled={!isLoggedIn}
           >
             {isProcessing ? 'Processing...' : 'Place Order'}
-          </Button>
+          </ButtonCustom>
         </form>
       </Form>
     </div>

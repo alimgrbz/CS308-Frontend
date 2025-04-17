@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Dialog } from '@headlessui/react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
@@ -11,7 +10,6 @@ const Profile = () => {
   const [userName] = useState('Coffee Lover');
   const [email] = useState('coffee@example.com');
   const [activeTab, setActiveTab] = useState('all');
-  const [selectedOrder, setSelectedOrder] = useState(null);
   const navigate = useNavigate();
 
   const handleSignOut = () => {
@@ -137,7 +135,7 @@ const Profile = () => {
                           {order.status}
                         </span>
                         <Link to={`/past-orders#${order.id}`}>
-                          <ButtonCustom size="sm" variant="ghost" onClick={() => setSelectedOrder(order)}>
+                          <ButtonCustom size="sm" variant="ghost">
                             Details
                           </ButtonCustom>
                         </Link>
@@ -157,30 +155,6 @@ const Profile = () => {
           </Card>
         </motion.div>
       </div>
-      {selectedOrder && (
-        <Dialog open={true} onClose={() => setSelectedOrder(null)} className="fixed inset-0 z-50 flex items-center justify-center">
-          <Dialog.Overlay className="fixed inset-0 bg-black opacity-30" />
-          <div className="relative bg-white rounded-lg shadow-lg max-w-lg w-full p-6 z-50">
-            <Dialog.Title className="text-xl font-semibold mb-2 text-coffee-green">
-              Order #{selectedOrder.id} Details
-            </Dialog.Title>
-            <div className="space-y-2 text-coffee-brown">
-              <p><strong>Date:</strong> {selectedOrder.date}</p>
-              <p><strong>Status:</strong> {selectedOrder.status}</p>
-              <p><strong>Total:</strong> ${selectedOrder.total.toFixed(2)}</p>
-              <p><strong>Items:</strong> {selectedOrder.items}</p>
-            </div>
-            <div className="mt-4 text-right">
-              <button
-                onClick={() => setSelectedOrder(null)}
-                className="px-4 py-2 bg-coffee-green text-white rounded hover:bg-coffee-green-dark"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </Dialog>
-      )}
     </div>
   );
 };
