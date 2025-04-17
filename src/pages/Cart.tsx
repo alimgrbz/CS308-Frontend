@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import CartItem from '@/components/CartItem';
 import CartSummary from '@/components/CartSummary';
 import { ButtonCustom } from '@/components/ui/button-custom';
-import { getCart, removeCartItem, addToCart } from '@/api/cartApi'; 
+import { getCart, removeCartItem, addToCart, clearCart as clearCartAPI } from '@/api/cartApi'; 
 
 
 
@@ -212,9 +212,17 @@ const Cart = () => {
     }
   };
 
-  const handleClearCart = () => {
-    setCartItems([]);
-    toast.success('Cart cleared');
+  const handleClearCart = async () => {
+    if (!token) return;
+
+    try {
+      await clearCartAPI(token); // clear backend
+      setCartItems([]);          // update frontend
+      toast.success('Cart cleared');
+    } catch (err) {
+      console.error('Error clearing cart:', err);
+      toast.error('Failed to clear cart');
+    }
   };
 
   const handleCheckout = () => {
