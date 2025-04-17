@@ -10,6 +10,7 @@ export const addToLocalCart = (product) => {
     }
   
     localStorage.setItem('guest_cart', JSON.stringify(existingCart));
+    window.dispatchEvent(new Event('cart-updated'));
     console.log('🛒 Updated Guest Cart:', existingCart);
   };
   
