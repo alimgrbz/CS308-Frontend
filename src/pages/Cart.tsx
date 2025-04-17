@@ -6,6 +6,8 @@ import { toast } from 'sonner';
 import CartItem from '@/components/CartItem';
 import CartSummary from '@/components/CartSummary';
 import { ButtonCustom } from '@/components/ui/button-custom';
+import { getCart } from '@/api/cartApi'; 
+
 
 // Mock data for initial cart items - these will be replaced with localStorage items
 const initialCartItems = [
@@ -116,31 +118,48 @@ const initialCartItems = [
 ];
 
 const Cart = () => {
+  /*
   // Get cart items from localStorage or use mock data if none exist
   const getCartItems = () => {
     const storedItems = localStorage.getItem('cartItems');
     return storedItems ? JSON.parse(storedItems) : initialCartItems;
-  };
+  };*/
 
-  const [cartItems, setCartItems] = useState(getCartItems());
+  const [cartItems, setCartItems] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const token = localStorage.getItem('token');
 
   useEffect(() => {
-    // Simulate loading state
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 1000);
-    
-    return () => clearTimeout(timer);
-  }, []);
+    const loadCart = async () => {
+      setIsLoading(true);
 
+      if (token && token !== '') {
+        try {
+          const backendCart = await getCart(token);
+          setCartItems(backendCart); // assuming backendCart is an array of items
+          console.log("Cart items is set!", backendCart);
+        } catch (error) {
+          console.error('Error fetching cart:', error);
+          toast.error('Failed to load cart');
+        }
+      } else {
+        // No token = not logged in = empty cart
+        setCartItems([]);
+      }
+      setIsLoading(false);
+    };
+
+    loadCart();
+  }, [token]);
+
+  /*
   // Save cart items to localStorage whenever they change
   useEffect(() => {
     localStorage.setItem('cartItems', JSON.stringify(cartItems));
     
     // Dispatch storage event to notify other tabs/components
     window.dispatchEvent(new Event('storage'));
-  }, [cartItems]);
+  }, [cartItems]);*/
 
   const handleRemoveItem = (id: string) => {
     setCartItems(prevItems => prevItems.filter(item => item.id !== id));
@@ -250,14 +269,19 @@ const Cart = () => {
                 <EmptyCart />
               ) : (
                 <AnimatePresence>
-                  {cartItems.map(item => (
-                    <CartItem 
-                      key={item.id}
-                      {...item}
-                      onRemove={handleRemoveItem}
-                      onQuantityChange={handleQuantityChange}
-                    />
-                  ))}
+                  {cartItems.map(({ product, count }) => (
+              <CartItem
+                key={product.id} // unique key now
+                id={product.id.toString()} // assuming your CartItem expects string id
+                name={product.name}
+                price={Number(product.price) || 0}
+                image={product.image || '/default.jpg'} // fallback if needed
+                quantity={count}
+                grind={product.grind} // optional
+                onRemove={handleRemoveItem}
+                onQuantityChange={handleQuantityChange}
+              />
+            ))}
                 </AnimatePresence>
               )}
               
