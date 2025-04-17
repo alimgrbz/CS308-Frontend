@@ -12,6 +12,8 @@ import ProductIndex from "./pages/ProductIndex";
 import About from './pages/About';
 import Contacts from './pages/Contact';
 import Profile from './pages/Profile'
+import OrderList from './pages/OrderList';
+import OrderDetails from './pages/OrderDetails';
 import "./styles/colors.css";
 import "./styles/global.css";
 
@@ -32,6 +34,8 @@ const App = () => (
             <Route path="/about" element={<About />}/>
             <Route path="/contact" element={<Contacts />}/>
             <Route path="/profile" element={<Profile />}></Route>
+            <Route path="/profile/orders" element={<OrderList />} />
+            <Route path="/profile/orders/:orderId" element={<OrderDetails />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </main>
