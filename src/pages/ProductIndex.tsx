@@ -349,8 +349,8 @@ const products = [
 */
 
 interface Category {
-  categoryId: number;
-  categoryType: string;
+  id: number;
+  name: string;
 }
 
 const ProductIndex = () => {
@@ -368,6 +368,10 @@ const ProductIndex = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        // Fetch categories first
+        const categoriesResponse = await getAllCategories();
+        setCategories(categoriesResponse);
+
         // Fetch products
         const productsResponse = await getAllProducts();
         console.log('Raw products data from backend:', productsResponse);
@@ -382,22 +386,17 @@ const ProductIndex = () => {
           productsData = productsResponse.data;
         }
 
-        // Fetch categories
-        const categoriesResponse = await getAllCategories();
-        setCategories(categoriesResponse);
-
         // Transform the data to match the expected structure
         const transformedProducts = productsData.map(product => ({
           ...product,
           productId: product.id || product.productId,
           picture: product.imageUrl || product.picture,
           stock: product.inStock || product.stock,
-          categoryId: product.categoryId || product.category,
+          categoryId: product.category_id || product.categoryId,
           price: Number(product.price) || 0,
           rating: Number(product.rating) || 0,
           numReviews: Number(product.numReviews) || 0,
-          popularity: Number(product.popularity) || 0,
-          categoryType: categoriesResponse.find(cat => cat.categoryId === (product.categoryId || product.category))?.categoryType || "Unknown Category"
+          categoryType: categoriesResponse.find(cat => cat.id === (product.category_id || product.categoryId))?.name || "Unknown Category"
         }));
 
         console.log('Transformed products:', transformedProducts);
@@ -410,11 +409,11 @@ const ProductIndex = () => {
     fetchData();
   }, []);
 
-  // Get unique categories from products
+  // Get unique categories from categories state
   const uniqueCategories = useMemo(() => {
     return categories.map(category => ({
-      id: category.categoryId,
-      name: category.categoryType
+      id: category.id,
+      name: category.name
     }));
   }, [categories]);
   
@@ -520,9 +519,9 @@ const ProductIndex = () => {
           {/* Sidebar with filters */}
           <div className="md:w-1/4 lg:w-1/5">
             <FilterSidebar
-              categories={uniqueCategories.map(cat => cat.name)}
-              selectedCategory={selectedCategory?.toString() || null}
-              onCategoryChange={(category) => setSelectedCategory(category ? parseInt(category) : null)}
+              categories={categories}
+              selectedCategory={selectedCategory}
+              onCategoryChange={setSelectedCategory}
               priceRange={priceRange}
               onPriceRangeChange={setPriceRange}
               inStockOnly={inStockOnly}
