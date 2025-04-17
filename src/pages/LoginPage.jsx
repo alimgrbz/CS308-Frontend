@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import '../styles/LoginPage.css';
 import { signin, signup } from '../api/userApi';
 import { addToCart } from '../api/cartApi';
@@ -15,6 +15,11 @@ const LoginPage = () => {
   const [errors, setErrors] = useState({});
   const [serverError, setServerError] = useState('');
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Get returnUrl from query parameters
+  const searchParams = new URLSearchParams(location.search);
+  const returnUrl = searchParams.get('returnUrl') || '/';
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -66,6 +71,7 @@ const LoginPage = () => {
         try {
           const userResponse = await signin(user);
           localStorage.setItem('token', userResponse.token); // Save token to localStorage
+
           console.log("User token:", localStorage.getItem('token'));
 
           const token = userResponse.token;
@@ -87,6 +93,7 @@ const LoginPage = () => {
             localStorage.removeItem('guest_cart');
           }
           navigate('/'); // Redirect to home
+
         } catch (error) {
           setServerError(error.response?.data?.message || 'Sign-in failed. Please try again.');
         }
