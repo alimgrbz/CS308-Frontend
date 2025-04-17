@@ -7,7 +7,12 @@ import CartItem from '@/components/CartItem';
 import CartSummary from '@/components/CartSummary';
 import { ButtonCustom } from '@/components/ui/button-custom';
 import { getCart, removeCartItem, addToCart, clearCart as clearCartAPI } from '@/api/cartApi'; 
-
+import {
+  removeFromLocalCart,
+  updateQuantityInLocalCart,
+  clearLocalCart,
+  getLocalCart
+} from '@/utils/cartUtils'; // adjust path if needed
 
 
 // Mock data for initial cart items - these will be replaced with localStorage items
@@ -144,8 +149,24 @@ const Cart = () => {
           toast.error('Failed to load cart');
         }
       } else {
-        // No token = not logged in = empty cart
-        setCartItems([]);
+        // Guest cart from localStorage
+        const guestCartRaw = localStorage.getItem('guest_cart');
+        if (guestCartRaw) {
+          const guestCart = JSON.parse(guestCartRaw);
+          const transformed = guestCart.map(item => ({
+            product: {
+              id: item.productId,
+              name: item.name,
+              price: item.price,
+              image: item.image,
+              grind: item.grind || null
+            },
+            count: item.quantity
+          }));
+          setCartItems(transformed);
+        } else {
+          setCartItems([]);
+        }
       }
       setIsLoading(false);
     };
@@ -163,66 +184,115 @@ const Cart = () => {
   }, [cartItems]);*/
 
   const handleRemoveItem = async (productId: string) => {
-  if (!token) return;
+    if (token) {
+      // Logged in user
+      const itemToRemove = cartItems.find(item => item.product.id.toString() === productId);
+      const quantity = itemToRemove?.count || 1;
 
-  const itemToRemove = cartItems.find(item => item.product.id.toString() === productId);
-  const quantity = itemToRemove?.count || 1;
+      try {
+        await removeCartItem(token, Number(productId), quantity); // 👈 important to send correct type
+        setCartItems(prev => prev.filter(item => item.product.id.toString() !== productId));
+        toast.success('Item removed from cart');
+      } catch (err) {
+        console.error(err);
+        toast.error('Failed to remove item');
+      }
+    }
 
-  try {
-    await removeCartItem(token, Number(productId), quantity); // 👈 important to send correct type
-    setCartItems(prev => prev.filter(item => item.product.id.toString() !== productId));
-    toast.success('Item removed from cart');
-  } catch (err) {
-    console.error(err);
-    toast.error('Failed to remove item');
-  }
-};
+    else {
+      // Guest user
+      removeFromLocalCart(Number(productId));
+      const updated = getLocalCart();
+      setCartItems(
+        updated.map(item => ({
+          product: {
+            id: item.productId,
+            name: item.name,
+            price: item.price,
+            image: item.image,
+            grind: item.grind
+          },
+          count: item.quantity
+        }))
+      );
+      toast.success('Item removed from cart');
+    }
+    window.dispatchEvent(new Event('cart-updated'));
+  };
+
+
+
 
   const handleQuantityChange = async (productId: string, newQuantity: number) => {
-    if (!token) return;
+    if (token) {
+      const item = cartItems.find(item => item.product.id.toString() === productId);
+      if (!item) return;
 
-    const item = cartItems.find(item => item.product.id.toString() === productId);
-    if (!item) return;
+      const currentQuantity = item.count;
 
-    const currentQuantity = item.count;
+      console.log("+ or - operation!");
+      try {
+        if (newQuantity > currentQuantity) {
+          // User clicked '+'
+          await addToCart(token, [
+            { productId: Number(productId), quantity: 1 }
+          ]);
+        } else if (newQuantity < currentQuantity) {
+          // User clicked '−'
+          await removeCartItem(token, Number(productId), 1);
+        }
 
-    console.log("+ or - operation!");
-    try {
-      if (newQuantity > currentQuantity) {
-        // User clicked '+'
-        await addToCart(token, [
-          { productId: Number(productId), quantity: 1 }
-        ]);
-      } else if (newQuantity < currentQuantity) {
-        // User clicked '−'
-        await removeCartItem(token, Number(productId), 1);
+        // Update frontend
+        setCartItems(prevItems =>
+          prevItems.map(item =>
+            item.product.id.toString() === productId
+              ? { ...item, count: newQuantity }
+              : item
+          )
+        );
+      } catch (err) {
+        console.error('Failed to sync quantity:', err);
+        toast.error('Failed to update cart');
       }
+    } 
 
-      // Update frontend
-      setCartItems(prevItems =>
-        prevItems.map(item =>
-          item.product.id.toString() === productId
-            ? { ...item, count: newQuantity }
-            : item
-        )
+  else {
+      // Guest user
+      updateQuantityInLocalCart(Number(productId), newQuantity);
+      const updated = getLocalCart();
+      setCartItems(
+        updated.map(item => ({
+          product: {
+            id: item.productId,
+            name: item.name,
+            price: item.price,
+            image: item.image,
+            grind: item.grind
+          },
+          count: item.quantity
+        }))
       );
-    } catch (err) {
-      console.error('Failed to sync quantity:', err);
-      toast.error('Failed to update cart');
     }
+    window.dispatchEvent(new Event('cart-updated'));
   };
 
   const handleClearCart = async () => {
-    if (!token) return;
-
-    try {
-      await clearCartAPI(token); // clear backend
-      setCartItems([]);          // update frontend
-      toast.success('Cart cleared');
-    } catch (err) {
-      console.error('Error clearing cart:', err);
-      toast.error('Failed to clear cart');
+    if (token) {
+      try {
+            await clearCartAPI(token); // clear backend
+            setCartItems([]);          // update frontend
+            toast.success('Cart cleared');
+          } catch (err) {
+            console.error('Error clearing cart:', err);
+            toast.error('Failed to clear cart');
+          }
     }
+    else {
+        clearLocalCart();
+        setCartItems([]);
+        toast.success('Cart cleared');
+      }
+      window.dispatchEvent(new Event('cart-updated'));
   };
 
   const handleCheckout = () => {

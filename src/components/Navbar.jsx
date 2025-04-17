@@ -28,14 +28,17 @@ const Navbar = () => {
     }
   };
 
-  const [cartItemCount, setCartItemCount] = useState(getCartItems().length);
+  const [cartItemCount, setCartItemCount] = useState(0);
 
   useEffect(() => {
     const fetchCartCount = async () => {
-      const items = await getCartItems();
-      const total = items.reduce((sum, item) => sum + (item.quantity || 1), 0);
-      setCartItemCount(total);
-    };
+    const items = await getCartItems();
+    const total = items.reduce((sum, item) => {
+      // Supports both guest and user cart formats
+      return sum + (item.count || item.quantity || 0);
+    }, 0);
+    setCartItemCount(total);
+  };
   
     const handleCartUpdate = () => fetchCartCount();
     const handleStorageChange = () => fetchCartCount();
