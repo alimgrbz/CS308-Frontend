@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,9 +9,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Package2, CheckCircle2, Truck, ClipboardList, Star, ChevronLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import OrderReviewModal from '@/components/OrderReviewModal';
+import { getOrdersByUser } from '@/api/orderApi';
 
 const PastOrders = () => {
-  const [orders] = useState(mockOrders);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [reviewProduct, setReviewProduct] = useState<OrderProduct | null>(null);
@@ -37,6 +38,41 @@ const PastOrders = () => {
       default: return 0;
     }
   };
+  
+  useEffect(() => {
+  const token = localStorage.getItem('token');
+  if (!token) return;
+
+  const fetchOrders = async () => {
+    try {
+      const rawOrders = await getOrdersByUser(token);
+
+      // Convert backend response format into the shape your component expects
+      const mappedOrders: Order[] = rawOrders.map((order: any) => ({
+        id: order.order_id.toString(),
+        date: new Date(order.date).toISOString(),
+        status: order.order_status as OrderStatus,
+        total: parseFloat(order.total_price),
+        products: order.product_list.map((prod: any) => ({
+          id: prod.p_id.toString(),
+          name: prod.name,
+          image: prod.image,
+          price: parseFloat(prod.price),
+          quantity: prod.count,
+          reviewed: false, // default until review API is integrated
+        }))
+      }));
+
+      setOrders(mappedOrders);
+    } catch (err) {
+      console.error("Error fetching orders:", err);
+    }
+  };
+
+  fetchOrders();
+}, []);
+
+  
 
   return (
     <>
