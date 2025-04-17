@@ -65,6 +65,7 @@ const LoginPage = () => {
         try {
           const userResponse = await signin(user);
           localStorage.setItem('token', userResponse.token); // Save token to localStorage
+          console.log("User token:", localStorage.getItem('token'));
           navigate('/'); // Redirect to home
         } catch (error) {
           setServerError(error.response?.data?.message || 'Sign-in failed. Please try again.');

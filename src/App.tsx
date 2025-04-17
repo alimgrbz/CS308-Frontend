@@ -16,33 +16,41 @@ import PastOrders from './pages/PastOrders';
 import "./styles/colors.css";
 import "./styles/global.css";
 import ProductDetailPage from "./pages/ProductDetailPage";
+import { useEffect } from "react";
 
 const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Sonner />
-      <BrowserRouter>
-        <Navbar />
-        <main>
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/cart" element={<Cart />} />
-            <Route path="/products" element={<ProductIndex />} />
-            <Route path="/product/:id" element={<ProductDetailPage />} />
-            <Route path="/about" element={<About />}/>
-            <Route path="/past-orders" element={<PastOrders />}/>
-            <Route path="/contact" element={<Contacts />}/>
-            <Route path="/profile" element={<Profile />}/>
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </main>
-        <Footer />
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+const App = () => {
+  useEffect(() => {
+    // Set token to empty string only once on initial app load
+    localStorage.setItem('token', '');
+  }, []);
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Sonner />
+        <BrowserRouter>
+          <Navbar />
+          <main>
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/cart" element={<Cart />} />
+              <Route path="/products" element={<ProductIndex />} />
+              <Route path="/product/:id" element={<ProductDetailPage />} />
+              <Route path="/about" element={<About />}/>
+              <Route path="/past-orders" element={<PastOrders />}/>
+              <Route path="/contact" element={<Contacts />}/>
+              <Route path="/profile" element={<Profile />}/>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </main>
+          <Footer />
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;

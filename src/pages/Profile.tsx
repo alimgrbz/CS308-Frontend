@@ -15,7 +15,8 @@ const Profile = () => {
   const navigate = useNavigate();
 
   const handleSignOut = () => {
-    localStorage.removeItem('token');
+    localStorage.setItem('token', '');
+    console.log("Token cleared!", localStorage.getItem('token'));
     navigate('/');
   };
 
