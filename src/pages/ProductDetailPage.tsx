@@ -10,6 +10,8 @@ import { useEffect, useState } from 'react';
 import { addToCart } from '@/api/cartApi';
 import { addToLocalCart } from '@/utils/cartUtils';
 import { getRatingsByProduct } from '@/api/rateApi';
+import { getCommentsByProduct } from '@/api/commentApi'; 
+
 
 const getStarRatingFromPopularity = (popularity: number): number => {
   if (popularity <= 20) return 1;
@@ -28,6 +30,7 @@ const ProductDetailPage = () => {
   const [ratings, setRatings] = useState<number[]>([]);
   const [averageRating, setAverageRating] = useState<number | null>(null);
   const { toast } = useToast();
+  const [comments, setComments] = useState([]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -54,23 +57,27 @@ const ProductDetailPage = () => {
         if (id) {
           try {
             const ratingsResponse = await getRatingsByProduct(Number(id));
-          
             const ratingValues = Array.isArray(ratingsResponse.ratings)
               ? ratingsResponse.ratings.map((r) => Number(r.rate))
               : [];
-          
+
             setRatings(ratingValues);
-          
             if (ratingValues.length > 0) {
               const avg = ratingValues.reduce((sum, val) => sum + val, 0) / ratingValues.length;
               setAverageRating(avg);
             } else {
               setAverageRating(null);
             }
+
+            //  Fetch comments here
+            const commentData = await getCommentsByProduct(Number(id));
+            console.log(" Comment API response:", commentData);
+            setComments(commentData);
+
           } catch (error) {
-            console.error("Error fetching ratings:", error);
+            console.error("Error fetching ratings or comments:", error);
           }
-        }        
+        }
 
         // Transform the data to match the expected structure
         const transformedProducts = productsData.map(product => ({
@@ -102,12 +109,8 @@ const ProductDetailPage = () => {
     fetchData();
   }, [id]);
 
-  console.log('Rendering with products:', products);
-  console.log('Current ID from URL:', id);
-  
+ 
   const product = products.find((p) => p.productId === parseInt(id || '', 10));
-  console.log('Found product:', product);
-
   if (!product) {
     return (
       <div className="text-center py-10">
@@ -331,18 +334,22 @@ const ProductDetailPage = () => {
           )}
 
           {activeTab === "reviews" && (
-            <div className="space-y-4 text-driftmood-brown">
-              {reviews.map((r) => (
-                <div key={r.id} className="border-t pt-4">
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium">{r.userName}</span>
-                    <span className="text-xs">{r.date}</span>
-                  </div>
-                  <div className="text-sm">{r.comment}</div>
-                </div>
-              ))}
-            </div>
-          )}
+  <div className="space-y-4 text-driftmood-brown">
+    {comments.length > 0 ? (
+      comments.map((comment, idx) => (
+        <div key={comment.comment_id || idx} className="border-t pt-4">
+          <div className="flex items-center justify-between">
+            <span className="font-medium">{comment.user_name}</span>
+            <span className="text-xs">{new Date(comment.created_at).toLocaleDateString()}</span>
+          </div>
+          <div className="text-sm">{comment.comment}</div>
+        </div>
+      ))
+    ) : (
+      <p>No comments yet.</p>
+    )}
+  </div>
+)}
         </div>
       </div>
     </div>
