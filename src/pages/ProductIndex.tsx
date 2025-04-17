@@ -396,6 +396,7 @@ const ProductIndex = () => {
           price: Number(product.price) || 0,
           rating: Number(product.rating) || 0,
           numReviews: Number(product.numReviews) || 0,
+          popularity: Number(product.popularity) || 0,
           categoryType: categoriesResponse.find(cat => cat.id === (product.category_id || product.categoryId))?.name || "Unknown Category"
         }));
 

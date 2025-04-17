@@ -31,3 +31,23 @@ export const getUserOrders = async () => {
     const response = await axiosInstance.get('/api/users/orders');
     return response.data;
 };
+
+export const getUserProfile = async () => {
+    try {
+        const response = await axiosInstance.get('/api/user/profile');
+        return response.data;
+    } catch (error) {
+        console.error('Error fetching user profile:', error);
+        throw error;
+    }
+};
+
+export const updateUserProfile = async (userData) => {
+    try {
+        const response = await axiosInstance.put('/api/user/profile', userData);
+        return response.data;
+    } catch (error) {
+        console.error('Error updating user profile:', error);
+        throw error;
+    }
+};

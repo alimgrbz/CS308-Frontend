@@ -37,6 +37,7 @@ interface ProductCardProps {
 }
 
 const getStarRatingFromPopularity = (popularity: number): number => {
+  if (!popularity) return 0;
   if (popularity <= 20) return 1;
   if (popularity <= 40) return 2;
   if (popularity <= 60) return 3;
@@ -52,13 +53,14 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     description,
     price,
     picture,
-    rating,
-    numReviews,
     stock,
     categoryId,
     categoryType,
-    badges
+    badges,
+    popularity = 0
   } = product;
+
+  const starRating = getStarRatingFromPopularity(popularity);
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -128,15 +130,13 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                     key={star}
                     size={16}
                     className={cn(
-                      star <= getStarRatingFromPopularity(product.popularity) ? "rating-star-filled" : "rating-star"
+                      star <= starRating ? "rating-star-filled" : "rating-star"
                     )}
-                    fill={star <= getStarRatingFromPopularity(product.popularity) ? "currentColor" : "none"}
+                    fill={star <= starRating ? "currentColor" : "none"}
                   />
                 ))}
               </div>
-              <span className="text-xs text-driftmood-brown">
-                ({numReviews})
-              </span>
+             
             </div>
             
             <div className="product-price">
