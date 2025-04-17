@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { getCart } from '@/api/cartApi';
 import Logo from './Logo';
 import SearchBar from './SearchBar';
 import { User } from 'lucide-react';
@@ -10,29 +11,50 @@ const Navbar = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const location = useLocation();
 
-  const getCartItems = () => {
-    const storedItems = localStorage.getItem('cartItems');
-    return storedItems ? JSON.parse(storedItems) : [];
+  const getCartItems = async () => {
+    const token = localStorage.getItem('token');
+  
+    if (token) {
+      try {
+        const items = await getCart(token);
+        return items || [];
+      } catch (err) {
+        console.error("Error fetching cart:", err);
+        return [];
+      }
+    } else {
+      const guestCart = JSON.parse(localStorage.getItem('guest_cart') || '[]');
+      return guestCart;
+    }
   };
 
   const [cartItemCount, setCartItemCount] = useState(getCartItems().length);
 
   useEffect(() => {
-    setCartItemCount(getCartItems().length);
-
-    const handleStorageChange = () => {
-      setCartItemCount(getCartItems().length);
+    const fetchCartCount = async () => {
+      const items = await getCartItems();
+      const total = items.reduce((sum, item) => sum + (item.quantity || 1), 0);
+      setCartItemCount(total);
     };
-
-    const checkLoginStatus = () => {
-      const token = localStorage.getItem('token');
-      setIsLoggedIn(!!token);
+  
+    const handleCartUpdate = () => fetchCartCount();
+    const handleStorageChange = () => fetchCartCount();
+  
+    const token = localStorage.getItem('token');
+    setIsLoggedIn(!!token);
+  
+    fetchCartCount();
+  
+    window.addEventListener('cart-updated', handleCartUpdate); // 👈 custom event
+    window.addEventListener('storage', handleStorageChange);   // cross-tab support
+  
+    return () => {
+      window.removeEventListener('cart-updated', handleCartUpdate);
+      window.removeEventListener('storage', handleStorageChange);
     };
-
-    checkLoginStatus();
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
   }, [location.pathname]);
+  
+  
 
   return (
     <nav className="navbar">
