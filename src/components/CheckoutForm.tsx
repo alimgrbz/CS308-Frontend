@@ -2,14 +2,21 @@ import { useState, useEffect } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { ButtonCustom } from '@/components/ui/button-custom';
 import { CreditCard, Mail, Map, User } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
-// Define form validation schema
+// Schema
 const checkoutFormSchema = z.object({
   fullName: z.string().min(2, 'Full name is required'),
   email: z.string().email('Valid email is required'),
@@ -26,7 +33,7 @@ const checkoutFormSchema = z.object({
 type CheckoutFormValues = z.infer<typeof checkoutFormSchema>;
 
 interface CheckoutFormProps {
-  onSubmit: (data: CheckoutFormValues) => void;
+  onSubmit: (data: CheckoutFormValues) => Promise<void> | void;
   isProcessing: boolean;
   userData?: {
     fullName?: string;
@@ -36,11 +43,13 @@ interface CheckoutFormProps {
     state?: string;
     zipCode?: string;
   } | null;
+  userName?: string;
 }
 
-const CheckoutForm = ({ onSubmit, isProcessing, userData }: CheckoutFormProps) => {
+const CheckoutForm = ({ onSubmit, isProcessing, userData, userName }: CheckoutFormProps) => {
   const [isAddressExpanded, setIsAddressExpanded] = useState(false);
   const isLoggedIn = !!localStorage.getItem('token');
+  const navigate = useNavigate();
 
   const form = useForm<CheckoutFormValues>({
     resolver: zodResolver(checkoutFormSchema),
@@ -64,15 +73,21 @@ const CheckoutForm = ({ onSubmit, isProcessing, userData }: CheckoutFormProps) =
     }
   }, [userData]);
 
-  const handleSubmit = (values: CheckoutFormValues) => {
-    onSubmit(values);
+  const handleSubmit = async (values: CheckoutFormValues) => {
+    try {
+      await onSubmit(values);
+      navigate('/order-success');
+    } catch (err) {
+      console.error('Checkout failed:', err);
+      // Optionally show error to user
+    }
   };
 
   return (
     <div className="bg-white p-6 rounded-lg border border-coffee-green/10 shadow-sm">
       <Form {...form}>
         <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-          {/* Contact Information */}
+          {/* Contact Info */}
           <div className="space-y-4">
             <h2 className="text-xl font-medium text-coffee-green flex items-center gap-2">
               <User size={20} />
@@ -89,7 +104,7 @@ const CheckoutForm = ({ onSubmit, isProcessing, userData }: CheckoutFormProps) =
 
             {isLoggedIn ? (
               <div className="text-coffee-brown font-medium text-base">
-                Continue your order, {userData?.fullName || 'Guest'}
+                Continue your order, {userData?.fullName || userName || 'Guest'}
               </div>
             ) : (
               <div className="text-center py-4">
@@ -98,7 +113,7 @@ const CheckoutForm = ({ onSubmit, isProcessing, userData }: CheckoutFormProps) =
             )}
           </div>
 
-          {/* Optional Shipping Address */}
+          {/* Shipping Address */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-medium text-coffee-green flex items-center gap-2">
@@ -144,7 +159,6 @@ const CheckoutForm = ({ onSubmit, isProcessing, userData }: CheckoutFormProps) =
                       </FormItem>
                     )}
                   />
-
                   <FormField
                     control={form.control}
                     name="state"
@@ -158,7 +172,6 @@ const CheckoutForm = ({ onSubmit, isProcessing, userData }: CheckoutFormProps) =
                       </FormItem>
                     )}
                   />
-
                   <FormField
                     control={form.control}
                     name="zipCode"
@@ -177,7 +190,7 @@ const CheckoutForm = ({ onSubmit, isProcessing, userData }: CheckoutFormProps) =
             )}
           </div>
 
-          {/* Payment Information */}
+          {/* Payment Details */}
           <div className="space-y-4">
             <h2 className="text-xl font-medium text-coffee-green flex items-center gap-2">
               <CreditCard size={20} />
@@ -232,7 +245,6 @@ const CheckoutForm = ({ onSubmit, isProcessing, userData }: CheckoutFormProps) =
                     </FormItem>
                   )}
                 />
-
                 <FormField
                   control={form.control}
                   name="cardCvc"
@@ -283,6 +295,7 @@ const CheckoutForm = ({ onSubmit, isProcessing, userData }: CheckoutFormProps) =
             />
           </div>
 
+          {/* Submit Button */}
           <ButtonCustom
             type="submit"
             size="lg"

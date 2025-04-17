@@ -40,6 +40,7 @@ const Checkout = () => {
   const total = subtotal + tax + shipping;
   
   const handlePlaceOrder = async (formData) => {
+    console.log("handle place order");
     setIsProcessing(true);
     
     try {

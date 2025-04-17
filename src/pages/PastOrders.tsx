@@ -17,6 +17,22 @@ const PastOrders = () => {
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [reviewProduct, setReviewProduct] = useState<OrderProduct | null>(null);
 
+  // Map backend status values to frontend display text
+const mapBackendStatus = (backendStatus: string): OrderStatus => {
+  switch (backendStatus) {
+    case 'processing':
+      return 'Getting ready';
+    case 'in-transit':
+      return 'On the way';
+    case 'delivered':
+      return 'Delivered';
+    case 'cancelled':
+      return 'Cancelled'; 
+    default:
+      return 'Ordered'; // fallback
+  }
+};
+
   const handleReviewClick = (order: Order, product: OrderProduct) => {
     setSelectedOrder(order);
     setReviewProduct(product);
@@ -51,12 +67,13 @@ const PastOrders = () => {
       const mappedOrders: Order[] = rawOrders.map((order: any) => ({
         id: order.order_id.toString(),
         date: new Date(order.date).toISOString(),
-        status: order.order_status as OrderStatus,
+        status: mapBackendStatus(order.order_status),
+        isCancelled: order.order_status === 'cancelled',
         total: parseFloat(order.total_price),
         products: order.product_list.map((prod: any) => ({
           id: prod.p_id.toString(),
           name: prod.name,
-          image: prod.image,
+        image: prod.image,
           price: parseFloat(prod.price),
           quantity: prod.count,
           reviewed: false, // default until review API is integrated
@@ -131,13 +148,21 @@ const PastOrders = () => {
                       </div>
                       <div className="flex items-center gap-4">
                         <span className="text-coffee-brown">Total: <span className="font-medium text-coffee-green">${order.total.toFixed(2)}</span></span>
-                        <span 
-                          className={`px-3 py-1 rounded-full text-xs font-medium ${
-                            statusColors[order.status]
-                          }`}
-                        >
-                          {order.status}
-                        </span>
+                        
+                        
+                        
+                        <div className="flex items-center gap-2">
+  <span 
+    className={`px-3 py-1 rounded-full text-xs font-medium ${
+      statusColors[order.status]
+    }`}
+  >
+    {order.status}
+  </span>
+</div>
+
+
+
                       </div>
                     </div>
                   </CardHeader>
@@ -256,7 +281,7 @@ const PastOrders = () => {
 };
 
 // Types for the orders
-type OrderStatus = 'Ordered' | 'Getting ready' | 'On the way' | 'Delivered';
+type OrderStatus = 'Ordered' | 'Getting ready' | 'On the way' | 'Delivered' | 'Cancelled';
 
 interface OrderProduct {
   id: string;
@@ -283,88 +308,7 @@ const statusColors = {
   'Getting ready': 'bg-blue-100 text-blue-800',
   'On the way': 'bg-purple-100 text-purple-800',
   'Delivered': 'bg-green-100 text-green-800',
+  'Cancelled': 'bg-gray-300 text-gray-700'
 };
-
-// Mock orders data
-const mockOrders: Order[] = [
-  {
-    id: '1023',
-    date: '2025-04-02',
-    status: 'Delivered',
-    total: 42.99,
-    products: [
-      {
-        id: 'p1',
-        name: 'Colombian Dark Roast',
-        image: '/placeholder.svg',
-        price: 14.99,
-        quantity: 2,
-        grind: 'Whole Bean',
-        reviewed: true,
-        rating: 4.5
-      },
-      {
-        id: 'p2',
-        name: 'Coffee Mug',
-        image: '/placeholder.svg',
-        price: 12.99,
-        quantity: 1,
-        reviewed: false
-      }
-    ]
-  },
-  {
-    id: '1045',
-    date: '2025-04-08',
-    status: 'On the way',
-    total: 28.50,
-    products: [
-      {
-        id: 'p3',
-        name: 'Ethiopian Light Roast',
-        image: '/placeholder.svg',
-        price: 15.99,
-        quantity: 1,
-        grind: 'Fine Grind'
-      },
-      {
-        id: 'p4',
-        name: 'Coffee Filter Papers',
-        image: '/placeholder.svg',
-        price: 6.99,
-        quantity: 1
-      },
-      {
-        id: 'p5',
-        name: 'Coffee Scoop',
-        image: '/placeholder.svg',
-        price: 5.52,
-        quantity: 1
-      }
-    ]
-  },
-  {
-    id: '1047',
-    date: '2025-04-09',
-    status: 'Getting ready',
-    total: 55.97,
-    products: [
-      {
-        id: 'p6',
-        name: 'Coffee Gift Set',
-        image: '/placeholder.svg',
-        price: 39.99,
-        quantity: 1
-      },
-      {
-        id: 'p7',
-        name: 'French Press',
-        image: '/placeholder.svg',
-        price: 15.98,
-        quantity: 1
-      }
-    ]
-  }
-];
 
 export default PastOrders;
