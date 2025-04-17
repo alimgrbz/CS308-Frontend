@@ -21,10 +21,6 @@ import { useEffect } from "react";
 const queryClient = new QueryClient();
 
 const App = () => {
-  useEffect(() => {
-    // Set token to empty string only once on initial app load
-    localStorage.setItem('token', '');
-  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
