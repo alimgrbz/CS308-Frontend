@@ -11,6 +11,8 @@ import { addToCart } from '@/api/cartApi';
 import { addToLocalCart } from '@/utils/cartUtils';
 import { getRatingsByProduct } from '@/api/rateApi';
 import { getCommentsByProduct } from '@/api/commentApi'; 
+import { getStockById } from "@/api/productApi";
+
 
 
 const getStarRatingFromPopularity = (popularity: number): number => {
@@ -31,6 +33,8 @@ const ProductDetailPage = () => {
   const [averageRating, setAverageRating] = useState<number | null>(null);
   const { toast } = useToast();
   const [comments, setComments] = useState([]);
+  const [actualStock, setActualStock] = useState<number | null>(null);
+
 
   useEffect(() => {
     const fetchData = async () => {
@@ -54,7 +58,7 @@ const ProductDetailPage = () => {
           productsData = productsResponse.data;
         }
 
-        if (id) {
+        if (id){
           try {
             const ratingsResponse = await getRatingsByProduct(Number(id));
             const ratingValues = Array.isArray(ratingsResponse.ratings)
@@ -73,6 +77,9 @@ const ProductDetailPage = () => {
             const commentData = await getCommentsByProduct(Number(id));
             console.log(" Comment API response:", commentData);
             setComments(commentData);
+
+            const stock = await getStockById(Number(id)); // new
+            setActualStock(stock);
 
           } catch (error) {
             console.error("Error fetching ratings or comments:", error);
@@ -222,11 +229,17 @@ const ProductDetailPage = () => {
               {product.roastLevel && (
                 <span className="chip bg-driftmood-cream text-driftmood-brown">Roast: {product.roastLevel}</span>
               )}
-              {product.stock ? (
-                <span className="chip bg-green-100 text-green-800">In Stock</span>
-              ) : (
-                <span className="chip bg-red-100 text-red-800">Out of Stock</span>
-              )}
+              {actualStock !== null && (
+  <>
+    {actualStock === 0 ? (
+      <span className="chip bg-red-100 text-red-800">Out of Stock!</span>
+    ) : actualStock <= 10 ? (
+      <span className="chip bg-yellow-100 text-yellow-800">Only {actualStock} left in stock!</span>
+    ) : (
+      <span className="chip bg-green-100 text-green-800">In Stock</span>
+    )}
+  </>
+)}
             </div>
 
             {/* Quantity selector + add to cart */}
@@ -246,11 +259,12 @@ const ProductDetailPage = () => {
                   className="quantity-input"
                 />
                 <button
-                  onClick={() => setQuantity(quantity + 1)}
-                  className="quantity-btn"
-                >
-                  +
-                </button>
+                onClick={() => setQuantity(quantity + 1)}
+                disabled={actualStock !== null && quantity >= actualStock}
+                className="quantity-btn"
+              >
+                +
+              </button>
               </div>
 
               <button

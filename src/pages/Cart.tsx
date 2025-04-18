@@ -15,7 +15,6 @@ import {
 } from '@/utils/cartUtils'; // adjust path if needed
 
 
-
 const Cart = () => {
   
   // Get cart items from localStorage or use mock data if none exist
@@ -51,7 +50,7 @@ const Cart = () => {
               id: item.productId,
               name: item.name,
               price: item.price,
-              image: item.image,
+              image: item.picture,
               grind: item.grind || null
             },
             count: item.quantity
@@ -102,7 +101,7 @@ const Cart = () => {
             id: item.productId,
             name: item.name,
             price: item.price,
-            image: item.image,
+            image: item.picture,
             grind: item.grind
           },
           count: item.quantity
@@ -159,7 +158,7 @@ const Cart = () => {
             id: item.productId,
             name: item.name,
             price: item.price,
-            image: item.image,
+            image: item.picture,
             grind: item.grind
           },
           count: item.quantity
@@ -289,7 +288,7 @@ const Cart = () => {
                 id={product.id.toString()} // assuming your CartItem expects string id
                 name={product.name}
                 price={Number(product.price) || 0}
-                image={product.image || '/default.jpg'} // fallback if needed
+                image={product.picture || '/default.jpg'} // fallback if needed
                 quantity={count}
                 grind={product.grind} // optional
                 onRemove={handleRemoveItem}
