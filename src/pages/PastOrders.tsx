@@ -74,8 +74,8 @@ const mapBackendStatus = (backendStatus: string): OrderStatus => {
           id: prod.p_id.toString(),
           name: prod.name,
         image: prod.image,
-          price: parseFloat(prod.price),
-          quantity: prod.count,
+          price: parseFloat(prod.total_price),
+          quantity: prod.quantity,
           reviewed: false, // default until review API is integrated
         }))
       }));
