@@ -15,114 +15,6 @@ import {
 } from '@/utils/cartUtils'; // adjust path if needed
 
 
-// Mock data for initial cart items - these will be replaced with localStorage items
-const initialCartItems = [
-  {
-    id: '1',
-    name: 'Ethiopian Yirgacheffe',
-    price: 16.99,
-    image: 'https://images.unsplash.com/photo-1559525839-8b57ebc0c0d3?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8OHx8Y29mZmVlJTIwYmFnfGVufDB8fDB8fA%3D%3D&auto=format&fit=crop&w=500&q=60',
-    quantity: 1,
-    grind: 'Whole Bean'
-  },
-  {
-    id: '2',
-    name: 'Colombian Supremo',
-    price: 14.99,
-    image: 'https://images.unsplash.com/photo-1610889556528-9a770e32642f?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8MTB8fGNvZmZlZSUyMGJhZ3xlbnwwfHwwfHw%3D&auto=format&fit=crop&w=500&q=60',
-    quantity: 2,
-    grind: 'Espresso'
-  },
-  {
-    id: '3',
-    name: 'Sumatra Dark Roast',
-    price: 15.99,
-    image: 'https://images.unsplash.com/photo-1611854779393-1b2da9d400fe?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8M3x8Y29mZmVlJTIwYmFnfGVufDB8fDB8fA%3D%3D&auto=format&fit=crop&w=500&q=60',
-    quantity: 1,
-    grind: 'French Press'
-  },
-  {
-    id: '4',
-    name: 'Guatemalan Antigua',
-    price: 17.99,
-    image: 'https://images.unsplash.com/photo-1587049352851-8d4e89133924?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8MTJ8fGNvZmZlZSUyMGJhZ3xlbnwwfHwwfHw%3D&auto=format&fit=crop&w=500&q=60',
-    quantity: 1,
-    grind: 'Pour Over'
-  },
-  {
-    id: '5',
-    name: 'Costa Rican Tarrazu',
-    price: 15.49,
-    image: 'https://images.unsplash.com/photo-1595981234058-a9659694a15f?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8MTV8fGNvZmZlZSUyMGJhZ3xlbnwwfHwwfHw%3D&auto=format&fit=crop&w=500&q=60',
-    quantity: 2,
-    grind: 'Drip'
-  },
-  {
-    id: '6',
-    name: 'Kenya AA',
-    price: 18.99,
-    image: 'https://images.unsplash.com/photo-1580933073521-dc49ac0d4e6a?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8MjB8fGNvZmZlZSUyMGJhZ3xlbnwwfHwwfHw%3D&auto=format&fit=crop&w=500&q=60',
-    quantity: 1,
-    grind: 'Whole Bean'
-  },
-  {
-    id: '7',
-    name: 'Brazilian Santos',
-    price: 13.99,
-    image: 'https://images.unsplash.com/photo-1603396100018-5b2cc4c85de0?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8MjJ8fGNvZmZlZSUyMGJhZ3xlbnwwfHwwfHw%3D&auto=format&fit=crop&w=500&q=60',
-    quantity: 3,
-    grind: 'Espresso'
-  },
-  {
-    id: '8',
-    name: 'Tanzanian Peaberry',
-    price: 19.99,
-    image: 'https://images.unsplash.com/photo-1559525839-f61f18810673?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8Mjh8fGNvZmZlZSUyMGJhZ3xlbnwwfHwwfHw%3D&auto=format&fit=crop&w=500&q=60',
-    quantity: 1,
-    grind: 'French Press'
-  },
-  {
-    id: '9',
-    name: 'Mexican Chiapas',
-    price: 14.49,
-    image: 'https://images.unsplash.com/photo-1598512752271-33f913a5af13?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8Mjl8fGNvZmZlZSUyMGJhZ3xlbnwwfHwwfHw%3D&auto=format&fit=crop&w=500&q=60',
-    quantity: 2,
-    grind: 'Pour Over'
-  },
-  {
-    id: '10',
-    name: 'Jamaican Blue Mountain',
-    price: 32.99,
-    image: 'https://images.unsplash.com/photo-1614121236009-17211d4773b1?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8MzF8fGNvZmZlZSUyMGJhZ3xlbnwwfHwwfHw%3D&auto=format&fit=crop&w=500&q=60',
-    quantity: 1,
-    grind: 'Whole Bean'
-  },
-  {
-    id: '11',
-    name: 'Hawaiian Kona',
-    price: 28.99,
-    image: 'https://images.unsplash.com/photo-1581996323777-9a97f3bd0064?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8MzN8fGNvZmZlZSUyMGJhZ3xlbnwwfHwwfHw%3D&auto=format&fit=crop&w=500&q=60',
-    quantity: 1,
-    grind: 'Drip'
-  },
-  {
-    id: '12',
-    name: 'Vietnamese Robusta',
-    price: 12.99,
-    image: 'https://images.unsplash.com/photo-1609771100835-f41a0e2213a0?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8MzV8fGNvZmZlZSUyMGJhZ3xlbnwwfHwwfHw%3D&auto=format&fit=crop&w=500&q=60',
-    quantity: 2,
-    grind: 'Espresso'
-  },
-  {
-    id: '13',
-    name: 'Peru Organic',
-    price: 16.49,
-    image: 'https://images.unsplash.com/photo-1620820186187-fc32e79adb74?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8Mzd8fGNvZmZlZSUyMGJhZ3xlbnwwfHwwfHw%3D&auto=format&fit=crop&w=500&q=60',
-    quantity: 1,
-    grind: 'Pour Over'
-  }
-];
-
 const Cart = () => {
   /*
   // Get cart items from localStorage or use mock data if none exist
@@ -158,7 +50,7 @@ const Cart = () => {
               id: item.productId,
               name: item.name,
               price: item.price,
-              image: item.image,
+              image: item.picture,
               grind: item.grind || null
             },
             count: item.quantity
@@ -209,7 +101,7 @@ const Cart = () => {
             id: item.productId,
             name: item.name,
             price: item.price,
-            image: item.image,
+            image: item.picture,
             grind: item.grind
           },
           count: item.quantity
@@ -266,7 +158,7 @@ const Cart = () => {
             id: item.productId,
             name: item.name,
             price: item.price,
-            image: item.image,
+            image: item.picture,
             grind: item.grind
           },
           count: item.quantity
@@ -396,7 +288,7 @@ const Cart = () => {
                 id={product.id.toString()} // assuming your CartItem expects string id
                 name={product.name}
                 price={Number(product.price) || 0}
-                image={product.image || '/default.jpg'} // fallback if needed
+                image={product.picture || '/default.jpg'} // fallback if needed
                 quantity={count}
                 grind={product.grind} // optional
                 onRemove={handleRemoveItem}

@@ -38,3 +38,13 @@ export const clearCart = async (token) => {
   });
   return response.data;
 };
+
+export const checkCartAvailability = async (token) => {
+  try {
+    const response = await axiosInstance.post('/api/carts/check-cart', { token });
+    return response.data; // { valid: boolean, missingProducts: [...] }
+  } catch (error) {
+    console.error("Cart availability check failed:", error);
+    return { valid: false, missingProducts: [] }; // Fallback
+  }
+};

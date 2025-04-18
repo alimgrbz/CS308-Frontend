@@ -32,3 +32,13 @@ export const filterProducts = async (filters) => {
 }; 
 
 */
+
+export const getStockById = async (productId) => {
+  try {
+    const res = await axiosInstance.post('/api/products/get-stock', { productId });
+    return res.data.stock;
+  } catch (error) {
+    console.error('Error fetching stock:', error);
+    return null;
+  }
+};
