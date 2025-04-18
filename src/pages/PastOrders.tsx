@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 import OrderReviewModal from '@/components/OrderReviewModal';
 import { getOrdersByUser } from '@/api/orderApi';
 import { addComment } from "@/api/commentApi"; 
-import { addRate } from "@/api/rateApi"; 
+import { addRate, getRatesByUser  } from "@/api/rateApi"; 
 
 
 const PastOrders = () => {
@@ -100,38 +100,48 @@ const mapBackendStatus = (backendStatus: string): OrderStatus => {
     }
   };
   
-  useEffect(() => {
+useEffect(() => {
   const token = localStorage.getItem('token');
   if (!token) return;
 
-  const fetchOrders = async () => {
+  const fetchOrdersAndRatings = async () => {
     try {
       const rawOrders = await getOrdersByUser(token);
+      const userRatings = await getRatesByUser(token); // 👈 fetch ratings
 
-      // Convert backend response format into the shape your component expects
+      const ratingMap: Record<string, number> = {};
+      userRatings.forEach((r: { product_id: number; rate: number }) => {
+        ratingMap[r.product_id] = parseFloat(r.rate); // just in case it's a string
+      });
+
       const mappedOrders: Order[] = rawOrders.map((order: any) => ({
         id: order.order_id.toString(),
         date: new Date(order.date).toISOString(),
         status: mapBackendStatus(order.order_status),
         isCancelled: order.order_status === 'cancelled',
         total: parseFloat(order.total_price),
-        products: order.product_list.map((prod: any) => ({
-          id: prod.p_id.toString(),
-          name: prod.name,
-        image: prod.image,
-          price: parseFloat(prod.total_price),
-          quantity: prod.quantity,
-          reviewed: false, // default until review API is integrated
-        }))
+        products: order.product_list.map((prod: any) => {
+          const pid = prod.p_id;
+          return {
+            id: pid.toString(),
+            name: prod.name,
+            image: prod.image,
+            price: parseFloat(prod.total_price),
+            quantity: prod.quantity,
+            grind: prod.grind,
+            reviewed: pid in ratingMap,
+            rating: ratingMap[pid] ?? undefined,
+          };
+        })
       }));
 
       setOrders(mappedOrders);
     } catch (err) {
-      console.error("Error fetching orders:", err);
+      console.error("Error fetching orders or ratings:", err);
     }
   };
 
-  fetchOrders();
+  fetchOrdersAndRatings();
 }, []);
 
   

@@ -21,3 +21,13 @@ export const addRate = async (token, productId, rate) => {
 
   return response.data;
 };
+
+export const getRatesByUser = async (token) => {
+  try {
+    const response = await axiosInstance.post('/api/rates/getRatesByUser', { token });
+    return response.data.rates;
+  } catch (error) {
+    console.error('Error fetching rates by user:', error);
+    return [];
+  }
+};
