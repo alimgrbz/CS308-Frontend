@@ -3,20 +3,18 @@ import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
+  Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { ButtonCustom } from '@/components/ui/button-custom';
 import { CreditCard, Mail, Map, User } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
+import { getUserProfile } from '@/api/userApi';
+import { getAddressInfo, updateAddress } from '@/api/addressApi';
 
-// Schema
+/* ---------------- validation ---------------- */
+
 const checkoutFormSchema = z.object({
   fullName: z.string().min(2, 'Full name is required'),
   email: z.string().email('Valid email is required'),
@@ -33,33 +31,29 @@ const checkoutFormSchema = z.object({
 type CheckoutFormValues = z.infer<typeof checkoutFormSchema>;
 
 interface CheckoutFormProps {
-  onSubmit: (data: CheckoutFormValues) => Promise<void> | void;
-  isProcessing: boolean;
-  userData?: {
-    fullName?: string;
-    email?: string;
-    address?: string;
-    city?: string;
-    state?: string;
-    zipCode?: string;
-  } | null;
-  userName?: string;
+  /** Optional callback – parent can intercept successful checkout   */
+  onSubmit?: (data: CheckoutFormValues) => Promise<void> | void;
+  /** Spinner flag sent from parent; falls back to local state        */
+  isProcessing?: boolean;
 }
 
-const CheckoutForm = ({ onSubmit, isProcessing, userData, userName }: CheckoutFormProps) => {
+const CheckoutForm = ({ onSubmit, isProcessing = false }: CheckoutFormProps) => {
   const [isAddressExpanded, setIsAddressExpanded] = useState(false);
+  const [userName, setUserName] = useState('');
+  const [localProcessing, setLocalProcessing] = useState(false);
+
   const isLoggedIn = !!localStorage.getItem('token');
   const navigate = useNavigate();
 
   const form = useForm<CheckoutFormValues>({
     resolver: zodResolver(checkoutFormSchema),
     defaultValues: {
-      fullName: userData?.fullName || '',
-      email: userData?.email || '',
-      address: userData?.address || '',
-      city: userData?.city || '',
-      state: userData?.state || '',
-      zipCode: userData?.zipCode || '',
+      fullName: '',
+      email: '',
+      address: '',
+      city: '',
+      state: '',
+      zipCode: '',
       cardNumber: '',
       cardExpiry: '',
       cardCvc: '',
@@ -67,63 +61,124 @@ const CheckoutForm = ({ onSubmit, isProcessing, userData, userName }: CheckoutFo
     },
   });
 
+  /* ------------ pre‑fill user & address data ------------- */
   useEffect(() => {
-    if (userData?.address) {
-      setIsAddressExpanded(true);
-    }
-  }, [userData]);
+    const fetchUserData = async () => {
+      if (!isLoggedIn) return;
 
+      try {
+        const token = localStorage.getItem('token')!;
+        console.log("here i am", token);
+        const user = await getUserProfile(token);
+        form.setValue('fullName', user.name ?? '');
+        form.setValue('email', user.email ?? '');
+        setUserName(user.name ?? '');
+
+        // address helper already attaches token via axios interceptor
+        const addressData = await getAddressInfo(token);
+        const info = addressData?.adressInfo ?? {};
+
+        const addressValue = info.delivery_address || info.address || '';
+        form.setValue('address', addressValue);
+        if (info.city)  form.setValue('city', info.city);
+        if (info.state) form.setValue('state', info.state);
+        if (info.zipCode) form.setValue('zipCode', info.zipCode);
+
+        if (addressValue) setIsAddressExpanded(true);
+      } catch (err) {
+        console.error('Prefill failed:', err);
+      }
+    };
+
+    fetchUserData();
+  }, [isLoggedIn, form]);
+
+  /* ---------------- actual submit ----------------- */
   const handleSubmit = async (values: CheckoutFormValues) => {
+    if (!isLoggedIn) {
+      navigate('/login?returnUrl=/checkout');
+      return;
+    }
+
+    setLocalProcessing(true);
     try {
-      await onSubmit(values);
+      // Update address only if the user expanded or typed something
+      if (isAddressExpanded) {
+        const token = localStorage.getItem('token')
+        await updateAddress(token, values.address);
+      }
+
+      if (onSubmit) await onSubmit(values);
+
       navigate('/order-success');
     } catch (err) {
       console.error('Checkout failed:', err);
-      // Optionally show error to user
+    } finally {
+      setLocalProcessing(false);
     }
   };
 
+  /* ================== UI =================== */
   return (
     <div className="bg-white p-6 rounded-lg border border-coffee-green/10 shadow-sm">
       <Form {...form}>
+        {/* standard shadcn pattern */}
         <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-          {/* Contact Info */}
-          <div className="space-y-4">
+
+          {/* ---------- Contact info ---------- */}
+          <section className="space-y-4">
             <h2 className="text-xl font-medium text-coffee-green flex items-center gap-2">
               <User size={20} />
-              <span>Contact Information</span>
+              Contact Information
               {!isLoggedIn && (
                 <span className="text-sm font-normal ml-2">
-                  Already have an account?{' '}
-                  <Link to="/login?returnUrl=/checkout" className="text-coffee-green underline">
-                    Sign in
-                  </Link>
+                  Already have an account?&nbsp;
+                  <Link to="/login?returnUrl=/checkout" className="underline">Sign in</Link>
                 </span>
               )}
             </h2>
 
-            {isLoggedIn ? (
-              <div className="text-coffee-brown font-medium text-base">
-                Continue your order, {userData?.fullName || userName || 'Guest'}
-              </div>
-            ) : (
-              <div className="text-center py-4">
-                <p className="text-coffee-brown">Please sign in to continue with your checkout</p>
-              </div>
-            )}
-          </div>
+            {isLoggedIn
+              ? <p className="text-coffee-brown">Continue your order, {userName}</p>
+              : (
+                <>
+                  {/* Full name & e‑mail shown only when guest */}
+                  <FormField
+                    control={form.control}
+                    name="fullName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Full name</FormLabel>
+                        <FormControl><Input {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email</FormLabel>
+                        <FormControl><Input {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </>
+              )}
+          </section>
 
-          {/* Shipping Address */}
-          <div className="space-y-4">
+          {/* ---------- Address ---------- */}
+          <section className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-medium text-coffee-green flex items-center gap-2">
-                <Map size={20} />
-                <span>Shipping Address</span>
+                <Map size={20} /> Shipping Address
               </h2>
               <button
                 type="button"
-                className="text-sm text-coffee-green underline"
-                onClick={() => setIsAddressExpanded(!isAddressExpanded)}
+                className="text-sm underline"
+                onClick={() => setIsAddressExpanded((v) => !v)}
               >
                 {isAddressExpanded ? 'Hide' : 'Add address (optional)'}
               </button>
@@ -137,81 +192,75 @@ const CheckoutForm = ({ onSubmit, isProcessing, userData, userName }: CheckoutFo
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Address</FormLabel>
-                      <FormControl>
-                        <Input placeholder="123 Main Street" {...field} />
-                      </FormControl>
+                      <FormControl><Input {...field} placeholder="123 Main St." /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
 
                 <div className="grid md:grid-cols-3 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="city"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>City</FormLabel>
-                        <FormControl>
-                          <Input placeholder="New York" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="state"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>State</FormLabel>
-                        <FormControl>
-                          <Input placeholder="NY" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="zipCode"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Zip Code</FormLabel>
-                        <FormControl>
-                          <Input placeholder="10001" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  {['city', 'state', 'zipCode'].map((name) => (
+                    <FormField
+                      key={name}
+                      control={form.control}
+                      name={name as keyof CheckoutFormValues}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="capitalize">{name}</FormLabel>
+                          <FormControl><Input {...field} /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  ))}
                 </div>
               </div>
             )}
-          </div>
+          </section>
 
-          {/* Payment Details */}
-          <div className="space-y-4">
+          {/* ---------- Payment ---------- */}
+          <section className="space-y-4">
             <h2 className="text-xl font-medium text-coffee-green flex items-center gap-2">
-              <CreditCard size={20} />
-              <span>Payment Details</span>
+              <CreditCard size={20} /> Payment Details
             </h2>
 
-            <div className="space-y-4">
+            {/* Card number */}
+            <FormField
+              control={form.control}
+              name="cardNumber"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Card Number</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      placeholder="1234 5678 9012 3456"
+                      maxLength={16}
+                      onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Expiry & CVC */}
+            <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
-                name="cardNumber"
+                name="cardExpiry"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Card Number</FormLabel>
+                    <FormLabel>Expiry (MM/YY)</FormLabel>
                     <FormControl>
                       <Input
-                        placeholder="1234 5678 9012 3456"
                         {...field}
-                        maxLength={16}
+                        placeholder="MM/YY"
+                        maxLength={5}
                         onChange={(e) => {
-                          const value = e.target.value.replace(/\D/g, '');
-                          field.onChange(value);
+                          let v = e.target.value.replace(/\D/g, '');
+                          if (v.length > 2) v = `${v.slice(0, 2)}/${v.slice(2, 4)}`;
+                          field.onChange(v);
                         }}
                       />
                     </FormControl>
@@ -219,90 +268,52 @@ const CheckoutForm = ({ onSubmit, isProcessing, userData, userName }: CheckoutFo
                   </FormItem>
                 )}
               />
-
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="cardExpiry"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Expiry Date (MM/YY)</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="MM/YY"
-                          {...field}
-                          maxLength={5}
-                          onChange={(e) => {
-                            let value = e.target.value.replace(/\D/g, '');
-                            if (value.length > 2) {
-                              value = `${value.substring(0, 2)}/${value.substring(2, 4)}`;
-                            }
-                            field.onChange(value);
-                          }}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="cardCvc"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>CVC</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="123"
-                          {...field}
-                          maxLength={4}
-                          onChange={(e) => {
-                            const value = e.target.value.replace(/\D/g, '');
-                            field.onChange(value);
-                          }}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+              <FormField
+                control={form.control}
+                name="cardCvc"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>CVC</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        placeholder="123"
+                        maxLength={4}
+                        onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
-          </div>
+          </section>
 
-          {/* Special Instructions */}
-          <div className="space-y-4">
+          {/* ---------- Special instructions ---------- */}
+          <section className="space-y-4">
             <h2 className="text-xl font-medium text-coffee-green flex items-center gap-2">
-              <Mail size={20} />
-              <span>Special Instructions</span>
+              <Mail size={20} /> Special Instructions
             </h2>
-
             <FormField
               control={form.control}
               name="specialInstructions"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Notes (optional)</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Add any special instructions or notes here..."
-                      {...field}
-                    />
-                  </FormControl>
+                  <FormControl><Textarea {...field} placeholder="…" /></FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-          </div>
+          </section>
 
-          {/* Submit Button */}
+          {/* ---------- Submit ---------- */}
           <ButtonCustom
             type="submit"
-            size="lg"
-            className="w-full mt-6"
-            loading={isProcessing}
+            disabled={isProcessing || localProcessing}
+            className="w-full text-lg mt-6"
           >
-            {isProcessing ? 'Processing...' : 'Place Order'}
+            {(isProcessing || localProcessing) ? 'Processing…' : 'Place Order'}
           </ButtonCustom>
         </form>
       </Form>

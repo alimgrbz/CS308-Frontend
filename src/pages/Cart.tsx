@@ -16,12 +16,12 @@ import {
 
 
 const Cart = () => {
-  /*
+  
   // Get cart items from localStorage or use mock data if none exist
   const getCartItems = () => {
     const storedItems = localStorage.getItem('cartItems');
-    return storedItems ? JSON.parse(storedItems) : initialCartItems;
-  };*/
+    return storedItems ? JSON.parse(storedItems) : [];
+  };
 
   const [cartItems, setCartItems] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);

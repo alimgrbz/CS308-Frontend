@@ -58,14 +58,14 @@ const Checkout = () => {
         date: new Date().toISOString()
       };
       localStorage.setItem('lastOrder', JSON.stringify(orderDetails));
-      
+      /*
       // Clear the cart
       localStorage.setItem('cartItems', JSON.stringify([]));
       window.dispatchEvent(new Event('storage'));
 
       // Send receipt email (would be handled by a backend service)
       console.log('Sending receipt email to:', formData.email);
-      
+      */
       toast.success('Order placed successfully! Check your email for confirmation.');
       navigate('/order-success');
     } catch (error) {
@@ -78,6 +78,7 @@ const Checkout = () => {
   
   // Redirect if cart is empty
   if (cartItems.length === 0) {
+    console.log("cart is empty", cartItems);
     return (
       <>
         <div className="container mx-auto py-16 px-4 text-center">
@@ -119,7 +120,6 @@ const Checkout = () => {
               <CheckoutForm 
                 onSubmit={handlePlaceOrder} 
                 isProcessing={isProcessing}
-                userData={userData}
               />
             </div>
             
