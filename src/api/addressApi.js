@@ -17,7 +17,7 @@ export const getAddressInfo = async (token) => {
 // Update address
 export const updateAddress = async (token,address) => {
     try {
-        const response = await axiosInstance.put('/api/customerinfos/adressInfo/update/address', {
+        const response = await axiosInstance.post('/api/customerinfos/adressInfo/update/address', {
             token,
             address
         });
@@ -31,7 +31,7 @@ export const updateAddress = async (token,address) => {
 // Update delivery address
 export const updateDeliveryAddress = async (token, delivery_address) => {
     try {
-        const response = await axiosInstance.put('/api/customerinfos/adressInfo/update/delivery', {
+        const response = await axiosInstance.post('/api/customerinfos/adressInfo/update/delivery', {
             token,
             delivery_address
         });

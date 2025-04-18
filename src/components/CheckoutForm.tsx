@@ -68,13 +68,14 @@ const CheckoutForm = ({ onSubmit, isProcessing = false }: CheckoutFormProps) => 
 
       try {
         const token = localStorage.getItem('token')!;
+        console.log("here i am", token);
         const user = await getUserProfile(token);
         form.setValue('fullName', user.name ?? '');
         form.setValue('email', user.email ?? '');
         setUserName(user.name ?? '');
 
         // address helper already attaches token via axios interceptor
-        const addressData = await getAddressInfo();
+        const addressData = await getAddressInfo(token);
         const info = addressData?.adressInfo ?? {};
 
         const addressValue = info.delivery_address || info.address || '';
@@ -103,12 +104,8 @@ const CheckoutForm = ({ onSubmit, isProcessing = false }: CheckoutFormProps) => 
     try {
       // Update address only if the user expanded or typed something
       if (isAddressExpanded) {
-        await updateAddress({
-          address  : values.address,
-          city     : values.city,
-          state    : values.state,
-          zipCode  : values.zipCode,
-        });
+        const token = localStorage.getItem('token')
+        await updateAddress(token, values.address);
       }
 
       if (onSubmit) await onSubmit(values);
