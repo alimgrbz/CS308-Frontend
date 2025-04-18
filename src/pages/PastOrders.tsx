@@ -10,6 +10,9 @@ import { Package2, CheckCircle2, Truck, ClipboardList, Star, ChevronLeft } from 
 import { toast } from 'sonner';
 import OrderReviewModal from '@/components/OrderReviewModal';
 import { getOrdersByUser } from '@/api/orderApi';
+import { addComment } from "@/api/commentApi"; 
+import { addRate } from "@/api/rateApi"; 
+
 
 const PastOrders = () => {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -39,10 +42,52 @@ const mapBackendStatus = (backendStatus: string): OrderStatus => {
     setShowReviewModal(true);
   };
 
-  const handleSubmitReview = (rating: number, comment: string) => {
-    toast.success(`Review submitted for ${reviewProduct?.name}!`);
-    setShowReviewModal(false);
-  };
+  const handleSubmitReview = async (rating: number, comment: string) => {
+  if (!reviewProduct) return;
+
+  const token = localStorage.getItem('token');
+  if (!token) {
+    toast.error("You must be logged in to submit a review.");
+    return;
+  }
+
+  
+
+    try {
+          if (comment.trim() !== ""){
+            console.log("adding the comment," , comment);
+      await addComment(token, Number(reviewProduct.id), comment);
+      toast.success(`Review submitted for ${reviewProduct.name}!`);
+
+    }
+    else {
+      console.log("No comment submitted — skipping comment API.");
+    }
+
+    await addRate(token, Number(reviewProduct.id), rating);
+    console.log("Rating added:", rating);
+      
+
+      // Optionally mark product as reviewed
+      setOrders(prev =>
+        prev.map(order => {
+          if (order.id !== selectedOrder?.id) return order;
+          return {
+            ...order,
+            products: order.products.map(p =>
+              p.id === reviewProduct.id
+                ? { ...p, reviewed: true, rating }
+                : p
+            ),
+          };
+        })
+      );
+
+      setShowReviewModal(false);
+  } catch (err) {
+    toast.error("Failed to submit review.");
+  }
+};
 
   // Function to get the current status progress percentage
   const getOrderProgress = (status: OrderStatus) => {

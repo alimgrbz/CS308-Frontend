@@ -13,3 +13,18 @@ export const getCommentsByProduct = async (productId) => {
     return []; // fallback if there's an error
   }
 };
+
+
+export const addComment = async (token, productId, comment) => {
+  try {
+    const response = await axiosInstance.post('/api/comments/add', {
+      token,
+      productId,
+      comment
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Failed to add comment:", error);
+    throw error;
+  }
+};

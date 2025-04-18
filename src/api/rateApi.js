@@ -1,8 +1,8 @@
-import axios from 'axios';
+import axiosInstance from './axiosConfig';
 
 export const getRatingsByProduct = async (productId) => {
   try {
-    const response = await axios.post('http://localhost:5000/api/rates/getall', {
+    const response = await axiosInstance.post('/api/rates/getall', {
       product_id: productId
     });
     return response.data;
@@ -10,4 +10,14 @@ export const getRatingsByProduct = async (productId) => {
     console.error('Error fetching ratings:', error);
     throw error;
   }
+};
+
+export const addRate = async (token, productId, rate) => {
+  const response = await axiosInstance.post('/api/rates/rate', {
+    token,
+    product_id: productId,
+    rate
+  });
+
+  return response.data;
 };
