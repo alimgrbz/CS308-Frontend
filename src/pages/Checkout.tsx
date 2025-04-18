@@ -46,7 +46,7 @@ const Checkout = () => {
     try {
       // This would be replaced with an actual payment processing API call
       await new Promise(resolve => setTimeout(resolve, 1500));
-      
+      /*
       // Save order details for the receipt
       const orderDetails = {
         items: cartItems,
@@ -57,7 +57,7 @@ const Checkout = () => {
         customerInfo: formData,
         date: new Date().toISOString()
       };
-      localStorage.setItem('lastOrder', JSON.stringify(orderDetails));
+      localStorage.setItem('l', JSON.stringify(orderDetails));*/
       /*
       // Clear the cart
       localStorage.setItem('cartItems', JSON.stringify([]));

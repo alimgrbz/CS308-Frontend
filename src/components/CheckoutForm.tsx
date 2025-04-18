@@ -12,6 +12,8 @@ import { CreditCard, Mail, Map, User } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getUserProfile } from '@/api/userApi';
 import { getAddressInfo, updateAddress } from '@/api/addressApi';
+import { createOrder } from '@/api/orderApi';
+
 
 /* ---------------- validation ---------------- */
 
@@ -102,11 +104,20 @@ const CheckoutForm = ({ onSubmit, isProcessing = false }: CheckoutFormProps) => 
 
     setLocalProcessing(true);
     try {
-      // Update address only if the user expanded or typed something
+      const token = localStorage.getItem('token');
+      if (!token) throw new Error("Token not found");
+
+      // Update address only if user edited it
       if (isAddressExpanded) {
-        const token = localStorage.getItem('token')
         await updateAddress(token, values.address);
       }
+
+      // Call backend checkout API
+      const  orderResponse = await createOrder(token);
+      console.log("api response", orderResponse);
+
+      // Store for OrderSuccess page (incl. PDF)
+      localStorage.setItem('lastOrder', JSON.stringify(orderResponse));
 
       if (onSubmit) await onSubmit(values);
 
