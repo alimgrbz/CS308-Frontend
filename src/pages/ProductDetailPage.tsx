@@ -7,11 +7,12 @@ import '../ProductDetailPage.css';
 import { getAllProducts } from '@/api/productApi';
 import { getAllCategories } from '@/api/categoryApi';
 import { useEffect, useState } from 'react';
-import { addToCart } from '@/api/cartApi';
+import { addToCart, getCart } from '@/api/cartApi';
 import { addToLocalCart } from '@/utils/cartUtils';
 import { getRatingsByProduct } from '@/api/rateApi';
 import { getCommentsByProduct } from '@/api/commentApi'; 
 import { getStockById } from "@/api/productApi";
+import OutOfStockDialog from '@/components/OutOfStockDialog';
 
 
 
@@ -34,6 +35,8 @@ const ProductDetailPage = () => {
   const { toast } = useToast();
   const [comments, setComments] = useState([]);
   const [actualStock, setActualStock] = useState<number | null>(null);
+  const [isOutOfStockDialogOpen, setIsOutOfStockDialogOpen] = useState(false);
+  const [insufficientStockMessage, setInsufficientStockMessage] = useState('');
 
 
   useEffect(() => {
@@ -78,8 +81,10 @@ const ProductDetailPage = () => {
             console.log(" Comment API response:", commentData);
             setComments(commentData);
 
-            const stock = await getStockById(Number(id)); // new
-            setActualStock(stock);
+            // Fetch real-time stock information
+            const stockAmount = await getStockById(Number(id));
+            setActualStock(stockAmount);
+            console.log('Current stock:', stockAmount);
 
           } catch (error) {
             console.error("Error fetching ratings or comments:", error);
@@ -156,10 +161,29 @@ const ProductDetailPage = () => {
   };
 
   const handleAddToCart = async () => {
-    if (!product.stock) return;
-  
     const token = localStorage.getItem('token');
-    console.log('Token in handleAddToCart:', token); // <--- this should be null
+    let currentCartQuantity = 0;
+
+    if (token) {
+      try {
+        const cartResponse = await getCart(token);
+        const cartItem = cartResponse.find(item => item.product.id === product.productId);
+        currentCartQuantity = cartItem ? cartItem.count : 0;
+      } catch (error) {
+        console.error('Error fetching cart:', error);
+      }
+    } else {
+      const localCart = JSON.parse(localStorage.getItem('guest_cart') || '[]');
+      const localCartItem = localCart.find(item => item.productId === product.productId);
+      currentCartQuantity = localCartItem ? localCartItem.quantity : 0;
+    }
+
+    // Check if product is out of stock or if adding more would exceed stock
+    if (actualStock !== null && (actualStock === 0 || currentCartQuantity + quantity > actualStock)) {
+      setInsufficientStockMessage(`Sorry, ${product.name} is currently out of stock.`);
+      setIsOutOfStockDialogOpen(true);
+      return;
+    }
 
     try {
       if (token) {
@@ -173,6 +197,13 @@ const ProductDetailPage = () => {
           quantity,
         });
       }
+      
+      // Refresh stock information after adding to cart
+      if (id) {
+        const newStock = await getStockById(Number(id));
+        setActualStock(newStock);
+      }
+
       window.dispatchEvent(new Event('cart-updated'));
       toast({
         title: "Added to cart",
@@ -248,35 +279,41 @@ const ProductDetailPage = () => {
                 <button
                   onClick={() => setQuantity(Math.max(1, quantity - 1))}
                   className="quantity-btn"
+                  disabled={actualStock === 0}
                 >
                   -
                 </button>
                 <input
                   type="number"
                   min={1}
+                  max={actualStock || 1}
                   value={quantity}
-                  onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                  onChange={(e) => {
+                    const newQuantity = parseInt(e.target.value) || 1;
+                    setQuantity(Math.min(actualStock || 1, Math.max(1, newQuantity)));
+                  }}
                   className="quantity-input"
+                  disabled={actualStock === 0}
                 />
                 <button
-                onClick={() => setQuantity(quantity + 1)}
-                disabled={actualStock !== null && quantity >= actualStock}
-                className="quantity-btn"
-              >
-                +
-              </button>
+                  onClick={() => setQuantity(Math.min((actualStock || 1), quantity + 1))}
+                  disabled={actualStock !== null && (actualStock === 0 || quantity >= actualStock)}
+                  className="quantity-btn"
+                >
+                  +
+                </button>
               </div>
 
               <button
                 className={cn(
                   "btn-primary flex-1 flex items-center justify-center",
-                  !product.stock && "opacity-50 cursor-not-allowed"
+                  (actualStock === 0 || quantity > actualStock) && "opacity-50 cursor-not-allowed"
                 )}
-                disabled={!product.stock}
+                disabled={actualStock === 0 || quantity > actualStock}
                 onClick={handleAddToCart}
               >
                 <ShoppingCart size={18} className="mr-2" />
-                {product.stock ? "Add to Cart" : "Sold Out"}
+                {actualStock === 0 ? "Out of Stock" : "Add to Cart"}
               </button>
             </div>
           </div>
@@ -366,6 +403,12 @@ const ProductDetailPage = () => {
 )}
         </div>
       </div>
+      
+      <OutOfStockDialog 
+        isOpen={isOutOfStockDialogOpen}
+        onOpenChange={setIsOutOfStockDialogOpen}
+        productName={insufficientStockMessage}
+      />
     </div>
   );
 };
