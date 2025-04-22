@@ -3,12 +3,14 @@ import { Link, useLocation } from 'react-router-dom';
 import { getCart } from '@/api/cartApi';
 import Logo from './Logo';
 import SearchBar from './SearchBar';
-import { User } from 'lucide-react';
+import { User, Coffee } from 'lucide-react';
+import CoffeeRain from './CoffeeRain';
 import '../styles/Navbar.css';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [showCoffeeRain, setShowCoffeeRain] = useState(false);
   const location = useLocation();
 
   const getCartItems = async () => {
@@ -89,6 +91,13 @@ const Navbar = () => {
           <SearchBar />
 
           <div className="nav-actions">
+            <button
+              onClick={() => setShowCoffeeRain(true)}
+              className="p-2 rounded-full hover:bg-coffee-green/10 transition-colors mr-2"
+              title="Make it rain coffee!"
+            >
+              <Coffee size={24} className="text-coffee-brown" />
+            </button>
             {isLoggedIn ? (
               <a
                 href="http://localhost:8080/profile"
@@ -121,6 +130,7 @@ const Navbar = () => {
           </div>
         </div>
       </div>
+      {showCoffeeRain && <CoffeeRain onEnd={() => setShowCoffeeRain(false)} />}
     </nav>
   );
 };
