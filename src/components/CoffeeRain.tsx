@@ -3,13 +3,13 @@ import { useEffect, useRef } from "react";
 import { Coffee } from "lucide-react";
 
 // Number of beans to animate
-const BEAN_COUNT = 23;
+const BEAN_COUNT = 40;
 
 function randomBetween(min: number, max: number) {
   return Math.random() * (max - min) + min;
 }
 
-const CoffeeRain = ({ duration = 2500, onEnd }: { duration?: number; onEnd?: () => void }) => {
+const CoffeeRain = ({ duration = 5000, onEnd }: { duration?: number; onEnd?: () => void }) => {
   const timeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -28,7 +28,7 @@ const CoffeeRain = ({ duration = 2500, onEnd }: { duration?: number; onEnd?: () 
   const beans = Array.from({ length: BEAN_COUNT }).map((_, i) => {
     const left = randomBetween(0, 95); // percent across the width
     const size = randomBetween(18, 32); // px
-    const delay = randomBetween(0, 0.7); // s
+    const delay = randomBetween(0, 2.7); // s
     const durationDrop = randomBetween(1.7, 2.8); // s
     const rotate = randomBetween(-30, 30);
 
