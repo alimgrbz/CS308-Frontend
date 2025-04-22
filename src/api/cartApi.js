@@ -48,3 +48,4 @@ export const checkCartAvailability = async (token) => {
     return { valid: false, missingProducts: [] }; // Fallback
   }
 };
+

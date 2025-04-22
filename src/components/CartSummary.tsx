@@ -8,6 +8,7 @@ interface CartSummaryProps {
   tax: number;
   shipping: number;
   total: number;
+  onCheckout?: () => void;
 }
 
 const CartSummary = ({ subtotal, tax, shipping, total }: CartSummaryProps) => {

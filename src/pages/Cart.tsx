@@ -50,7 +50,7 @@ const Cart = () => {
               id: item.productId,
               name: item.name,
               price: item.price,
-              image: item.picture,
+              picture: item.picture,
               grind: item.grind || null
             },
             count: item.quantity
