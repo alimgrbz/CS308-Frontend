@@ -4,13 +4,17 @@ import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import CheckoutForm from '@/components/CheckoutForm';
 import OrderSummary from '@/components/OrderSummary';
+import { getCart } from '@/api/cartApi';
 
 const Checkout = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const navigate = useNavigate();
   const [userData, setUserData] = useState<{ fullName?: string; email?: string } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  
+  const [cartItems, setCartItems] = useState([]);
+  const token = localStorage.getItem('token');
+
+
   // Get user data from localStorage (simulating authentication)
   useEffect(() => {
     const getUserData = () => {
@@ -25,13 +29,30 @@ const Checkout = () => {
     getUserData();
   }, []);
   
-  // Get cart items from localStorage
-  const getCartItems = () => {
-    const storedItems = localStorage.getItem('cartItems');
-    return storedItems ? JSON.parse(storedItems) : [];
-  };
+  useEffect(() => {
+    const loadCart = async () => {
+      setIsLoading(true);
+      try {
+        if (token) {
+          const backendCart = await getCart(token);
+          console.log("got items from api", backendCart);
+          setCartItems(backendCart); // Assumes format: [{ product: { id, name, price }, count }]
+        } else {
+          const stored = localStorage.getItem('cartItems');
+          console.log("not logged in, got cart from local", stored);
+          setCartItems(stored ? JSON.parse(stored) : []);
+        }
+      } catch (error) {
+        console.error("Failed to load cart:", error);
+        toast.error("Failed to load cart");
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-  const cartItems = getCartItems();
+    loadCart();
+  }, [token]);
+
   
   // Calculate cart totals
   const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
@@ -77,7 +98,7 @@ const Checkout = () => {
   };
   
   // Redirect if cart is empty
-  if (cartItems.length === 0) {
+  if (!isLoading && cartItems.length === 0) {
     console.log("cart is empty", cartItems);
     return (
       <>
