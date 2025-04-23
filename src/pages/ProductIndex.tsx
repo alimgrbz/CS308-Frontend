@@ -8,6 +8,8 @@ import { getAllProducts } from '@/api/productApi';
 import { getAllCategories } from '@/api/categoryApi';
 import Logo from '@/components/Logo';
 import { Link } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
+
 /*
 // Sample product data
 const products = [
@@ -356,7 +358,15 @@ interface Category {
 const ProductIndex = () => {
   
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
+  
+  const [searchParams] = useSearchParams();
+  const initialCategory = searchParams.get('category');
+  const [selectedCategory, setSelectedCategory] = useState<number | null>(
+  initialCategory ? parseInt(initialCategory, 10) : null
+);
+
+
+
   const [sortOption, setSortOption] = useState('popularity');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [inStockOnly, setInStockOnly] = useState(false);

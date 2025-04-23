@@ -58,33 +58,27 @@ const HomePage = () => {
         </div>
       </section>
 
-      <section className="categories-section">
-        <div className="container">
-          <h2 className="section-title">Shop by Category</h2>
-          <div className="categories-grid">
-            <Link to="/products/coffee-beans" className="category-card">
-              <div className="category-name">
-                <h3>Coffee Beans</h3>
-              </div>
-            </Link>
-            <Link to="/products/brewing-equipment" className="category-card">
-              <div className="category-name">
-                <h3>Brewing Equipment</h3>
-              </div>
-            </Link>
-            <Link to="/products/accessories" className="category-card">
-              <div className="category-name">
-                <h3>Accessories</h3>
-              </div>
-            </Link>
-            <Link to="/products/gifts" className="category-card">
-              <div className="category-name">
-                <h3>Gift Sets</h3>
-              </div>
-            </Link>
+<section className="categories-section">
+  <div className="container">
+    <h2 className="section-title">Our Categories</h2>
+    <div className="categories-grid">
+      {categories.map(category => (
+        <Link
+  key={category.id}
+  to={`/products?category=${category.id}`}
+  className="category-card"
+>
+          <div className="category-name">
+            <h3>{category.name}</h3>
           </div>
-        </div>
-      </section>
+        </Link>
+      ))}
+    </div>
+  </div>
+</section>
+
+
+
 
       <section className="featured-products-section">
         <div className="container">
