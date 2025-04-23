@@ -1,47 +1,68 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
+import { getUserProfile } from '@/api/userApi';
+import { getOrdersByUser } from '@/api/orderApi'; // 🔥 new
+
 import Navbar from '@/components/Navbar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ButtonCustom } from '@/components/ui/button-custom';
-import { Package, ShoppingBag, UserRound, Settings, LogOut, Star, Repeat } from 'lucide-react';
-import { useEffect } from 'react';
-import { getUserProfile } from '@/api/userApi'; // adjust path if needed
-
+import { Package, ShoppingBag, UserRound, Settings, LogOut, Star } from 'lucide-react';
 
 const Profile = () => {
   const [userName, setUserName] = useState('');
   const [email, setEmail] = useState('');
-  const [activeTab, setActiveTab] = useState('all');
+  const [orders, setOrders] = useState([]);
   const navigate = useNavigate();
 
   useEffect(() => {
-  const fetchUserData = async () => {
-    const token = localStorage.getItem('token');
-    if (!token) return;
+    const fetchUserData = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) return;
 
-    try {
-      const user = await getUserProfile(token);
-      setUserName(user.name);
-      setEmail(user.email);
-    } catch (error) {
-      console.error('Failed to fetch user info:', error);
-    }
-  };
+      try {
+        const user = await getUserProfile(token);
+        setUserName(user.name);
+        setEmail(user.email);
 
-  fetchUserData();
-}, []);
+        const fetchedOrders = await getOrdersByUser(token);
+        const inTransit = fetchedOrders.filter(order => order.status !== 'delivered');
+        setOrders(inTransit);
+      } catch (error) {
+        console.error('Failed to fetch user info or orders:', error);
+      }
+    };
+
+    fetchUserData();
+  }, []);
+
+  /*useEffect(() => {
+    // MOCK DATA (instead of API)
+    setUserName("Mock Coffee Fan");
+    setEmail("mockuser@driftmood.com");
+  
+    const fakeOrders = [
+      {
+        id: 101,
+        status: "processing",
+        total_price: 18.49,
+        created_at: "2025-04-20T09:00:00Z"
+      },
+      {
+        id: 102,
+        status: "on the way",
+        total_price: 32.99,
+        created_at: "2025-04-22T14:20:00Z"
+      }
+    ];
+  
+    setOrders(fakeOrders);
+  }, []);*/
+  
 
   const handleSignOut = () => {
     localStorage.removeItem('token');
     navigate('/');
   };
-
-  const filteredOrders = mockPastOrders.filter(order => {
-    if (activeTab === 'ongoing') return order.status !== 'Delivered';
-    if (activeTab === 'past') return order.status === 'Delivered';
-    return true;
-  });
 
   return (
     <div className="container mx-auto py-16 px-4">
@@ -57,6 +78,7 @@ const Profile = () => {
       </motion.div>
 
       <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
+        {/* Sidebar */}
         <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
@@ -90,10 +112,6 @@ const Profile = () => {
                   <Star size={18} className="mr-2" />
                   <span>My Reviews</span>
                 </Link>
-                <Link to="/purchase-again" className="flex items-center p-3 rounded-md hover:bg-coffee-green-light/20 text-coffee-brown hover:text-coffee-green transition-colors">
-                  <Repeat size={18} className="mr-2" />
-                  <span>Purchase Again</span>
-                </Link>
                 <Link to="/account" className="flex items-center p-3 rounded-md hover:bg-coffee-green-light/20 text-coffee-brown hover:text-coffee-green transition-colors">
                   <Settings size={18} className="mr-2" />
                   <span>Account Settings</span>
@@ -110,42 +128,37 @@ const Profile = () => {
           </Card>
         </motion.div>
 
+        {/* Orders in Transit */}
         <motion.div 
           className="md:col-span-2"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.4 }}
         >
-
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+            <h2 className="text-2xl font-semibold text-coffee-green mb-4">Orders In Transit</h2>
+            {orders.length === 0 ? (
+              <p className="text-coffee-brown">You have no ongoing orders.</p>
+            ) : (
+              <div className="space-y-4">
+                {orders.map((order) => (
+                  <div
+                    key={order.id}
+                    className="border border-gray-200 p-4 rounded-lg shadow-sm bg-white"
+                  >
+                    <p><strong>Order ID:</strong> {order.id}</p>
+                    <p><strong>Status:</strong> {order.status}</p>
+                    <p><strong>Total:</strong> ${order.total_price.toFixed(2)}</p>
+                    <p><strong>Date:</strong> {new Date(order.created_at).toLocaleDateString()}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </motion.div>
       </div>
     </div>
   );
-};
-
-// Mock data for the UI
-const mockPastOrders = [
-  {
-    id: '1023',
-    date: 'April 2, 2025',
-    items: 3,
-    total: 42.99,
-    status: 'Delivered'
-  },
-  {
-    id: '1045',
-    date: 'April 8, 2025',
-    items: 2,
-    total: 28.50,
-    status: 'On the way'
-  }
-];
-
-const statusColors = {
-  'Ordered': 'bg-amber-100 text-amber-800',
-  'Getting ready': 'bg-blue-100 text-blue-800',
-  'On the way': 'bg-purple-100 text-purple-800',
-  'Delivered': 'bg-green-100 text-green-800',
 };
 
 export default Profile;
