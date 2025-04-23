@@ -18,6 +18,8 @@ import Checkout from './pages/Checkout';
 import "./styles/colors.css";
 import "./styles/global.css";
 import ProductDetailPage from "./pages/ProductDetailPage";
+import AccountSettings from './pages/AccountSettings'; 
+
 
 const queryClient = new QueryClient();
 
@@ -40,7 +42,8 @@ const App = () => (
             <Route path="/checkout" element={<Checkout />}/>
             <Route path="/contact" element={<Contacts />}/>
             <Route path="/profile" element={<Profile />}/>
-            <Route path="*" element={<NotFound />} />
+            <Route path="/account" element={<AccountSettings />} />
+             <Route path="*" element={<NotFound />} />
           </Routes>
         </main>
         <Footer />

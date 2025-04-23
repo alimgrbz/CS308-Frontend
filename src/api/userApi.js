@@ -26,3 +26,11 @@ export const getUserOrders = async () => {
     const response = await axiosInstance.get('/api/users/orders');
     return response.data;
 };
+export const changeName = async (token, name) => {
+  const response = await axiosInstance.post('/api/users/changeName', {
+    token,
+    name,
+  });
+  console.log('Name updated:', response.data);
+  return response.data;
+};
