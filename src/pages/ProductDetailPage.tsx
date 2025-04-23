@@ -340,7 +340,7 @@ const ProductDetailPage = () => {
           </div>
 
           {activeTab === "description" && (
-            <p className="text-driftmood-brown">{product.longDescription}</p>
+            <p className="text-driftmood-brown">{product.description}</p>
           )}
 
           {activeTab === "details" && (
@@ -351,6 +351,8 @@ const ProductDetailPage = () => {
                   {product.ingredients?.map((item, idx) => (
                     <li key={idx}>{item}</li>
                   ))}
+
+                  
                 </ul>
               </div>
               <div>
