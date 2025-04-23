@@ -146,10 +146,9 @@ const Profile = () => {
                     key={order.id}
                     className="border border-gray-200 p-4 rounded-lg shadow-sm bg-white"
                   >
-                    <p><strong>Order ID:</strong> {order.id}</p>
-                    <p><strong>Status:</strong> {order.status}</p>
-                    <p><strong>Total:</strong> ${order.total_price.toFixed(2)}</p>
-                    <p><strong>Date:</strong> {new Date(order.created_at).toLocaleDateString()}</p>
+                    <p><strong>Order ID:</strong> {order.order_id}</p>
+                    <p><strong>Total:</strong> ${order.total_price}</p>
+                    <p><strong>Date:</strong> {new Date(order.date).toLocaleDateString()}</p>
                   </div>
                 ))}
               </div>
