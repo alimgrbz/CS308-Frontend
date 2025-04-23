@@ -8,6 +8,26 @@ export const getOrdersByUser = async (token) => {
   return response.data.orders; // returns the array of orders
 };
 
+export const getOrderInvoice = async (token, orderId) => {
+  try {
+    console.log("Requesting invoice for order:", orderId);
+    const response = await axiosInstance.post('/api/orders/getInvoice', {
+      token,
+      orderId: String(orderId)
+    });
+
+    if (!response.data || !response.data.invoiceBase64) {
+      console.error("Invalid response format from server:", response.data);
+      throw new Error("Invalid response format from server");
+    }
+
+    console.log("Invoice received successfully");
+    return response.data.invoiceBase64;
+  } catch (error) {
+    console.error("Failed to get invoice:", error.response?.data || error.message);
+    throw error;
+  }
+};
 
 export const createOrder = async (token) => {
   try {

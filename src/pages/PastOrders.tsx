@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
@@ -6,10 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ButtonCustom } from '@/components/ui/button-custom';
 import { Progress } from '@/components/ui/progress';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Package2, CheckCircle2, Truck, ClipboardList, Star, ChevronLeft } from 'lucide-react';
+import { Package2, CheckCircle2, Truck, ClipboardList, Star, ChevronLeft, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import OrderReviewModal from '@/components/OrderReviewModal';
-import { getOrdersByUser } from '@/api/orderApi';
+import { getOrdersByUser, getOrderInvoice } from '@/api/orderApi';
 import { addComment } from "@/api/commentApi"; 
 import { addRate, getRatesByUser  } from "@/api/rateApi"; 
 
@@ -19,6 +18,7 @@ const PastOrders = () => {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [reviewProduct, setReviewProduct] = useState<OrderProduct | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   // Map backend status values to frontend display text
 const mapBackendStatus = (backendStatus: string): OrderStatus => {
@@ -111,7 +111,7 @@ useEffect(() => {
 
       const ratingMap: Record<string, number> = {};
       userRatings.forEach((r: { product_id: number; rate: number }) => {
-        ratingMap[r.product_id] = parseFloat(r.rate); // just in case it's a string
+        ratingMap[String(r.product_id)] = parseFloat(r.rate); // Convert product_id to string for the Record key
       });
 
       const mappedOrders: Order[] = rawOrders.map((order: any) => ({
@@ -144,7 +144,41 @@ useEffect(() => {
   fetchOrdersAndRatings();
 }, []);
 
-  
+  const handleDownloadInvoice = async (orderId: string) => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      toast.error("You must be logged in to download invoices.");
+      return;
+    }
+
+    setIsDownloading(true);
+    try {
+      console.log("Fetching invoice for order:", orderId);
+      const invoiceBase64 = await getOrderInvoice(token, orderId);
+      
+      if (!invoiceBase64) {
+        toast.error("No invoice data received from server.");
+        return;
+      }
+
+      console.log("Invoice data received, length:", invoiceBase64.length);
+      
+      // Create and click a temporary download link
+      const link = document.createElement('a');
+      link.href = `data:application/pdf;base64,${invoiceBase64}`;
+      link.download = `DriftMood-Order-${orderId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      
+      toast.success("Invoice downloaded successfully!");
+    } catch (error) {
+      console.error("Download invoice error:", error);
+      toast.error("Failed to download invoice. Please try again.");
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   return (
     <>
@@ -203,21 +237,25 @@ useEffect(() => {
                       </div>
                       <div className="flex items-center gap-4">
                         <span className="text-coffee-brown">Total: <span className="font-medium text-coffee-green">${order.total.toFixed(2)}</span></span>
-                        
-                        
-                        
+                        <ButtonCustom
+                          variant="outline"
+                          size="sm"
+                          className="flex items-center gap-2"
+                          onClick={() => handleDownloadInvoice(order.id)}
+                          disabled={isDownloading}
+                        >
+                          <Download size={16} />
+                          {isDownloading ? 'Downloading...' : 'Invoice'}
+                        </ButtonCustom>
                         <div className="flex items-center gap-2">
-  <span 
-    className={`px-3 py-1 rounded-full text-xs font-medium ${
-      statusColors[order.status]
-    }`}
-  >
-    {order.status}
-  </span>
-</div>
-
-
-
+                          <span 
+                            className={`px-3 py-1 rounded-full text-xs font-medium ${
+                              statusColors[order.status]
+                            }`}
+                          >
+                            {order.status}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </CardHeader>

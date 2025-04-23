@@ -11,19 +11,16 @@ import { ButtonCustom } from '@/components/ui/button-custom';
 import { CreditCard, Mail, Map, User } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getUserProfile } from '@/api/userApi';
-import { getAddressInfo, updateAddress } from '@/api/addressApi';
+import { getAddressInfo, updateAddress, updateDeliveryAddress } from '@/api/addressApi';
 import { createOrder } from '@/api/orderApi';
-
+import { toast } from 'sonner';
 
 /* ---------------- validation ---------------- */
 
 const checkoutFormSchema = z.object({
   fullName: z.string().min(2, 'Full name is required'),
   email: z.string().email('Valid email is required'),
-  address: z.string().optional(),
-  city: z.string().optional(),
-  state: z.string().optional(),
-  zipCode: z.string().optional(),
+  address: z.string().min(1, 'Shipping address is required'),
   cardNumber: z.string().regex(/^\d{16}$/, 'Card number must be 16 digits'),
   cardExpiry: z.string().regex(/^\d{2}\/\d{2}$/, 'Expiry date must be in MM/YY format'),
   cardCvc: z.string().regex(/^\d{3,4}$/, 'CVC must be 3 or 4 digits'),
@@ -39,10 +36,19 @@ interface CheckoutFormProps {
   isProcessing?: boolean;
 }
 
+const sanitizeAddress = (address: string) => {
+  // Decode any encoded characters first to prevent double encoding
+  const decodedAddress = decodeURIComponent(address);
+  // Remove any potentially problematic characters but keep Turkish characters
+  return decodedAddress.replace(/[^\p{L}\p{N}\s.,#-]/gu, '');
+};
+
 const CheckoutForm = ({ onSubmit, isProcessing = false }: CheckoutFormProps) => {
   const [isAddressExpanded, setIsAddressExpanded] = useState(false);
   const [userName, setUserName] = useState('');
   const [localProcessing, setLocalProcessing] = useState(false);
+  const [originalAddress, setOriginalAddress] = useState('');
+  const [hasAddressChanged, setHasAddressChanged] = useState(false);
 
   const isLoggedIn = !!localStorage.getItem('token');
   const navigate = useNavigate();
@@ -53,9 +59,6 @@ const CheckoutForm = ({ onSubmit, isProcessing = false }: CheckoutFormProps) => 
       fullName: '',
       email: '',
       address: '',
-      city: '',
-      state: '',
-      zipCode: '',
       cardNumber: '',
       cardExpiry: '',
       cardCvc: '',
@@ -70,23 +73,22 @@ const CheckoutForm = ({ onSubmit, isProcessing = false }: CheckoutFormProps) => 
 
       try {
         const token = localStorage.getItem('token')!;
-        console.log("here i am", token);
         const user = await getUserProfile(token);
         form.setValue('fullName', user.name ?? '');
         form.setValue('email', user.email ?? '');
         setUserName(user.name ?? '');
 
-        // address helper already attaches token via axios interceptor
         const addressData = await getAddressInfo(token);
         const info = addressData?.adressInfo ?? {};
 
-        const addressValue = info.delivery_address || info.address || '';
-        form.setValue('address', addressValue);
-        if (info.city)  form.setValue('city', info.city);
-        if (info.state) form.setValue('state', info.state);
-        if (info.zipCode) form.setValue('zipCode', info.zipCode);
+        // Sanitize addresses before displaying
+        const addressToShow = sanitizeAddress(info.delivery_address || info.address || '');
+        form.setValue('address', addressToShow);
+        setOriginalAddress(sanitizeAddress(info.address || '')); 
 
-        if (addressValue) setIsAddressExpanded(true);
+        if (info.address) {
+          setIsAddressExpanded(true);
+        }
       } catch (err) {
         console.error('Prefill failed:', err);
       }
@@ -95,10 +97,25 @@ const CheckoutForm = ({ onSubmit, isProcessing = false }: CheckoutFormProps) => 
     fetchUserData();
   }, [isLoggedIn, form]);
 
+  // Watch for address changes
+  useEffect(() => {
+    const subscription = form.watch((value, { name }) => {
+      if (name === 'address') {
+        setHasAddressChanged(value.address !== originalAddress);
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [form.watch, originalAddress]);
+
   /* ---------------- actual submit ----------------- */
   const handleSubmit = async (values: CheckoutFormValues) => {
     if (!isLoggedIn) {
       navigate('/login?returnUrl=/checkout');
+      return;
+    }
+
+    if (!values.address) {
+      toast.error('Please provide a shipping address');
       return;
     }
 
@@ -107,23 +124,32 @@ const CheckoutForm = ({ onSubmit, isProcessing = false }: CheckoutFormProps) => 
       const token = localStorage.getItem('token');
       if (!token) throw new Error("Token not found");
 
-      // Update address only if user edited it
-      if (isAddressExpanded) {
-        await updateAddress(token, values.address);
+      // Sanitize address before sending
+      const sanitizedAddress = sanitizeAddress(values.address);
+
+      if (!originalAddress) {
+        await updateAddress(token, sanitizedAddress);
+        await updateDeliveryAddress(token, sanitizedAddress);
+      } else if (!hasAddressChanged) {
+        await updateDeliveryAddress(token, originalAddress);
+      } else {
+        await updateDeliveryAddress(token, sanitizedAddress);
       }
 
-      // Call backend checkout API
-      const  orderResponse = await createOrder(token);
+      const orderResponse = await createOrder(token);
       console.log("api response", orderResponse);
 
-      // Store for OrderSuccess page (incl. PDF)
       localStorage.setItem('lastOrder', JSON.stringify(orderResponse));
 
-      if (onSubmit) await onSubmit(values);
+      if (onSubmit) await onSubmit({
+        ...values,
+        address: sanitizedAddress
+      });
 
       navigate('/order-success');
     } catch (err) {
       console.error('Checkout failed:', err);
+      toast.error('Failed to process order. Please try again.');
     } finally {
       setLocalProcessing(false);
     }
@@ -144,7 +170,7 @@ const CheckoutForm = ({ onSubmit, isProcessing = false }: CheckoutFormProps) => 
               {!isLoggedIn && (
                 <span className="text-sm font-normal ml-2">
                   Already have an account?&nbsp;
-                  <Link to="/login?returnUrl=/checkout" className="underline">Sign in</Link>
+                  <Link to="/login?returnUrl=/checkout" className="underline">Sign in</Link>
                 </span>
               )}
             </h2>
@@ -186,46 +212,52 @@ const CheckoutForm = ({ onSubmit, isProcessing = false }: CheckoutFormProps) => 
               <h2 className="text-xl font-medium text-coffee-green flex items-center gap-2">
                 <Map size={20} /> Shipping Address
               </h2>
-              <button
-                type="button"
-                className="text-sm underline"
-                onClick={() => setIsAddressExpanded((v) => !v)}
-              >
-                {isAddressExpanded ? 'Hide' : 'Add address (optional)'}
-              </button>
+              {originalAddress && (
+                <button
+                  type="button"
+                  className="text-sm underline"
+                  onClick={() => {
+                    if (!isAddressExpanded) {
+                      form.setValue('address', originalAddress);
+                      setHasAddressChanged(false);
+                    }
+                    setIsAddressExpanded((v) => !v);
+                  }}
+                >
+                  {isAddressExpanded ? 'Use Default Address' : 'Edit Delivery Address'}
+                </button>
+              )}
             </div>
 
-            {isAddressExpanded && (
+            {(isAddressExpanded || !originalAddress) && (
               <div className="space-y-4 animate-in fade-in">
                 <FormField
                   control={form.control}
                   name="address"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Address</FormLabel>
-                      <FormControl><Input {...field} placeholder="123 Main St." /></FormControl>
+                      <FormLabel>{originalAddress ? 'Delivery Address' : 'Address'}</FormLabel>
+                      <FormControl>
+                        <Input 
+                          {...field} 
+                          placeholder="Enter your shipping address"
+                          onChange={(e) => {
+                            field.onChange(e);
+                            setHasAddressChanged(e.target.value !== originalAddress);
+                          }}
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-
-                <div className="grid md:grid-cols-3 gap-4">
-                  {['city', 'state', 'zipCode'].map((name) => (
-                    <FormField
-                      key={name}
-                      control={form.control}
-                      name={name as keyof CheckoutFormValues}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="capitalize">{name}</FormLabel>
-                          <FormControl><Input {...field} /></FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  ))}
-                </div>
               </div>
+            )}
+            
+            {!isAddressExpanded && originalAddress && (
+              <p className="text-sm text-coffee-brown">
+                Delivering to: {form.getValues('address')}
+              </p>
             )}
           </section>
 
@@ -245,7 +277,7 @@ const CheckoutForm = ({ onSubmit, isProcessing = false }: CheckoutFormProps) => 
                   <FormControl>
                     <Input
                       {...field}
-                      placeholder="1234 5678 9012 3456"
+                      placeholder="1234 5678 9012 3456"
                       maxLength={16}
                       onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))}
                     />
