@@ -13,6 +13,7 @@ const Profile = () => {
   const [email, setEmail] = useState('');
   const [orders, setOrders] = useState([]);
   const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -20,15 +21,21 @@ const Profile = () => {
       if (!token) return;
 
       try {
+        setIsLoading(true); // Start loading
+
         const user = await getUserProfile(token);
         setUserName(user.name);
         setEmail(user.email);
 
         const fetchedOrders = await getOrdersByUser(token);
-        const inTransit = fetchedOrders.filter(order => order.status !== 'delivered');
+        const inTransit = fetchedOrders.filter(order => order.order_status === "in-transit");
+        console.log("orders", fetchedOrders);
+        console.log("in t", inTransit);
         setOrders(inTransit);
       } catch (error) {
         console.error('Failed to fetch user info or orders:', error);
+      } finally {
+        setIsLoading(false); // Done loading
       }
     };
 
@@ -137,22 +144,28 @@ const Profile = () => {
         >
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
             <h2 className="text-2xl font-semibold text-coffee-green mb-4">Orders In Transit</h2>
-            {orders.length === 0 ? (
-              <p className="text-coffee-brown">You have no ongoing orders.</p>
-            ) : (
-              <div className="space-y-4">
-                {orders.map((order) => (
-                  <div
-                    key={order.id}
-                    className="border border-gray-200 p-4 rounded-lg shadow-sm bg-white"
-                  >
-                    <p><strong>Order ID:</strong> {order.order_id}</p>
-                    <p><strong>Total:</strong> ${order.total_price}</p>
-                    <p><strong>Date:</strong> {new Date(order.date).toLocaleDateString()}</p>
-                  </div>
-                ))}
-              </div>
-            )}
+            
+            
+            {isLoading ? (
+  <p className="text-coffee-brown">Loading orders...</p>
+) : orders.length === 0 ? (
+  <p className="text-coffee-brown">You have no ongoing orders.</p>
+) : (
+  <div className="space-y-4">
+    {orders.map((order) => (
+      <div
+        key={order.id}
+        className="border border-gray-200 p-4 rounded-lg shadow-sm bg-white"
+      >
+        <p><strong>Order ID:</strong> {order.order_id}</p>
+        <p><strong>Total:</strong> ${order.total_price}</p>
+        <p><strong>Date:</strong> {new Date(order.date).toLocaleDateString()}</p>
+      </div>
+    ))}
+  </div>
+)}
+
+
           </div>
         </motion.div>
       </div>
