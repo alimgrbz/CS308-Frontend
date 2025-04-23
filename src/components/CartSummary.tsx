@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { ButtonCustom } from '@/components/ui/button-custom';
 import { ArrowRight } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface CartSummaryProps {
   subtotal: number;
@@ -9,13 +10,22 @@ interface CartSummaryProps {
   shipping: number;
   total: number;
   onCheckout?: () => void;
+  isLoggedIn?: boolean;
 }
 
-const CartSummary = ({ subtotal, tax, shipping, total }: CartSummaryProps) => {
+const CartSummary = ({ subtotal, tax, shipping, total, onCheckout, isLoggedIn }: CartSummaryProps) => {
   const navigate = useNavigate();
 
   const handleCheckout = () => {
-    navigate('/checkout');
+    if (!isLoggedIn) {
+      toast.info('Please sign in to proceed with checkout');
+      navigate('/login');
+      return;
+    }
+    
+    if (onCheckout) {
+      onCheckout();
+    }
   };
 
   return (
@@ -54,7 +64,7 @@ const CartSummary = ({ subtotal, tax, shipping, total }: CartSummaryProps) => {
         size="lg"
         className="w-full group"
       >
-        <span>Proceed to Checkout</span>
+        <span>{isLoggedIn ? 'Proceed to Checkout' : 'Sign in to Checkout'}</span>
         <ArrowRight className="ml-2 transition-transform group-hover:translate-x-1" size={18} />
       </ButtonCustom>
       

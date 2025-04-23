@@ -1,18 +1,20 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShoppingCart, ChevronLeft, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import CartItem from '@/components/CartItem';
 import CartSummary from '@/components/CartSummary';
 import { ButtonCustom } from '@/components/ui/button-custom';
-import { getCart, removeCartItem, addToCart, clearCart as clearCartAPI } from '@/api/cartApi'; 
+import { getCart, removeCartItem, addToCart, clearCart as clearCartAPI, checkCartAvailability } from '@/api/cartApi'; 
 import {
   removeFromLocalCart,
   updateQuantityInLocalCart,
   clearLocalCart,
   getLocalCart
 } from '@/utils/cartUtils'; // adjust path if needed
+import { getStockById } from "@/api/productApi";
+import OutOfStockCartDialog from '@/components/OutOfStockCartDialog';
 
 
 const Cart = () => {
@@ -25,7 +27,10 @@ const Cart = () => {
 
   const [cartItems, setCartItems] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isOutOfStockDialogOpen, setIsOutOfStockDialogOpen] = useState(false);
+  const [outOfStockProducts, setOutOfStockProducts] = useState<string[]>([]);
   const token = localStorage.getItem('token');
+  const navigate = useNavigate();
 
   useEffect(() => {
     const loadCart = async () => {
@@ -33,9 +38,38 @@ const Cart = () => {
 
       if (token && token !== '') {
         try {
+          // First, check cart availability
+          const availabilityCheck = await checkCartAvailability(token);
+          if (!availabilityCheck.valid) {
+            // Some products are no longer available
+            toast.error('Some items in your cart are no longer available and have been removed.');
+            // The backend should have already removed unavailable items
+          }
+
           const backendCart = await getCart(token);
-          setCartItems(backendCart); // assuming backendCart is an array of items
-          console.log("Cart items is set!", backendCart);
+          
+          // Check stock levels for each item
+          const cartWithStock = await Promise.all(
+            backendCart.map(async (item) => {
+              const stock = await getStockById(item.product.id);
+              if (stock < item.count) {
+                toast.warning(`Quantity adjusted for ${item.product.name} due to stock limitations.`);
+                // Update the quantity to match available stock
+                if (stock > 0) {
+                  await addToCart(token, [{ productId: item.product.id, quantity: stock }]);
+                  return { ...item, count: stock };
+                } else {
+                  await removeCartItem(token, item.product.id, item.count);
+                  return null;
+                }
+              }
+              return item;
+            })
+          );
+
+          // Filter out null items (removed due to no stock)
+          setCartItems(cartWithStock.filter(Boolean));
+          console.log("Cart items is set!", cartWithStock);
         } catch (error) {
           console.error('Error fetching cart:', error);
           toast.error('Failed to load cart');
@@ -45,7 +79,31 @@ const Cart = () => {
         const guestCartRaw = localStorage.getItem('guest_cart');
         if (guestCartRaw) {
           const guestCart = JSON.parse(guestCartRaw);
-          const transformed = guestCart.map(item => ({
+          
+          // Check stock levels for guest cart items
+          const updatedGuestCart = await Promise.all(
+            guestCart.map(async (item) => {
+              const stock = await getStockById(item.productId);
+              if (stock < item.quantity) {
+                toast.warning(`Quantity adjusted for ${item.name} due to stock limitations.`);
+                if (stock > 0) {
+                  return {
+                    ...item,
+                    quantity: stock
+                  };
+                } else {
+                  return null;
+                }
+              }
+              return item;
+            })
+          );
+
+          // Filter out null items and update localStorage
+          const filteredCart = updatedGuestCart.filter(Boolean);
+          localStorage.setItem('guest_cart', JSON.stringify(filteredCart));
+
+          const transformed = filteredCart.map(item => ({
             product: {
               id: item.productId,
               name: item.name,
@@ -82,16 +140,14 @@ const Cart = () => {
       const quantity = itemToRemove?.count || 1;
 
       try {
-        await removeCartItem(token, Number(productId), quantity); // 👈 important to send correct type
+        await removeCartItem(token, Number(productId), quantity);
         setCartItems(prev => prev.filter(item => item.product.id.toString() !== productId));
         toast.success('Item removed from cart');
       } catch (err) {
         console.error(err);
         toast.error('Failed to remove item');
       }
-    }
-
-    else {
+    } else {
       // Guest user
       removeFromLocalCart(Number(productId));
       const updated = getLocalCart();
@@ -121,8 +177,13 @@ const Cart = () => {
       if (!item) return;
 
       const currentQuantity = item.count;
+      const stock = await getStockById(Number(productId));
 
-      console.log("+ or - operation!");
+      if (newQuantity > stock) {
+        toast.error(`Sorry, only ${stock} items available in stock.`);
+        return;
+      }
+
       try {
         if (newQuantity > currentQuantity) {
           // User clicked '+'
@@ -146,10 +207,15 @@ const Cart = () => {
         console.error('Failed to sync quantity:', err);
         toast.error('Failed to update cart');
       }
-    } 
-
-  else {
+    } else {
       // Guest user
+      const stock = await getStockById(Number(productId));
+      
+      if (newQuantity > stock) {
+        toast.error(`Sorry, only ${stock} items available in stock.`);
+        return;
+      }
+
       updateQuantityInLocalCart(Number(productId), newQuantity);
       const updated = getLocalCart();
       setCartItems(
@@ -187,9 +253,34 @@ const Cart = () => {
       window.dispatchEvent(new Event('cart-updated'));
   };
 
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
+    // Check if user is logged in
+    if (!token) {
+      toast.info('Please sign in to proceed with checkout');
+      navigate('/signin');
+      return;
+    }
+
+    // Check stock for all items before proceeding
+    const outOfStockItems: string[] = [];
+    
+    await Promise.all(
+      cartItems.map(async (item) => {
+        const stock = await getStockById(item.product.id);
+        if (stock === 0 || stock < item.count) {
+          outOfStockItems.push(item.product.name);
+        }
+      })
+    );
+
+    if (outOfStockItems.length > 0) {
+      setOutOfStockProducts(outOfStockItems);
+      setIsOutOfStockDialogOpen(true);
+      return;
+    }
+
     toast.success('Proceeding to checkout...');
-    // In a real app, navigate to checkout page
+    navigate('/checkout');
   };
 
   // Calculate cart totals
@@ -321,12 +412,19 @@ const Cart = () => {
                   shipping={shipping}
                   total={total}
                   onCheckout={handleCheckout}
+                  isLoggedIn={!!token}
                 />
               </div>
             )}
           </div>
         </motion.div>
       </div>
+      
+      <OutOfStockCartDialog 
+        isOpen={isOutOfStockDialogOpen}
+        onOpenChange={setIsOutOfStockDialogOpen}
+        productName={outOfStockProducts.join(", ")}
+      />
     </>
   );
 };
