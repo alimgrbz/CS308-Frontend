@@ -19,6 +19,7 @@ import "./styles/colors.css";
 import "./styles/global.css";
 import ProductDetailPage from "./pages/ProductDetailPage";
 import AccountSettings from './pages/AccountSettings'; 
+import MyReviews from './pages/MyReviews'; 
 
 
 const queryClient = new QueryClient();
@@ -43,6 +44,7 @@ const App = () => (
             <Route path="/contact" element={<Contacts />}/>
             <Route path="/profile" element={<Profile />}/>
             <Route path="/account" element={<AccountSettings />} />
+            <Route path="/my-reviews" element={<MyReviews />} />
              <Route path="*" element={<NotFound />} />
           </Routes>
         </main>

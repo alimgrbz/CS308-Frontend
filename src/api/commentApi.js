@@ -28,3 +28,15 @@ export const addComment = async (token, productId, comment) => {
     throw error;
   }
 };
+
+export const getCommentsByUser = async (token) => {
+  try {
+    const response = await axiosInstance.post('/api/comments/by-user', {
+      token
+    });
+    return response.data.comments;
+  } catch (error) {
+    console.error('Error fetching user comments:', error);
+    throw error;
+  }
+};
