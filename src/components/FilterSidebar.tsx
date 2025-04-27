@@ -40,7 +40,7 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
   coffeeOrigins,
 }) => {
   return (
-    <div className="bg-white border border-driftmood-lightlime rounded-xl p-5 h-fit sticky top-24">
+    <div className="bg-white border border-driftmood-lightlime rounded-xl p-5 h-fit sticky top-24 max-h-[80vh] overflow-y-auto">
       <div className="mb-6">
         <h3 className="font-serif font-medium text-lg flex items-center mb-4">
           <Filter size={18} className="mr-2 text-driftmood-dark" />
