@@ -6,6 +6,7 @@ import ProductFilters from '@/components/ProductFilters';
 import FilterSidebar from '@/components/FilterSidebar';
 import { getAllProducts } from '@/api/productApi';
 import { getAllCategories } from '@/api/categoryApi';
+import { getRatingsByProduct } from '@/api/rateApi';
 import Logo from '@/components/Logo';
 import { Link } from 'react-router-dom';
 import { useSearchParams } from 'react-router-dom';
@@ -374,6 +375,7 @@ const ProductIndex = () => {
   const [selectedOrigin, setSelectedOrigin] = useState<string | null>(null);
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [productRatings, setProductRatings] = useState<Record<number, number>>({});
 
   useEffect(() => {
     const fetchData = async () => {
@@ -412,6 +414,26 @@ const ProductIndex = () => {
 
         console.log('Transformed products:', transformedProducts);
         setProducts(transformedProducts);
+
+        // Fetch ratings for all products
+        const ratingsPromises = transformedProducts.map(product => 
+          getRatingsByProduct(product.productId)
+            .then(response => {
+              const ratings = Array.isArray(response.ratings)
+                ? response.ratings.map(r => Number(r.rate))
+                : [];
+              const avgRating = ratings.length > 0
+                ? ratings.reduce((sum, val) => sum + val, 0) / ratings.length
+                : 0;
+              return [product.productId, avgRating];
+            })
+            .catch(() => [product.productId, 0])
+        );
+
+        const ratingsResults = await Promise.all(ratingsPromises);
+        const ratingsMap = Object.fromEntries(ratingsResults);
+        setProductRatings(ratingsMap);
+
       } catch (error) {
         console.error('Error fetching data:', error);
       }
@@ -470,11 +492,6 @@ const ProductIndex = () => {
       filtered = filtered.filter(product => product.categoryId === selectedCategory);
     }
 
-    // Apply price range filter
-    filtered = filtered.filter(product => 
-      product.price >= priceRange[0] && product.price <= priceRange[1]
-    );
-
     // Apply roast level filter
     if (selectedRoast && selectedCategory === 1) {
       filtered = filtered.filter(product => product.roastLevel === selectedRoast);
@@ -492,7 +509,7 @@ const ProductIndex = () => {
 
     console.log('Filtered products:', filtered);
     return filtered;
-  }, [products, searchTerm, selectedCategory, selectedRoast, selectedOrigin, inStockOnly, priceRange]);
+  }, [products, searchTerm, selectedCategory, selectedRoast, selectedOrigin, inStockOnly]);
   
   // Sort products
   const sortedproducts = useMemo(() => {
@@ -508,7 +525,11 @@ const ProductIndex = () => {
         filtered.sort((a, b) => b.price - a.price);
         break;
       case 'rating':
-        filtered.sort((a, b) => b.rating - a.rating);
+        filtered.sort((a, b) => {
+          const ratingA = productRatings[a.productId] || 0;
+          const ratingB = productRatings[b.productId] || 0;
+          return ratingB - ratingA;
+        });
         break;
       case 'name':
         filtered.sort((a, b) => a.name.localeCompare(b.name));
@@ -519,7 +540,7 @@ const ProductIndex = () => {
 
     console.log('Sorted products:', filtered);
     return filtered;
-  }, [filteredproducts, sortOption]);
+  }, [filteredproducts, sortOption, productRatings]);
 
   useEffect(() => {
     console.log('Products state updated:', products);
