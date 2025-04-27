@@ -44,3 +44,31 @@ export const updateDeliveryAddress = async (token, delivery_address) => {
         throw error;
     }
 }; 
+
+
+// Update legal name
+export const updateLegalName = async (token, legal_name) => {
+    try {
+        const response = await axiosInstance.post('api/customerinfos/legal-name/update', {
+            token,
+            legal_name,
+        });
+        return response.data;
+    } catch (error) {
+        console.error('Error updating legal name:', error);
+        throw error;
+    }
+}; 
+
+export const getLegalName = async (token) => {
+    try {
+        const response = await axiosInstance.post('api/customerinfos/legal-name', {
+            token
+        });
+        console.log("bidi", response.data);
+        return response.data;
+    } catch (error) {
+        console.error('Error fetching legal name:', error);
+        throw error;
+    }
+}; 

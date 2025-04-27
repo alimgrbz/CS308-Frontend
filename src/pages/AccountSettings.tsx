@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { getAddressInfo, updateAddress } from '@/api/addressApi';
+import { getAddressInfo, updateAddress, updateLegalName, getLegalName } from '@/api/customerInfoApi';
 import { getUserProfile, changeName } from '@/api/userApi';
 import { motion } from 'framer-motion';
 import { useNavigate, Link } from 'react-router-dom';
@@ -10,6 +10,8 @@ import { UserRound, Package, ShoppingBag, Star, Settings, LogOut } from 'lucide-
 
 const AccountSettings = () => {
   const [name, setName] = useState('');
+  const [fullName, setFullName] = useState('');
+
   const [email, setEmail] = useState('');
   const [address, setAddress] = useState('');
   const [loading, setLoading] = useState(false);
@@ -24,6 +26,8 @@ const AccountSettings = () => {
         const user = await getUserProfile(token);
         setName(user?.name || '');
         setEmail(user?.email || '');
+        const response  = await getLegalName(token);
+        setFullName(response?.legal_name ?? '');
   
         const addressData = await getAddressInfo(token);
         setAddress(addressData?.adressInfo?.address || '');
@@ -39,6 +43,19 @@ const AccountSettings = () => {
       setLoading(true);
       const token = localStorage.getItem('token');
       await changeName(token, name);
+      alert('Name updated successfully!');
+    } catch {
+      alert('Failed to update name.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+    const handleFullNameChange = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      await updateLegalName(token, name);
       alert('Name updated successfully!');
     } catch {
       alert('Failed to update name.');
@@ -136,18 +153,34 @@ const AccountSettings = () => {
             </div>
             {/* Name */}
             <div>
-              <label className="block text-sm font-semibold mb-1 text-gray-700">Full Name</label>
+              <label className="block text-sm font-semibold mb-1 text-gray-700">Username</label>
               <Input
                 value={name}
                 onChange={e => setName(e.target.value)}
-                placeholder="Full Name"
+                placeholder="Username"
               />
               <div className="mt-2">
                 <Button onClick={handleNameChange} disabled={loading}>
+                {loading ? 'Saving...' : 'Save Username'}
+                </Button>
+            </div>
+            </div>
+
+            {/* Full Name */}
+            <div>
+              <label className="block text-sm font-semibold mb-1 text-gray-700">Full Name</label>
+              <Input
+                value={fullName}
+                onChange={e => setFullName(e.target.value)}
+                placeholder="Full Name"
+              />
+              <div className="mt-2">
+                <Button onClick={handleFullNameChange} disabled={loading}>
                 {loading ? 'Saving...' : 'Save Name'}
                 </Button>
             </div>
             </div>
+
             {/* Address */}
             <div>
               <label className="block text-sm font-semibold mb-1 text-gray-700">Address</label>

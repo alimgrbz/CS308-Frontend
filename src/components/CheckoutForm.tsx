@@ -11,7 +11,7 @@ import { ButtonCustom } from '@/components/ui/button-custom';
 import { CreditCard, Mail, Map, User } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getUserProfile } from '@/api/userApi';
-import { getAddressInfo, updateAddress, updateDeliveryAddress } from '@/api/addressApi';
+import { getAddressInfo, updateAddress, updateDeliveryAddress } from '@/api/customerInfoApi';
 import { createOrder } from '@/api/orderApi';
 import { toast } from 'sonner';
 
