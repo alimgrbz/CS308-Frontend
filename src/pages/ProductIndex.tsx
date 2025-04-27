@@ -437,6 +437,12 @@ const ProductIndex = () => {
     };
   }, [products]);
   
+  useEffect(() => {
+    if (minPrice !== Infinity && maxPrice !== -Infinity) {
+      setPriceRange([minPrice, maxPrice]);
+    }
+  }, [minPrice, maxPrice]);
+  
   const [priceRange, setPriceRange] = useState<[number, number]>([minPrice, maxPrice]);
   
   // Get unique coffee origins
