@@ -55,7 +55,7 @@ const AccountSettings = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      await updateLegalName(token, name);
+      await updateLegalName(token, fullName);
       alert('Name updated successfully!');
     } catch {
       alert('Failed to update name.');
