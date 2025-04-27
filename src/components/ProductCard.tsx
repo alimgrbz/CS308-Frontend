@@ -164,7 +164,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                   </Badge>
                 </div>
               )}
-              {badges?.includes("Best Seller") && (
+              {(badges?.includes("Best Seller") || popularity >= 90) && (
                 <Badge 
                   variant="outline" 
                   className="absolute top-3 left-3 z-10 bg-yellow-100 border-yellow-300 text-yellow-800 px-2 py-1 text-[10px] font-bold rounded-full flex items-center gap-1"
