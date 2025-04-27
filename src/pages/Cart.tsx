@@ -305,7 +305,7 @@ const Cart = () => {
       </div>
       <h2 className="text-2xl font-medium text-coffee-green mb-2">Your cart is empty</h2>
       <p className="text-coffee-brown mb-6 max-w-md mx-auto">Looks like you haven't added any coffee to your cart yet. Browse our selection and discover your perfect cup.</p>
-      <Link to="/shop">
+      <Link to="/products">
         <ButtonCustom>
           Browse Coffee
         </ButtonCustom>
