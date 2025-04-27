@@ -499,6 +499,14 @@ const ProductIndex = () => {
       filtered = filtered.filter(product => product.categoryId === selectedCategory);
     }
 
+    // Apply price range filter
+    if (priceRange && priceRange.length === 2) {
+       const [min, max] = priceRange;
+        filtered = filtered.filter(product => 
+        product.price >= min && product.price <= max
+      );
+    }
+
     // Apply roast level filter
     if (selectedRoast && selectedCategory === 1) {
       filtered = filtered.filter(product => product.roastLevel === selectedRoast);
@@ -516,7 +524,9 @@ const ProductIndex = () => {
 
     console.log('Filtered products:', filtered);
     return filtered;
-  }, [products, searchTerm, selectedCategory, selectedRoast, selectedOrigin, inStockOnly]);
+  }, [products, searchTerm, selectedCategory, selectedRoast, selectedOrigin, inStockOnly, priceRange]);
+
+
   
   // Sort products
   const sortedproducts = useMemo(() => {

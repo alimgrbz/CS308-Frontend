@@ -23,6 +23,7 @@ interface FilterSidebarProps {
   coffeeOrigins?: string[];
 }
 
+
 const FilterSidebar: React.FC<FilterSidebarProps> = ({
   categories,
   selectedCategory,
