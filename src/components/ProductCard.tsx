@@ -42,14 +42,7 @@ interface ProductCardProps {
   product: Product;
 }
 
-const getStarRatingFromPopularity = (popularity: number): number => {
-  if (!popularity) return 0;
-  if (popularity <= 20) return 1;
-  if (popularity <= 40) return 2;
-  if (popularity <= 60) return 3;
-  if (popularity <= 80) return 4;
-  return 5;
-};
+
 
 const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const { toast } = useToast();
