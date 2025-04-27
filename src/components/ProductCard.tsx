@@ -208,7 +208,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         </div>
         
         <button 
-          className="add-to-cart-btn flex items-center justify-center mt-auto" 
+          className="auth-button flex items-center justify-center mt-auto w-full bg-[#2d6a4f] hover:bg-[#1b4332] text-white px-4 py-3 rounded-md transition-colors duration-200" 
           disabled={actualStock !== null && actualStock === 0}
           onClick={handleAddToCart}
         >

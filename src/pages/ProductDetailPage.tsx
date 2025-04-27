@@ -305,24 +305,24 @@ const ProductDetailPage = () => {
               </div>
 
               <button
-  className={cn(
-    "relative overflow-hidden bg-[#231239] text-white flex-1 flex items-center justify-center font-semibold py-2 px-4 rounded-md transition-all duration-300 ease-in-out hover:bg-[#341a56] active:bg-[#452172] transform hover:-translate-y-0.5 hover:scale-105 hover:shadow-md hover:shadow-[#231239]/50 group",
-    (actualStock === 0 || quantity > actualStock) && "opacity-50 cursor-not-allowed"
-  )}
-  disabled={actualStock === 0 || quantity > actualStock}
-  onClick={handleAddToCart}
->
-  {/* Shimmer Effect */}
-  <span className="absolute inset-0 w-full h-full">
-    <span className="block w-2/3 h-full bg-white opacity-5 transform rotate-45 translate-x-[-150%] group-hover:translate-x-[250%] transition-transform duration-[1500ms] ease-out" />
-  </span>
+                className={cn(
+                  "relative overflow-hidden bg-[#2d6a4f] text-white flex-1 flex items-center justify-center font-semibold py-3 px-4 rounded-md transition-all duration-300 ease-in-out hover:bg-[#1b4332]",
+                  (actualStock === 0 || quantity > actualStock) && "opacity-50 cursor-not-allowed"
+                )}
+                disabled={actualStock === 0 || quantity > actualStock}
+                onClick={handleAddToCart}
+              >
+                {/* Shimmer Effect */}
+                <span className="absolute inset-0 w-full h-full">
+                  <span className="block w-2/3 h-full bg-white opacity-5 transform rotate-45 translate-x-[-150%] group-hover:translate-x-[250%] transition-transform duration-[1500ms] ease-out" />
+                </span>
 
-  {/* Button Content */}
-  <div className="flex items-center z-10">
-    <ShoppingCart size={16} className="mr-2" />
-    {actualStock === 0 ? "Out of Stock" : "Add to Cart"}
-  </div>
-</button>
+                {/* Button Content */}
+                <div className="flex items-center z-10">
+                  <ShoppingCart size={16} className="mr-2" />
+                  {actualStock === 0 ? "Out of Stock" : "Add to Cart"}
+                </div>
+              </button>
             </div>
           </div>
         </div>
