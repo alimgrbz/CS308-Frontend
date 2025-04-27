@@ -164,14 +164,11 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                   </Badge>
                 </div>
               )}
-              {badges?.includes("Best Seller") && (
-                <Badge 
-                  variant="outline" 
-                  className="absolute top-3 left-3 z-10 bg-yellow-100 border-yellow-300 text-yellow-800 px-2 py-1 text-[10px] font-bold rounded-full flex items-center gap-1"
-                >
-                  <Award size={12} fill="#FFC107" stroke="#FFC107" strokeWidth={2} />
-                  Best Seller
-                </Badge>
+              {(badges?.includes("Best Seller") || popularity >= 90) && (
+                <div className="absolute top-3 -left-8 transform -rotate-45 bg-gradient-to-r from-yellow-400 to-yellow-500 text-white text-[10px] font-extrabold px-8 py-1 shadow-xl overflow-hidden flex justify-center items-center">
+                  <span className="relative z-10">Best Seller</span>
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-shimmer-slow"></div>
+                </div>
               )}
               <div className="absolute top-3 right-3">
                 <Badge 
@@ -211,7 +208,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         </div>
         
         <button 
-          className="add-to-cart-btn flex items-center justify-center mt-auto" 
+          className="auth-button flex items-center justify-center mt-auto w-full bg-[#2d6a4f] hover:bg-[#1b4332] text-white px-4 py-3 rounded-md transition-colors duration-200" 
           disabled={actualStock !== null && actualStock === 0}
           onClick={handleAddToCart}
         >

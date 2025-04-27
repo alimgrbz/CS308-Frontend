@@ -36,7 +36,7 @@ const Checkout = () => {
         if (token) {
           const backendCart = await getCart(token);
           console.log("got items from api", backendCart);
-          setCartItems(backendCart); // Assumes format: [{ product: { id, name, price }, count }]
+          setCartItems(backendCart);
         } else {
           const stored = localStorage.getItem('cartItems');
           console.log("not logged in, got cart from local", stored);
@@ -55,7 +55,11 @@ const Checkout = () => {
 
   
   // Calculate cart totals
-  const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const subtotal = cartItems.reduce((sum, item) => {
+    const price = Number(item.product.price) || 0;
+    const quantity = item.count || 0;
+    return sum + price * quantity;
+  }, 0);
   const tax = subtotal * 0.08; // 8% tax rate
   const shipping = subtotal > 35 ? 0 : 5.99;
   const total = subtotal + tax + shipping;
