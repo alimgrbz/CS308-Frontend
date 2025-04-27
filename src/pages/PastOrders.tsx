@@ -111,7 +111,7 @@ useEffect(() => {
 
       const ratingMap: Record<string, number> = {};
       userRatings.forEach((r: { product_id: number; rate: number }) => {
-        ratingMap[String(r.product_id)] = parseFloat(r.rate); // Convert product_id to string for the Record key
+        ratingMap[r.product_id.toString()] = r.rate;
       });
 
       const mappedOrders: Order[] = rawOrders.map((order: any) => ({

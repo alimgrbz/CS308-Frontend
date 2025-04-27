@@ -12,6 +12,12 @@ import { getCart } from '../api/cartApi';
 
 import '../styles/ProductCard.css';
 
+// Function to convert popularity to star rating
+const getStarRatingFromPopularity = (popularity: number): number => {
+  // Convert popularity (0-100) to a 1-5 star rating
+  return Math.max(1, Math.min(5, Math.round(popularity / 20)));
+};
+
 interface Product {
   productId: number;
   name: string;
@@ -41,8 +47,6 @@ interface Product {
 interface ProductCardProps {
   product: Product;
 }
-
-
 
 const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const { toast } = useToast();
