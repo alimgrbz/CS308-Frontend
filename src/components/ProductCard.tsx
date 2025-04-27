@@ -47,9 +47,10 @@ interface Product {
 
 interface ProductCardProps {
   product: Product;
+  isTopThree: boolean;
 }
 
-const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
+const ProductCard: React.FC<ProductCardProps> = ({ product, isTopThree }) => {
   const { toast } = useToast();
   const [isOutOfStockDialogOpen, setIsOutOfStockDialogOpen] = useState(false);
   const [actualStock, setActualStock] = useState<number | null>(null);
@@ -179,7 +180,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                   </Badge>
                 </div>
               )}
-              {(badges?.includes("Best Seller") || popularity >= 90) && (
+              {isTopThree && (
                 <div className="absolute top-3 -left-8 transform -rotate-45 bg-gradient-to-r from-yellow-400 to-yellow-500 text-white text-[10px] font-extrabold px-8 py-1 shadow-xl overflow-hidden flex justify-center items-center">
                   <span className="relative z-10">Best Seller</span>
                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-shimmer-slow"></div>

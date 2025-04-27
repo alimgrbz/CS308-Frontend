@@ -376,6 +376,7 @@ const ProductIndex = () => {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [productRatings, setProductRatings] = useState<Record<number, number>>({});
+  const [topThreeProductIds, setTopThreeProductIds] = useState<number[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -413,6 +414,12 @@ const ProductIndex = () => {
         }));
 
         console.log('Transformed products:', transformedProducts);
+        
+        // Calculate top 3 products by popularity
+        const sortedByPopularity = [...transformedProducts].sort((a, b) => b.popularity - a.popularity);
+        const topThree = sortedByPopularity.slice(0, 3).map(p => p.productId);
+        setTopThreeProductIds(topThree);
+        
         setProducts(transformedProducts);
 
         // Fetch ratings for all products
@@ -607,7 +614,11 @@ const ProductIndex = () => {
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {sortedproducts.map((product) => (
-                  <ProductCard key={product.productId} product={product} />
+                  <ProductCard 
+                    key={product.productId} 
+                    product={product} 
+                    isTopThree={topThreeProductIds.includes(product.productId)}
+                  />
                 ))}
               </div>
             )}
