@@ -17,10 +17,10 @@ import OutOfStockDialog from '@/components/OutOfStockDialog';
 
 
 const getStarRatingFromPopularity = (popularity: number): number => {
-  if (popularity <= 20) return 1;
-  if (popularity <= 40) return 2;
-  if (popularity <= 60) return 3;
-  if (popularity <= 80) return 4;
+  if (popularity <= 2) return 1;
+  if (popularity <= 4) return 2;
+  if (popularity <= 6) return 3;
+  if (popularity <= 8) return 4;
   return 5;
 };
 

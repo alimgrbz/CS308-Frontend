@@ -9,6 +9,7 @@ import { addToLocalCart } from '../utils/cartUtils'; // adjust path
 import OutOfStockDialog from './OutOfStockDialog';
 import { getStockById } from '../api/productApi';
 import { getCart } from '../api/cartApi';
+import { getRatingsByProduct } from '../api/rateApi';
 
 import '../styles/ProductCard.css';
 
@@ -53,6 +54,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const [isOutOfStockDialogOpen, setIsOutOfStockDialogOpen] = useState(false);
   const [actualStock, setActualStock] = useState<number | null>(null);
   const [insufficientStockMessage, setInsufficientStockMessage] = useState('');
+  const [averageRating, setAverageRating] = useState<number | null>(null);
   const {
     productId,
     name,
@@ -63,19 +65,35 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     categoryId,
     categoryType,
     badges,
-    popularity = 0
+    popularity = 0,
+    rating
   } = product;
 
   useEffect(() => {
-    const checkStock = async () => {
+    const fetchData = async () => {
       try {
+        // Fetch stock
         const stockAmount = await getStockById(productId);
         setActualStock(stockAmount);
+
+        // Fetch ratings
+        const ratingsResponse = await getRatingsByProduct(productId);
+        const ratingValues = Array.isArray(ratingsResponse.ratings)
+          ? ratingsResponse.ratings.map((r) => Number(r.rate))
+          : [];
+
+        if (ratingValues.length > 0) {
+          const avg = ratingValues.reduce((sum, val) => sum + val, 0) / ratingValues.length;
+          setAverageRating(avg);
+        } else {
+          setAverageRating(null);
+        }
       } catch (error) {
-        console.error('Error fetching stock:', error);
+        console.error('Error fetching data:', error);
       }
     };
-    checkStock();
+    
+    fetchData();
   }, [productId]);
 
   const starRating = getStarRatingFromPopularity(popularity);
@@ -183,16 +201,16 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
               
               <div className="flex items-center mb-2">
                 <div className="flex mr-2">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <Star
-                      key={star}
-                      size={16}
-                      className={cn(
-                        star <= starRating ? "rating-star-filled" : "rating-star"
-                      )}
-                      fill={star <= starRating ? "currentColor" : "none"}
-                    />
-                  ))}
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <Star
+                    key={star}
+                    size={18}
+                    className={cn(
+                      averageRating !== null && star <= Math.round(averageRating) ? "rating-star-filled" : "rating-star"
+                    )}
+                    fill={averageRating !== null && star <= Math.round(averageRating) ? "currentColor" : "none"}
+                  />
+                ))}
                 </div>
                
               </div>
