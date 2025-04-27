@@ -11,7 +11,7 @@ import { ButtonCustom } from '@/components/ui/button-custom';
 import { CreditCard, Mail, Map, User } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getUserProfile } from '@/api/userApi';
-import { getAddressInfo, updateAddress, updateDeliveryAddress } from '@/api/customerInfoApi';
+import { getAddressInfo, updateAddress, updateDeliveryAddress, getLegalName, updateLegalName } from '@/api/customerInfoApi';
 import { createOrder } from '@/api/orderApi';
 import { toast } from 'sonner';
 
@@ -19,6 +19,7 @@ import { toast } from 'sonner';
 
 const checkoutFormSchema = z.object({
   fullName: z.string().min(2, 'Full name is required'),
+  legalName: z.string().min(2, 'Legal name is required for delivery'),
   email: z.string().email('Valid email is required'),
   address: z.string().min(1, 'Shipping address is required'),
   cardNumber: z.string().regex(/^\d{16}$/, 'Card number must be 16 digits'),
@@ -57,6 +58,7 @@ const CheckoutForm = ({ onSubmit, isProcessing = false }: CheckoutFormProps) => 
     resolver: zodResolver(checkoutFormSchema),
     defaultValues: {
       fullName: '',
+      legalName: '',
       email: '',
       address: '',
       cardNumber: '',
@@ -77,6 +79,10 @@ const CheckoutForm = ({ onSubmit, isProcessing = false }: CheckoutFormProps) => 
         form.setValue('fullName', user.name ?? '');
         form.setValue('email', user.email ?? '');
         setUserName(user.name ?? '');
+
+        // Fetch legal name
+        const legalNameResponse = await getLegalName(token);
+        form.setValue('legalName', legalNameResponse?.legal_name ?? '');
 
         const addressData = await getAddressInfo(token);
         const info = addressData?.adressInfo ?? {};
@@ -124,6 +130,9 @@ const CheckoutForm = ({ onSubmit, isProcessing = false }: CheckoutFormProps) => 
       const token = localStorage.getItem('token');
       if (!token) throw new Error("Token not found");
 
+      // Update legal name
+      await updateLegalName(token, values.legalName);
+
       // Sanitize address before sending
       const sanitizedAddress = sanitizeAddress(values.address);
 
@@ -136,10 +145,14 @@ const CheckoutForm = ({ onSubmit, isProcessing = false }: CheckoutFormProps) => 
         await updateDeliveryAddress(token, sanitizedAddress);
       }
 
+      // Create order with legal name
       const orderResponse = await createOrder(token);
       console.log("api response", orderResponse);
 
-      localStorage.setItem('lastOrder', JSON.stringify(orderResponse));
+      localStorage.setItem('lastOrder', JSON.stringify({
+        ...orderResponse,
+        legalName: values.legalName // Store legal name for invoice
+      }));
 
       if (onSubmit) await onSubmit({
         ...values,
@@ -176,7 +189,24 @@ const CheckoutForm = ({ onSubmit, isProcessing = false }: CheckoutFormProps) => 
             </h2>
 
             {isLoggedIn
-              ? <p className="text-coffee-brown">Continue your order, {userName}</p>
+              ? (
+                <>
+                  <p className="text-coffee-brown">Continue your order, {userName}</p>
+                  <div className="mt-4">
+                    <FormField
+                      control={form.control}
+                      name="legalName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Legal name (for delivery)</FormLabel>
+                          <FormControl><Input {...field} /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </>
+              )
               : (
                 <>
                   {/* Full name & e‑mail shown only when guest */}
@@ -186,6 +216,17 @@ const CheckoutForm = ({ onSubmit, isProcessing = false }: CheckoutFormProps) => 
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Full name</FormLabel>
+                        <FormControl><Input {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="legalName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Legal name (for delivery)</FormLabel>
                         <FormControl><Input {...field} /></FormControl>
                         <FormMessage />
                       </FormItem>
