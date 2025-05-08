@@ -3,21 +3,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, Save, X, Download } from "lucide-react";
-import { getAllCategories, addCategory, deleteCategory } from '@/api/categoryApi';
-import { getAllProducts, addProduct, updateProduct, deleteProduct, setPrice, setStock,getProductsByCategory } from '@/api/productApi';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { useNavigate } from 'react-router-dom';
+import { getAllCategories } from '@/api/categoryApi';
+import { getAllProducts, getProductsByCategory, setPrice, setDiscount } from '@/api/productApi';
+import { getAll } from '@/api/orderApi';
 import { toast } from 'sonner';
-import { getOrdersByUser, getOrderInvoice } from '@/api/orderApi';
-import { getAllComments, deleteComment } from '@/api/commentApi';
-
-
-import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
-} from 'recharts';
-
 
 interface Product {
   id: string;
@@ -32,14 +25,40 @@ interface Category {
   name: string;
 }
 
+interface Order {
+  id: string;
+  date: string;
+  customerName: string;
+  totalAmount: number;
+  status: 'pending' | 'completed' | 'cancelled';
+  invoiceNumber: string;
+  items: OrderItem[];
+}
+
+interface OrderItem {
+  productName: string;
+  quantity: number;
+  price: number;
+  discount: number;
+}
+
+interface RevenueData {
+  date: string;
+  revenue: number;
+}
+
 const SalesManagerPage = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [filterCategory, setFilterCategory] = useState<string>('');
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [revenueData, setRevenueData] = useState<RevenueData[]>([]);
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchCategories();
     fetchProducts();
+    fetchOrders();
   }, []);
 
   const fetchCategories = async () => {
@@ -58,6 +77,26 @@ const SalesManagerPage = () => {
     } catch (error) {
       console.error('Error fetching products:', error);
       toast.error('Failed to fetch products');
+    }
+  };
+
+  const fetchOrders = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      const rawOrders = await getAll();
+      const mappedOrders = rawOrders.map((order: any) => ({
+        id: order.order_id?.toString() ?? '',
+        date: new Date(order.date).toLocaleDateString(),
+        customerName: order.user_name || order.username || order.name || order.customerName || '',
+        totalAmount: parseFloat(order.total_price),
+        status: order.order_status,
+        invoiceNumber: order.invoice_number || '',
+        items: order.product_list || [],
+      }));
+      setOrders(mappedOrders);
+    } catch (error) {
+      console.error('Failed to fetch orders');
     }
   };
 
@@ -101,6 +140,12 @@ const SalesManagerPage = () => {
     } catch (error) {
       toast.error('Failed to update discount');
     }
+  };
+
+  const handleOrderStatusChange = (orderId: string, newStatus: Order['status']) => {
+    setOrders(orders.map(order =>
+      order.id === orderId ? { ...order, status: newStatus } : order
+    ));
   };
 
   return (
@@ -187,7 +232,94 @@ const SalesManagerPage = () => {
         </TabsContent>
 
         <TabsContent value="orders">
-          <p className="text-muted">Order and revenue section here…</p>
+          <div className="grid grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Revenue Overview</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[400px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={revenueData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="date" />
+                      <YAxis />
+                      <Tooltip />
+                      <Legend />
+                      <Line
+                        type="monotone"
+                        dataKey="revenue"
+                        stroke="#8884d8"
+                        name="Revenue"
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Recent Orders</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Order ID</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Customer</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {orders.map((order) => (
+                      <TableRow key={order.id}>
+                        <TableCell>{order.id}</TableCell>
+                        <TableCell>{order.date}</TableCell>
+                        <TableCell>{order.customerName}</TableCell>
+                        <TableCell>${order.totalAmount}</TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={
+                              order.status === 'completed'
+                                ? 'default'
+                                : order.status === 'cancelled'
+                                ? 'destructive'
+                                : 'secondary'
+                            }
+                          >
+                            {order.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              onClick={() => handleOrderStatusChange(order.id, 'completed')}
+                              disabled={order.status === 'completed'}
+                            >
+                              Complete
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => handleOrderStatusChange(order.id, 'cancelled')}
+                              disabled={order.status === 'cancelled'}
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
     </div>
