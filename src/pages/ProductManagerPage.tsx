@@ -10,8 +10,8 @@ import { Plus, Trash2, Save, X, Download } from "lucide-react";
 import { getAllCategories, addCategory, deleteCategory } from '@/api/categoryApi';
 import { getAllProducts, addProduct, updateProduct, deleteProduct, setPrice, setStock } from '@/api/productApi';
 import { toast } from 'sonner';
-import { getOrdersByUser, getOrderInvoice } from '@/api/orderApi';
-import { getAllComments, deleteComment } from '@/api/commentApi';
+import { getAllOrders, getOrderInvoice } from '@/api/orderApi';
+import { getAllComments, deleteComment, acceptComment, rejectComment } from '@/api/commentApi';
 
 interface Category {
   id: number;
@@ -65,6 +65,8 @@ interface Order {
   products: OrderProduct[];
   userEmail?: string;
   userName?: string;
+  address: string;
+  invoicePdf: string;
 }
 
 const ProductManagerPage = () => {
@@ -88,6 +90,7 @@ const ProductManagerPage = () => {
   const [sortOption, setSortOption] = useState('date-desc'); // default: newest first
   const [allOrders, setAllOrders] = useState<Order[]>([]);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
+  const [isLoadingComments, setIsLoadingComments] = useState(false);
 
   // Fetch categories and products on component mount
   useEffect(() => {
@@ -204,42 +207,87 @@ const ProductManagerPage = () => {
     setEditingProduct(null);
   };
 
-  const fetchComments = async () => {
+  const handleAcceptComment = async (commentId: number) => {
     try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error('Authentication required. Please log in.');
+        return;
+      }
+      const comment = comments.find(c => c.id === commentId);
+      if (!comment) {
+        toast.error('Comment not found');
+        return;
+      }
+      await acceptComment(token, comment.productId, comment.content);
+      setComments(comments.map(c => c.id === commentId ? { ...c, status: 1 } : c));
+      toast.success('Comment accepted');
+    } catch (error) {
+      console.error('Error accepting comment:', error);
+      toast.error('Failed to accept comment');
+    }
+  };
+
+  const handleRejectComment = async (commentId: number) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error('Authentication required. Please log in.');
+        return;
+      }
+      const comment = comments.find(c => c.id === commentId);
+      if (!comment) {
+        toast.error('Comment not found');
+        return;
+      }
+      await rejectComment(token, comment.productId, comment.content);
+      setComments(comments.map(c => c.id === commentId ? { ...c, status: 0 } : c));
+      toast.success('Comment rejected');
+    } catch (error) {
+      console.error('Error rejecting comment:', error);
+      toast.error('Failed to reject comment');
+    }
+  };
+
+  const handleDeleteComment = async (commentId: number) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error('Authentication required. Please log in.');
+        return;
+      }
+      await deleteComment(commentId);
+      setComments(comments.filter(c => c.id !== commentId));
+      toast.success('Comment deleted');
+    } catch (error) {
+      console.error('Error deleting comment:', error);
+      toast.error('Failed to delete comment');
+    }
+  };
+
+  const fetchComments = async () => {
+    setIsLoadingComments(true);
+    try {
+      console.log('Fetching all comments...');
       const commentsData = await getAllComments();
+      console.log('Received comments:', commentsData);
+      if (!Array.isArray(commentsData)) {
+        console.error('Invalid comments data received:', commentsData);
+        toast.error('Invalid data received from server');
+        return;
+      }
       setComments(commentsData);
     } catch (error) {
+      console.error('Error fetching comments:', error);
       toast.error('Failed to fetch comments');
+    } finally {
+      setIsLoadingComments(false);
     }
   };
 
   useEffect(() => {
     fetchComments();
   }, []);
-
-  const handleAcceptComment = async (commentId: number) => {
-    // Call your API to set status to 1 (accepted)
-    // For now, just update state
-    setComments(comments.map(c => c.id === commentId ? { ...c, status: 1 } : c));
-    toast.success('Comment accepted');
-  };
-
-  const handleRejectComment = async (commentId: number) => {
-    // Call your API to set status to 0 (rejected)
-    // For now, just update state
-    setComments(comments.map(c => c.id === commentId ? { ...c, status: 0 } : c));
-    toast.success('Comment rejected');
-  };
-
-  const handleDeleteComment = async (commentId: number) => {
-    try {
-      await deleteComment(commentId);
-      setComments(comments.filter(c => c.id !== commentId));
-      toast.success('Comment deleted');
-    } catch (error) {
-      toast.error('Failed to delete comment');
-    }
-  };
 
   // Filter and sort products
   const getFilteredSortedProducts = () => {
@@ -266,12 +314,19 @@ const ProductManagerPage = () => {
   };
 
   const mapBackendStatus = (backendStatus: string): string => {
-    switch (backendStatus) {
-      case 'processing': return 'Getting ready';
-      case 'in-transit': return 'On the way';
-      case 'delivered': return 'Delivered';
-      case 'cancelled': return 'Cancelled';
-      default: return 'Ordered';
+    switch (backendStatus?.toLowerCase()) {
+      case 'processing':
+      case 'getting ready':
+        return 'Getting ready';
+      case 'in-transit':
+      case 'on the way':
+        return 'On the way';
+      case 'delivered':
+        return 'Delivered';
+      case 'cancelled':
+        return 'Cancelled';
+      default:
+        return 'Ordered';
     }
   };
 
@@ -279,27 +334,47 @@ const ProductManagerPage = () => {
     setIsLoadingOrders(true);
     try {
       const token = localStorage.getItem('token');
-      if (!token) throw new Error('No token found');
-      const rawOrders = await getOrdersByUser(token);
-      const mappedOrders: Order[] = rawOrders.map((order: any) => ({
-        id: order.order_id?.toString() ?? '',
-        date: new Date(order.date).toISOString(),
-        status: mapBackendStatus(order.order_status),
-        total: parseFloat(order.total_price),
-        products: order.product_list.map((prod: any) => ({
-          id: prod.p_id?.toString() ?? '',
-          name: prod.name,
-          image: prod.image,
-          price: parseFloat(prod.total_price),
-          quantity: prod.quantity,
-          grind: prod.grind,
-        })),
-        userEmail: order.user_email || order.email || '',
-        userName: order.user_name || order.username || order.name || '',
-      }));
+      if (!token) {
+        toast.error('Authentication required. Please log in.');
+        return;
+      }
+      console.log('Fetching all orders...');
+      const rawOrders = await getAllOrders(token);
+      console.log('Received orders:', rawOrders);
+      
+      if (!Array.isArray(rawOrders)) {
+        console.error('Invalid orders data received:', rawOrders);
+        toast.error('Invalid data received from server');
+        return;
+      }
+
+      const mappedOrders: Order[] = rawOrders.map((order: any) => {
+        console.log('Processing order:', order);
+        const mappedOrder: Order = {
+          id: order.order_id?.toString() ?? '',
+          date: new Date(order.date).toISOString(),
+          status: mapBackendStatus(order.order_status),
+          total: parseFloat(order.total_price),
+          products: Array.isArray(order.product_list) ? order.product_list.map((prod: any) => ({
+            id: prod.p_id?.toString() ?? '',
+            name: prod.name,
+            image: prod.image,
+            price: parseFloat(prod.total_price),
+            quantity: prod.quantity,
+            grind: prod.grind,
+          })) : [],
+          userEmail: order.user_email || order.email || '',
+          userName: order.user_name || order.username || order.name || '',
+          address: order.address || '',
+          invoicePdf: order.invoice_pdf || ''
+        };
+        return mappedOrder;
+      });
+      console.log('Mapped orders:', mappedOrders);
       setAllOrders(mappedOrders);
     } catch (err) {
-      toast.error('Failed to fetch orders');
+      console.error('Error fetching orders:', err);
+      toast.error(err.response?.data?.message || 'Failed to fetch orders. Please try again.');
     } finally {
       setIsLoadingOrders(false);
     }
@@ -310,12 +385,13 @@ const ProductManagerPage = () => {
   }, []);
 
   const handleDownloadInvoice = async (orderId: string) => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      toast.error('You must be logged in to download invoices.');
-      return;
-    }
     try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error('You must be logged in to download invoices.');
+        return;
+      }
+      console.log('Downloading invoice for order:', orderId);
       const invoiceBase64 = await getOrderInvoice(token, orderId);
       if (!invoiceBase64) {
         toast.error('No invoice data received from server.');
@@ -329,7 +405,8 @@ const ProductManagerPage = () => {
       link.remove();
       toast.success('Invoice downloaded successfully!');
     } catch (error) {
-      toast.error('Failed to download invoice.');
+      console.error('Error downloading invoice:', error);
+      toast.error('Failed to download invoice. Please try again.');
     }
   };
 
@@ -590,46 +667,87 @@ const ProductManagerPage = () => {
             </CardHeader>
             <CardContent>
               {isLoadingOrders ? (
-                <div>Loading orders...</div>
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+                  <span className="ml-2">Loading orders...</span>
+                </div>
+              ) : allOrders.length === 0 ? (
+                <div className="text-center text-gray-500 py-4">No orders found</div>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Order ID</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Total</TableHead>
-                      <TableHead>User</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Products</TableHead>
-                      <TableHead>Invoice</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {allOrders.map((order) => (
-                      <TableRow key={order.id}>
-                        <TableCell>{order.id}</TableCell>
-                        <TableCell>{new Date(order.date).toLocaleDateString()}</TableCell>
-                        <TableCell>{order.status}</TableCell>
-                        <TableCell>${order.total.toFixed(2)}</TableCell>
-                        <TableCell>{order.userName}</TableCell>
-                        <TableCell>{order.userEmail}</TableCell>
-                        <TableCell>
-                          <ul className="list-disc pl-4">
-                            {order.products.map((prod) => (
-                              <li key={prod.id}>{prod.name} x{prod.quantity}</li>
-                            ))}
-                          </ul>
-                        </TableCell>
-                        <TableCell>
-                          <Button size="sm" onClick={() => handleDownloadInvoice(order.id)}>
-                            <Download className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Order ID</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Total</TableHead>
+                        <TableHead>User</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Address</TableHead>
+                        <TableHead>Products</TableHead>
+                        <TableHead>Invoice</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {allOrders.map((order) => (
+                        <TableRow key={order.id}>
+                          <TableCell className="font-medium">{order.id}</TableCell>
+                          <TableCell>{new Date(order.date).toLocaleDateString()}</TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={
+                                order.status === 'Delivered'
+                                  ? 'default'
+                                  : order.status === 'Cancelled'
+                                  ? 'destructive'
+                                  : 'secondary'
+                              }
+                            >
+                              {order.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>${order.total.toFixed(2)}</TableCell>
+                          <TableCell>{order.userName || 'N/A'}</TableCell>
+                          <TableCell>{order.userEmail || 'N/A'}</TableCell>
+                          <TableCell className="max-w-xs truncate">{order.address || 'N/A'}</TableCell>
+                          <TableCell>
+                            <div className="max-w-xs">
+                              {order.products.map((prod) => (
+                                <div key={prod.id} className="flex items-center gap-2 mb-1">
+                                  {prod.image && (
+                                    <img
+                                      src={prod.image}
+                                      alt={prod.name}
+                                      className="w-8 h-8 object-cover rounded"
+                                    />
+                                  )}
+                                  <div>
+                                    <p className="text-sm font-medium">{prod.name}</p>
+                                    <p className="text-xs text-gray-500">
+                                      {prod.quantity}x ${prod.price.toFixed(2)}
+                                      {prod.grind && ` (${prod.grind})`}
+                                    </p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Button 
+                              size="sm" 
+                              onClick={() => handleDownloadInvoice(order.id)}
+                              className="bg-blue-600 hover:bg-blue-700"
+                            >
+                              <Download className="h-4 w-4 mr-2" />
+                              Download
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -641,54 +759,77 @@ const ProductManagerPage = () => {
               <CardTitle>User Comments</CardTitle>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Product</TableHead>
-                    <TableHead>User</TableHead>
-                    <TableHead>Comment</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Created At</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {comments.map((comment) => (
-                    <TableRow key={comment.id}>
-                      <TableCell>{comment.productName || comment.productId}</TableCell>
-                      <TableCell>{comment.userName || comment.userId}</TableCell>
-                      <TableCell>{comment.content}</TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={
-                            comment.status === 1
-                              ? 'default'
-                              : comment.status === 0
-                              ? 'destructive'
-                              : 'secondary'
-                          }
-                        >
-                          {comment.status === 1 ? 'Accepted' : comment.status === 0 ? 'Rejected' : 'Pending'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{new Date(comment.createdAt).toLocaleString()}</TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button size="sm" onClick={() => handleAcceptComment(comment.id)} disabled={comment.status === 1}>
-                            Accept
-                          </Button>
-                          <Button variant="destructive" size="sm" onClick={() => handleRejectComment(comment.id)} disabled={comment.status === 0}>
-                            Reject
-                          </Button>
-                          <Button variant="outline" size="sm" onClick={() => handleDeleteComment(comment.id)}>
-                            Delete
-                          </Button>
-                        </div>
-                      </TableCell>
+              {isLoadingComments ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+                  <span className="ml-2">Loading comments...</span>
+                </div>
+              ) : comments.length === 0 ? (
+                <div className="text-center text-gray-500 py-4">No comments found</div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Product</TableHead>
+                      <TableHead>User</TableHead>
+                      <TableHead>Comment</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Created At</TableHead>
+                      <TableHead>Actions</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {comments.map((comment) => (
+                      <TableRow key={comment.id}>
+                        <TableCell>{comment.productName || `Product #${comment.productId}`}</TableCell>
+                        <TableCell>{comment.userName || `User #${comment.userId}`}</TableCell>
+                        <TableCell className="max-w-md truncate">{comment.content}</TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={
+                              comment.status === 1
+                                ? 'default'
+                                : comment.status === 0
+                                ? 'destructive'
+                                : 'secondary'
+                            }
+                          >
+                            {comment.status === 1 ? 'Accepted' : comment.status === 0 ? 'Rejected' : 'Pending'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{new Date(comment.createdAt).toLocaleString()}</TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button 
+                              size="sm" 
+                              onClick={() => handleAcceptComment(comment.id)} 
+                              disabled={comment.status === 1}
+                              className="bg-green-600 hover:bg-green-700"
+                            >
+                              Accept
+                            </Button>
+                            <Button 
+                              variant="destructive" 
+                              size="sm" 
+                              onClick={() => handleRejectComment(comment.id)} 
+                              disabled={comment.status === 0}
+                            >
+                              Reject
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => handleDeleteComment(comment.id)}
+                            >
+                              Delete
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
