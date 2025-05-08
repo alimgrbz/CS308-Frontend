@@ -40,3 +40,23 @@ export const getCommentsByUser = async (token) => {
     throw error;
   }
 };
+
+export const getAllComments = async () => {
+  try {
+    const response = await axiosInstance.get('/api/comments/all');
+    return response.data.comments;
+  } catch (error) {
+    console.error('Failed to fetch all comments:', error);
+    return [];
+  }
+};
+
+export const deleteComment = async (commentId) => {
+  try {
+    const response = await axiosInstance.post('/api/comments/delete', { commentId });
+    return response.data;
+  } catch (error) {
+    console.error('Failed to delete comment:', error);
+    throw error;
+  }
+};
