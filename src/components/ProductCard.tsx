@@ -1,25 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
-import { ShoppingCart, Star, Award } from 'lucide-react';
+import { ShoppingCart, Star, Heart } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { addToCart } from '../api/cartApi'; // adjust path if needed
-import { addToLocalCart } from '../utils/cartUtils'; // adjust path
-import OutOfStockDialog from './OutOfStockDialog';
+import { addToCart, getCart } from '../api/cartApi';
 import { getStockById } from '../api/productApi';
-import { getCart } from '../api/cartApi';
 import { getRatingsByProduct } from '../api/rateApi';
-import { Heart } from 'lucide-react';
-import {addToLocalWishlist, removeFromLocalWishlist, isInLocalWishlist, getLocalWishlist} from '../utils/wishlistUtils';
-
-
+import { addToLocalCart } from '../utils/cartUtils';
+import { addToLocalWishlist, removeFromLocalWishlist, isInLocalWishlist } from '../utils/wishlistUtils';
+import OutOfStockDialog from './OutOfStockDialog';
 import '../styles/ProductCard.css';
 
-
-// Function to convert popularity to star rating
 const getStarRatingFromPopularity = (popularity: number): number => {
-  // Convert popularity (0-100) to a 1-5 star rating
   return Math.max(1, Math.min(5, Math.round(popularity / 20)));
 };
 
@@ -61,28 +54,24 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, isTopThree }) => {
   const [insufficientStockMessage, setInsufficientStockMessage] = useState('');
   const [averageRating, setAverageRating] = useState<number | null>(null);
   const [isInWishlist, setIsInWishlist] = useState(false);
+
   const {
     productId,
     name,
     description,
     price,
     picture,
-    stock,
     categoryId,
     categoryType,
-    badges,
     popularity = 0,
-    rating
   } = product;
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch stock
         const stockAmount = await getStockById(productId);
         setActualStock(stockAmount);
 
-        // Fetch ratings
         const ratingsResponse = await getRatingsByProduct(productId);
         const ratingValues = Array.isArray(ratingsResponse.ratings)
           ? ratingsResponse.ratings.map((r) => Number(r.rate))
@@ -98,29 +87,23 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, isTopThree }) => {
         console.error('Error fetching data:', error);
       }
     };
-    
+
     fetchData();
   }, [productId]);
 
-  const [wishlist, setWishlist] = useState([]);
-
   useEffect(() => {
-    const updateWishlist = () => {
-      setWishlist(getLocalWishlist());
+    const syncWishlist = () => {
+      setIsInWishlist(isInLocalWishlist(productId));
     };
-  
-    updateWishlist(); // initial load
-  
-    window.addEventListener('wishlist-updated', updateWishlist);
-    return () => window.removeEventListener('wishlist-updated', updateWishlist);
-  }, []);
-
-  const starRating = getStarRatingFromPopularity(popularity);
+    syncWishlist();
+    window.addEventListener('wishlist-updated', syncWishlist);
+    return () => window.removeEventListener('wishlist-updated', syncWishlist);
+  }, [productId]);
 
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     const token = localStorage.getItem('token');
     let currentCartQuantity = 0;
 
@@ -137,7 +120,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, isTopThree }) => {
       const localCartItem = localCart.find(item => item.productId === productId);
       currentCartQuantity = localCartItem ? localCartItem.quantity : 0;
     }
-    
+
     if (actualStock !== null && (actualStock === 0 || currentCartQuantity + 1 > actualStock)) {
       setInsufficientStockMessage(`Sorry, ${name} is currently out of stock.`);
       setIsOutOfStockDialogOpen(true);
@@ -152,7 +135,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, isTopThree }) => {
       }
       window.dispatchEvent(new Event('cart-updated'));
       toast({
-        title: "Added to cart",
+        title: 'Added to cart',
         description: `${name} has been added to your cart.`,
         duration: 3000,
       });
@@ -162,34 +145,29 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, isTopThree }) => {
     } catch (err) {
       console.error(err);
       toast({
-        title: "Error",
-        description: "Could not add to cart. Please try again.",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Could not add to cart. Please try again.',
+        variant: 'destructive',
       });
     }
   };
 
-  const handleAddToWishlist = (e: React.MouseEvent) => {
+  const handleToggleWishlist = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-  
-    addToLocalWishlist({
-      productId,
-      name,
-      price,
-      picture,
-      description,
-      popularity,
-      categoryType,
-      categoryId,
-    });
-  
-    toast({
-      title: 'Added to Wishlist',
-      description: `${name} was added to your wishlist.`,
-      duration: 2500,
-    });
+
+    if (isInWishlist) {
+      removeFromLocalWishlist(productId);
+      toast({ title: 'Removed from Wishlist', description: `${name} was removed.`, duration: 2500 });
+    } else {
+      addToLocalWishlist({ productId, name, price, picture, description, popularity, categoryType, categoryId });
+      toast({ title: 'Added to Wishlist', description: `${name} was added.`, duration: 2500 });
+    }
+
+    setIsInWishlist(!isInWishlist);
   };
+
+  const starRating = getStarRatingFromPopularity(popularity);
 
   return (
     <>
@@ -197,18 +175,14 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, isTopThree }) => {
         <div className="product-content">
           <Link to={`/product/${productId}`}>
             <div className="relative overflow-hidden">
-              <img 
-                src={picture} 
-                alt={name}
-                className="w-full h-64 object-cover"
-                loading="lazy"
-              />
+              <img src={picture} alt={name} className="w-full h-64 object-cover" loading="lazy" />
+
               <button
-                onClick={handleAddToWishlist}
+                onClick={handleToggleWishlist}
                 className="absolute bottom-3 right-3 z-20 bg-white/90 hover:bg-white text-driftmood-dark p-1 rounded-full shadow transition"
-                title="Add to Wishlist"
+                title={isInWishlist ? "Remove from Wishlist" : "Add to Wishlist"}
               >
-                <Heart size={18} />
+                <Heart size={18} fill={isInWishlist ? "#65a30d" : "none"} stroke="#65a30d" />
               </button>
 
               {actualStock !== null && actualStock === 0 && (
@@ -220,8 +194,8 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, isTopThree }) => {
               )}
               {actualStock !== null && actualStock <= 10 && actualStock > 0 && (
                 <div className="absolute top-12 right-3">
-                  <Badge 
-                    variant="outline" 
+                  <Badge
+                    variant="outline"
                     className="bg-yellow-100 border-yellow-300 text-yellow-800 px-2 py-1 text-[10px] font-bold rounded-full"
                   >
                     Only {actualStock} left!
@@ -235,44 +209,43 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, isTopThree }) => {
                 </div>
               )}
               <div className="absolute top-3 right-3">
-                <Badge 
-                  variant="outline" 
+                <Badge
+                  variant="outline"
                   className="bg-driftmood-lightlime border-driftmood-lime text-driftmood-dark px-2 py-1 text-[10px] font-bold rounded-full"
                 >
                   {categoryType || "Unknown Category"}
                 </Badge>
               </div>
             </div>
-            
+
             <div className="product-info">
               <h3 className="product-name">{name}</h3>
               <p className="product-description">{description}</p>
-              
+
               <div className="flex items-center mb-2">
                 <div className="flex mr-2">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <Star
-                    key={star}
-                    size={18}
-                    className={cn(
-                      averageRating !== null && star <= Math.round(averageRating) ? "rating-star-filled" : "rating-star"
-                    )}
-                    fill={averageRating !== null && star <= Math.round(averageRating) ? "currentColor" : "none"}
-                  />
-                ))}
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <Star
+                      key={star}
+                      size={18}
+                      className={cn(
+                        averageRating !== null && star <= Math.round(averageRating) ? "rating-star-filled" : "rating-star"
+                      )}
+                      fill={averageRating !== null && star <= Math.round(averageRating) ? "currentColor" : "none"}
+                    />
+                  ))}
                 </div>
-               
               </div>
-              
+
               <div className="product-price">
                 ${typeof price === 'number' ? price.toFixed(2) : '0.00'}
               </div>
             </div>
           </Link>
         </div>
-        
-        <button 
-          className="auth-button flex items-center justify-center mt-auto w-full bg-[#2d6a4f] hover:bg-[#1b4332] text-white px-4 py-3 rounded-md transition-colors duration-200" 
+
+        <button
+          className="auth-button flex items-center justify-center mt-auto w-full bg-[#2d6a4f] hover:bg-[#1b4332] text-white px-4 py-3 rounded-md transition-colors duration-200"
           disabled={actualStock !== null && actualStock === 0}
           onClick={handleAddToCart}
         >
@@ -280,8 +253,8 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, isTopThree }) => {
           {actualStock !== null && actualStock === 0 ? 'Out of Stock' : 'Add to Cart'}
         </button>
       </div>
-      
-      <OutOfStockDialog 
+
+      <OutOfStockDialog
         isOpen={isOutOfStockDialogOpen}
         onOpenChange={setIsOutOfStockDialogOpen}
         productName={insufficientStockMessage}

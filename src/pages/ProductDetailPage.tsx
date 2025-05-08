@@ -262,7 +262,7 @@ const ProductDetailPage = () => {
     <div className="min-h-screen bg-driftmood-cream p-8">
       <div className="max-w-6xl mx-auto bg-white rounded-xl shadow-md p-6">
         <div className="flex flex-col md:flex-row gap-8">
-          
+
           {/* Image + Wishlist */}
           <div className="md:w-1/2 relative">
             <img 
@@ -276,7 +276,11 @@ const ProductDetailPage = () => {
               className="absolute top-3 right-3 z-20 bg-white/90 hover:bg-white text-driftmood-dark p-1 rounded-full shadow transition"
               title={isInWishlist ? "Remove from Wishlist" : "Add to Wishlist"}
             >
-              <Heart size={20} fill={isInWishlist ? "#65a30d" : "none"} stroke="#65a30d" />
+              <Heart
+                size={20}
+                fill={isInWishlist ? "#65a30d" : "none"}
+                stroke="#65a30d"
+              />
             </button>
           </div>
 
