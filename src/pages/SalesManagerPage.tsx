@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,7 +6,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { Plus, Trash2, Save, X, Download } from "lucide-react";
+import { getAllCategories, addCategory, deleteCategory } from '@/api/categoryApi';
+import { getAllProducts, addProduct, updateProduct, deleteProduct, setPrice, setStock,getProductsByCategory } from '@/api/productApi';
+import { toast } from 'sonner';
+import { getOrdersByUser, getOrderInvoice } from '@/api/orderApi';
+import { getAllComments, deleteComment } from '@/api/commentApi';
+
+
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
+} from 'recharts';
+
 
 interface Product {
   id: string;
@@ -16,56 +27,85 @@ interface Product {
   category: string;
 }
 
-interface Order {
-  id: string;
-  date: string;
-  customerName: string;
-  totalAmount: number;
-  status: 'pending' | 'completed' | 'cancelled';
-  invoiceNumber: string;
-  items: OrderItem[];
-}
-
-interface OrderItem {
-  productName: string;
-  quantity: number;
-  price: number;
-  discount: number;
-}
-
-interface RevenueData {
-  date: string;
-  revenue: number;
+interface Category {
+  id: number;
+  name: string;
 }
 
 const SalesManagerPage = () => {
   const [products, setProducts] = useState<Product[]>([]);
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [revenueData, setRevenueData] = useState<RevenueData[]>([]);
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [filterCategory, setFilterCategory] = useState<string>('');
 
-  const handlePriceChange = (productId: string, newPrice: number) => {
-    setProducts(products.map(product =>
-      product.id === productId ? { ...product, price: newPrice } : product
-    ));
+  useEffect(() => {
+    fetchCategories();
+    fetchProducts();
+  }, []);
+
+  const fetchCategories = async () => {
+    try {
+      const data = await getAllCategories();
+      setCategories(data);
+    } catch (error) {
+      console.error('Failed to fetch categories');
+    }
   };
 
-  const handleDiscountChange = (productId: string, newDiscount: number) => {
-    setProducts(products.map(product =>
-      product.id === productId ? { ...product, discountRate: newDiscount } : product
-    ));
+  const fetchProducts = async () => {
+    try {
+      const data = await getAllProducts();
+      setProducts(data);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      toast.error('Failed to fetch products');
+    }
   };
 
-  const handleOrderStatusChange = (orderId: string, newStatus: Order['status']) => {
-    setOrders(orders.map(order =>
-      order.id === orderId ? { ...order, status: newStatus } : order
-    ));
+  const fetchProductsByCategoryName = async (name: string) => {
+    try {
+      const matched = categories.find(c => c.name === name);
+      if (!matched) return;
+      const data = await getProductsByCategory(matched.id);
+      setProducts(data);
+    } catch (error) {
+      console.error('Error fetching category products:', error);
+      toast.error('Failed to fetch category products');
+    }
+  };
+
+  const handlePriceChange = async (productId: string, newPrice: number) => {
+    try {
+      const token = localStorage.getItem('token');
+      const target = products.find(p => p.id === productId);
+      if (!target) return;
+      if (target.price > 0) {
+        toast.warning("Price has already been set and cannot be changed.");
+        return;
+      }
+      await setPrice(token, productId, newPrice);
+      setProducts(products.map(product =>
+        product.id === productId ? { ...product, price: newPrice } : product
+      ));
+    } catch (error) {
+      toast.error('Failed to update price');
+    }
+  };
+
+  const handleDiscountChange = async (productId: string, newDiscount: number) => {
+    try {
+      const token = localStorage.getItem('token');
+      await setDiscount(token, productId, newDiscount);
+      setProducts(products.map(product =>
+        product.id === productId ? { ...product, discountRate: newDiscount } : product
+      ));
+    } catch (error) {
+      toast.error('Failed to update discount');
+    }
   };
 
   return (
     <div className="container mx-auto p-6">
       <h1 className="text-3xl font-bold mb-6">Sales Manager Dashboard</h1>
-      
       <Tabs defaultValue="pricing" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="pricing">Pricing & Discounts</TabsTrigger>
@@ -82,7 +122,26 @@ const SalesManagerPage = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Product Name</TableHead>
-                    <TableHead>Category</TableHead>
+                    <TableHead>
+                      <select
+                        className="border p-1 rounded text-sm"
+                        value={filterCategory}
+                        onChange={(e) => {
+                          const selected = e.target.value;
+                          setFilterCategory(selected);
+                          if (selected === '') {
+                            fetchProducts();
+                          } else {
+                            fetchProductsByCategoryName(selected);
+                          }
+                        }}
+                      >
+                        <option value="">All Categories</option>
+                        {categories.map((cat) => (
+                          <option key={cat.id} value={cat.name}>{cat.name}</option>
+                        ))}
+                      </select>
+                    </TableHead>
                     <TableHead>Current Price</TableHead>
                     <TableHead>Discount Rate</TableHead>
                     <TableHead>Actions</TableHead>
@@ -101,6 +160,7 @@ const SalesManagerPage = () => {
                             value={product.price}
                             onChange={(e) => handlePriceChange(product.id, Number(e.target.value))}
                             className="w-24"
+                            disabled={product.price > 0}
                           />
                         </div>
                       </TableCell>
@@ -116,13 +176,7 @@ const SalesManagerPage = () => {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setSelectedProduct(product)}
-                        >
-                          View Details
-                        </Button>
+                        <Button variant="outline" size="sm">View Details</Button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -133,100 +187,11 @@ const SalesManagerPage = () => {
         </TabsContent>
 
         <TabsContent value="orders">
-          <div className="grid grid-cols-2 gap-6">
-            {/* Revenue Chart */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Revenue Overview</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="h-[400px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={revenueData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="date" />
-                      <YAxis />
-                      <Tooltip />
-                      <Legend />
-                      <Line
-                        type="monotone"
-                        dataKey="revenue"
-                        stroke="#8884d8"
-                        name="Revenue"
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Orders Table */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Recent Orders</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Order ID</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Customer</TableHead>
-                      <TableHead>Amount</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {orders.map((order) => (
-                      <TableRow key={order.id}>
-                        <TableCell>{order.id}</TableCell>
-                        <TableCell>{order.date}</TableCell>
-                        <TableCell>{order.customerName}</TableCell>
-                        <TableCell>${order.totalAmount}</TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={
-                              order.status === 'completed'
-                                ? 'default'
-                                : order.status === 'cancelled'
-                                ? 'destructive'
-                                : 'secondary'
-                            }
-                          >
-                            {order.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              onClick={() => handleOrderStatusChange(order.id, 'completed')}
-                              disabled={order.status === 'completed'}
-                            >
-                              Complete
-                            </Button>
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => handleOrderStatusChange(order.id, 'cancelled')}
-                              disabled={order.status === 'cancelled'}
-                            >
-                              Cancel
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </div>
+          <p className="text-muted">Order and revenue section here…</p>
         </TabsContent>
       </Tabs>
     </div>
   );
 };
 
-export default SalesManagerPage; 
+export default SalesManagerPage;
