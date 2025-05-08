@@ -13,6 +13,8 @@ import { getRatingsByProduct } from '@/api/rateApi';
 import { getCommentsByProduct } from '@/api/commentApi'; 
 import { getStockById } from "@/api/productApi";
 import OutOfStockDialog from '@/components/OutOfStockDialog';
+import { Heart } from 'lucide-react';
+import { addToLocalWishlist, removeFromLocalWishlist, isInLocalWishlist } from '@/utils/wishlistUtils';
 
 
 
@@ -37,6 +39,7 @@ const ProductDetailPage = () => {
   const [actualStock, setActualStock] = useState<number | null>(null);
   const [isOutOfStockDialogOpen, setIsOutOfStockDialogOpen] = useState(false);
   const [insufficientStockMessage, setInsufficientStockMessage] = useState('');
+  const [isInWishlist, setIsInWishlist] = useState(false);
 
 
   useEffect(() => {
@@ -104,6 +107,14 @@ const ProductDetailPage = () => {
 
         console.log('Transformed products:', transformedProducts);
         setProducts(transformedProducts);
+
+        if (id) {
+          const parsedId = Number(id);
+          const foundProduct = transformedProducts.find(p => p.productId === parsedId);
+          if (foundProduct) {
+            setIsInWishlist(isInLocalWishlist(foundProduct.productId));
+          }
+        }
 
         // Fetch categories
         const categoriesResponse = await getAllCategories();
@@ -220,13 +231,53 @@ const ProductDetailPage = () => {
     }
   };
   
+  const handleToggleWishlist = () => {
+    if (isInWishlist) {
+      removeFromLocalWishlist(product.productId);
+      toast({
+        title: 'Removed from Wishlist',
+        description: `${product.name} was removed from your wishlist.`,
+      });
+    } else {
+      addToLocalWishlist({
+        productId: product.productId,
+        name: product.name,
+        price: product.price,
+        picture: product.picture,
+        description: product.description,
+        popularity: product.popularity,
+        categoryType: getCategoryName(product.categoryId),
+        categoryId: product.categoryId,
+      });
+      toast({
+        title: 'Added to Wishlist',
+        description: `${product.name} was added to your wishlist.`,
+      });
+    }
+  
+    setIsInWishlist(!isInWishlist);
+  };
+
   return (
     <div className="min-h-screen bg-driftmood-cream p-8">
       <div className="max-w-6xl mx-auto bg-white rounded-xl shadow-md p-6">
         <div className="flex flex-col md:flex-row gap-8">
-          {/* Image */}
-          <div className="md:w-1/2">
-            <img src={product.picture} alt={product.name} className="w-full rounded-lg object-cover" />
+          
+          {/* Image + Wishlist */}
+          <div className="md:w-1/2 relative">
+            <img 
+              src={product.picture} 
+              alt={product.name} 
+              className="w-full rounded-lg object-cover" 
+            />
+
+            <button
+              onClick={handleToggleWishlist}
+              className="absolute top-3 right-3 z-20 bg-white/90 hover:bg-white text-driftmood-dark p-1 rounded-full shadow transition"
+              title={isInWishlist ? "Remove from Wishlist" : "Add to Wishlist"}
+            >
+              <Heart size={20} fill={isInWishlist ? "#65a30d" : "none"} stroke="#65a30d" />
+            </button>
           </div>
 
           {/* Info */}
