@@ -10,8 +10,12 @@ import OutOfStockDialog from './OutOfStockDialog';
 import { getStockById } from '../api/productApi';
 import { getCart } from '../api/cartApi';
 import { getRatingsByProduct } from '../api/rateApi';
+import { Heart } from 'lucide-react';
+import {addToLocalWishlist, removeFromLocalWishlist, isInLocalWishlist, getLocalWishlist} from '../utils/wishlistUtils';
+
 
 import '../styles/ProductCard.css';
+
 
 // Function to convert popularity to star rating
 const getStarRatingFromPopularity = (popularity: number): number => {
@@ -56,6 +60,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, isTopThree }) => {
   const [actualStock, setActualStock] = useState<number | null>(null);
   const [insufficientStockMessage, setInsufficientStockMessage] = useState('');
   const [averageRating, setAverageRating] = useState<number | null>(null);
+  const [isInWishlist, setIsInWishlist] = useState(false);
   const {
     productId,
     name,
@@ -96,6 +101,19 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, isTopThree }) => {
     
     fetchData();
   }, [productId]);
+
+  const [wishlist, setWishlist] = useState([]);
+
+  useEffect(() => {
+    const updateWishlist = () => {
+      setWishlist(getLocalWishlist());
+    };
+  
+    updateWishlist(); // initial load
+  
+    window.addEventListener('wishlist-updated', updateWishlist);
+    return () => window.removeEventListener('wishlist-updated', updateWishlist);
+  }, []);
 
   const starRating = getStarRatingFromPopularity(popularity);
 
@@ -151,6 +169,28 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, isTopThree }) => {
     }
   };
 
+  const handleAddToWishlist = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  
+    addToLocalWishlist({
+      productId,
+      name,
+      price,
+      picture,
+      description,
+      popularity,
+      categoryType,
+      categoryId,
+    });
+  
+    toast({
+      title: 'Added to Wishlist',
+      description: `${name} was added to your wishlist.`,
+      duration: 2500,
+    });
+  };
+
   return (
     <>
       <div className={`product-card ${(actualStock !== null && actualStock === 0) ? 'out-of-stock' : ''}`}>
@@ -163,6 +203,14 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, isTopThree }) => {
                 className="w-full h-64 object-cover"
                 loading="lazy"
               />
+              <button
+                onClick={handleAddToWishlist}
+                className="absolute bottom-3 right-3 z-20 bg-white/90 hover:bg-white text-driftmood-dark p-1 rounded-full shadow transition"
+                title="Add to Wishlist"
+              >
+                <Heart size={18} />
+              </button>
+
               {actualStock !== null && actualStock === 0 && (
                 <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
                   <span className="bg-driftmood-dark text-white px-4 py-2 rounded-md font-medium">

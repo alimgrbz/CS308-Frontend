@@ -6,6 +6,7 @@ import SearchBar from './SearchBar';
 import { User, Coffee } from 'lucide-react';
 import CoffeeRain from './CoffeeRain';
 import '../styles/Navbar.css';
+import { Heart } from 'lucide-react';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -98,6 +99,7 @@ const Navbar = () => {
             >
               <Coffee size={24} className="text-coffee-brown" />
             </button>
+
             {isLoggedIn ? (
               <a
                 href="http://localhost:8080/profile"
@@ -112,6 +114,10 @@ const Navbar = () => {
                 </button>
               </Link>
             )}
+            
+            <Link to="/wishlist" className="nav-icon wishlist-icon relative mr-2" title="Wishlist">
+              <Heart size={24} className="text-coffee-brown hover:text-rose-500 transition-colors" />
+            </Link>
 
             <Link to="/cart" className="nav-icon cart-icon relative">
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
