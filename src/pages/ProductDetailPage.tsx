@@ -1,195 +1,96 @@
 import React from 'react';
 import { useParams } from 'react-router-dom';
-import { Star, ShoppingCart, BarChart3 } from 'lucide-react';
+import { Star, ShoppingCart, Heart } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import '../ProductDetailPage.css';
-import { getAllProducts } from '@/api/productApi';
+import { getAllProducts, getStockById } from '@/api/productApi';
 import { getAllCategories } from '@/api/categoryApi';
-import { useEffect, useState } from 'react';
 import { addToCart, getCart } from '@/api/cartApi';
 import { addToLocalCart } from '@/utils/cartUtils';
 import { getRatingsByProduct } from '@/api/rateApi';
-import { getCommentsByProduct } from '@/api/commentApi'; 
-import { getStockById } from "@/api/productApi";
+import { getCommentsByProduct } from '@/api/commentApi';
 import OutOfStockDialog from '@/components/OutOfStockDialog';
-import { Heart } from 'lucide-react';
-import { addToLocalWishlist, removeFromLocalWishlist, isInLocalWishlist } from '@/utils/wishlistUtils';
-
-
-
-const getStarRatingFromPopularity = (popularity: number): number => {
-  if (popularity <= 2) return 1;
-  if (popularity <= 4) return 2;
-  if (popularity <= 6) return 3;
-  if (popularity <= 8) return 4;
-  return 5;
-};
+import { addProductToWishlist, removeProductFromWishlist, getWishlist } from '@/api/wishlistApi';
 
 const ProductDetailPage = () => {
   const { id } = useParams();
-  const [products, setProducts] = useState([]);
-  const [categories, setCategories] = useState([]);
+  const { toast } = useToast();
+  const [products, setProducts] = React.useState([]);
+  const [categories, setCategories] = React.useState([]);
   const [activeTab, setActiveTab] = React.useState('description');
   const [quantity, setQuantity] = React.useState(1);
-  const [ratings, setRatings] = useState<number[]>([]);
-  const [averageRating, setAverageRating] = useState<number | null>(null);
-  const { toast } = useToast();
-  const [comments, setComments] = useState([]);
-  const [actualStock, setActualStock] = useState<number | null>(null);
-  const [isOutOfStockDialogOpen, setIsOutOfStockDialogOpen] = useState(false);
-  const [insufficientStockMessage, setInsufficientStockMessage] = useState('');
-  const [isInWishlist, setIsInWishlist] = useState(false);
+  const [ratings, setRatings] = React.useState<number[]>([]);
+  const [averageRating, setAverageRating] = React.useState<number | null>(null);
+  const [comments, setComments] = React.useState([]);
+  const [actualStock, setActualStock] = React.useState<number | null>(null);
+  const [isOutOfStockDialogOpen, setIsOutOfStockDialogOpen] = React.useState(false);
+  const [insufficientStockMessage, setInsufficientStockMessage] = React.useState('');
+  const [isInWishlist, setIsInWishlist] = React.useState(false);
 
-
-  useEffect(() => {
+  React.useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch products
         const productsResponse = await getAllProducts();
-        console.log('API Response:', productsResponse);
-        
-        if (!productsResponse) {
-          console.error('No response from API');
-          return;
-        }
-
-        // Handle different response formats
-        let productsData = [];
-        if (Array.isArray(productsResponse)) {
-          productsData = productsResponse;
-        } else if (productsResponse.products) {
-          productsData = productsResponse.products;
-        } else if (productsResponse.data) {
-          productsData = productsResponse.data;
-        }
-
-        if (id){
-          try {
-            const ratingsResponse = await getRatingsByProduct(Number(id));
-            const ratingValues = Array.isArray(ratingsResponse.ratings)
-              ? ratingsResponse.ratings.map((r) => Number(r.rate))
-              : [];
-
-            setRatings(ratingValues);
-            if (ratingValues.length > 0) {
-              const avg = ratingValues.reduce((sum, val) => sum + val, 0) / ratingValues.length;
-              setAverageRating(avg);
-            } else {
-              setAverageRating(null);
-            }
-
-            //  Fetch comments here
-            const commentData = await getCommentsByProduct(Number(id));
-            console.log(" Comment API response:", commentData);
-            setComments(commentData);
-
-            // Fetch real-time stock information
-            const stockAmount = await getStockById(Number(id));
-            setActualStock(stockAmount);
-            console.log('Current stock:', stockAmount);
-
-          } catch (error) {
-            console.error("Error fetching ratings or comments:", error);
-          }
-        }
-
-        // Transform the data to match the expected structure
-        const transformedProducts = productsData.map(product => ({
-          ...product,
-          productId: product.id || product.productId,
-          picture: product.imageUrl || product.picture,
-          stock: product.inStock || product.stock,
-          categoryId: product.categoryId || product.category,
-          price: Number(product.price) || 0,
-          popularity: Number(product.popularity) || 0
-        }));
-
-        console.log('Transformed products:', transformedProducts);
-        setProducts(transformedProducts);
+        let productsData = Array.isArray(productsResponse) ? productsResponse : productsResponse.products || productsResponse.data || [];
 
         if (id) {
-          const parsedId = Number(id);
-          const foundProduct = transformedProducts.find(p => p.productId === parsedId);
-          if (foundProduct) {
-            setIsInWishlist(isInLocalWishlist(foundProduct.productId));
-          }
+          const ratingsResponse = await getRatingsByProduct(Number(id));
+          const ratingValues = ratingsResponse.ratings?.map((r) => Number(r.rate)) || [];
+          setRatings(ratingValues);
+          setAverageRating(ratingValues.length > 0 ? ratingValues.reduce((a, b) => a + b, 0) / ratingValues.length : null);
+
+          const commentData = await getCommentsByProduct(Number(id));
+          setComments(commentData);
+
+          const stockAmount = await getStockById(Number(id));
+          setActualStock(stockAmount);
         }
 
-        // Fetch categories
+        const transformed = productsData.map(p => ({
+          ...p,
+          productId: p.id || p.productId,
+          picture: p.imageUrl || p.picture,
+          stock: p.inStock || p.stock,
+          categoryId: p.category_id || p.categoryId,
+          price: Number(p.price) || 0,
+          popularity: Number(p.popularity) || 0,
+        }));
+
+        setProducts(transformed);
         const categoriesResponse = await getAllCategories();
         setCategories(categoriesResponse);
-      } catch (error) {
-        console.error('Error fetching data:', error);
-        toast({
-          title: "Error",
-          description: "Failed to load data",
-          variant: "destructive",
-        });
+
+        const token = localStorage.getItem('token');
+        if (token && id) {
+          const wishlist = await getWishlist(token);
+          const parsedId = Number(id);
+          setIsInWishlist(wishlist.some(item => item.productId === parsedId));
+        }
+      } catch (err) {
+        console.error(err);
+        toast({ title: 'Error', description: 'Failed to load product data', variant: 'destructive' });
       }
     };
-
     fetchData();
   }, [id]);
 
- 
-  const product = products.find((p) => p.productId === parseInt(id || '', 10));
-  if (!product) {
-    return (
-      <div className="text-center py-10">
-        <h2 className="text-xl font-semibold">Product not found</h2>
-        <p className="text-gray-500">ID: {id}</p>
-        <p className="text-gray-500">Available products: {products.length}</p>
-        <pre className="text-left mt-4 p-4 bg-gray-100 rounded">
-          {JSON.stringify(products, null, 2)}
-        </pre>
-      </div>
-    );
-  }
-
-  const reviews = [
-    {
-      id: 1,
-      userName: "Jane Cooper",
-      rating: 5,
-      date: "2 months ago",
-      comment: "This coffee has the perfect balance of flavors!",
-      isVerified: true,
-    },
-    {
-      id: 2,
-      userName: "Alex Johnson",
-      rating: 4,
-      date: "3 weeks ago",
-      comment: "Very good quality beans. Aroma is incredible!",
-      isVerified: true,
-    }
-  ];
-
-  const getCategoryName = (categoryId: number): string => {
-    const category = categories.find(cat => cat.categoryId === categoryId);
-    return category ? category.categoryType : "Unknown Category";
-  };
+  const product = products.find(p => p.productId === Number(id));
+  if (!product) return <div className="text-center py-10">Product not found</div>;
 
   const handleAddToCart = async () => {
     const token = localStorage.getItem('token');
     let currentCartQuantity = 0;
-
     if (token) {
-      try {
-        const cartResponse = await getCart(token);
-        const cartItem = cartResponse.find(item => item.product.id === product.productId);
-        currentCartQuantity = cartItem ? cartItem.count : 0;
-      } catch (error) {
-        console.error('Error fetching cart:', error);
-      }
+      const cartResponse = await getCart(token);
+      const cartItem = cartResponse.find(item => item.product.id === product.productId);
+      currentCartQuantity = cartItem ? cartItem.count : 0;
     } else {
       const localCart = JSON.parse(localStorage.getItem('guest_cart') || '[]');
       const localCartItem = localCart.find(item => item.productId === product.productId);
       currentCartQuantity = localCartItem ? localCartItem.quantity : 0;
     }
 
-    // Check if product is out of stock or if adding more would exceed stock
     if (actualStock !== null && (actualStock === 0 || currentCartQuantity + quantity > actualStock)) {
       setInsufficientStockMessage(`Sorry, ${product.name} is currently out of stock.`);
       setIsOutOfStockDialogOpen(true);
@@ -200,280 +101,127 @@ const ProductDetailPage = () => {
       if (token) {
         await addToCart(token, [{ productId: product.productId, quantity }]);
       } else {
-        addToLocalCart({
-          productId: product.productId,
-          name: product.name,
-          price: product.price,
-          picture: product.picture,
-          quantity,
-        });
+        addToLocalCart({ productId: product.productId, name: product.name, price: product.price, picture: product.picture, quantity });
       }
-      
-      // Refresh stock information after adding to cart
-      if (id) {
-        const newStock = await getStockById(Number(id));
-        setActualStock(newStock);
-      }
-
+      const newStock = await getStockById(Number(id));
+      setActualStock(newStock);
       window.dispatchEvent(new Event('cart-updated'));
-      toast({
-        title: "Added to cart",
-        description: `${product.name} (x${quantity}) has been added to your cart.`,
-        duration: 3000,
-      });
-    } catch (error) {
-      console.error("Add to cart error:", error);
-      toast({
-        title: "Error",
-        description: "Could not add item to cart.",
-        variant: "destructive",
-      });
+      toast({ title: 'Added to cart', description: `${product.name} (x${quantity}) added to your cart.` });
+    } catch (err) {
+      console.error(err);
+      toast({ title: 'Error', description: 'Could not add to cart.', variant: 'destructive' });
     }
   };
+
+  const handleToggleWishlist = async () => {
+    const token = localStorage.getItem('token');
+    console.log("Token:", token);
+    console.log("Product ID:", product.productId);
   
-  const handleToggleWishlist = () => {
-    if (isInWishlist) {
-      removeFromLocalWishlist(product.productId);
-      toast({
-        title: 'Removed from Wishlist',
-        description: `${product.name} was removed from your wishlist.`,
-      });
-    } else {
-      addToLocalWishlist({
-        productId: product.productId,
-        name: product.name,
-        price: product.price,
-        picture: product.picture,
-        description: product.description,
-        popularity: product.popularity,
-        categoryType: getCategoryName(product.categoryId),
-        categoryId: product.categoryId,
-      });
-      toast({
-        title: 'Added to Wishlist',
-        description: `${product.name} was added to your wishlist.`,
-      });
+    if (!token) {
+      toast({ title: 'Login required', description: 'Please log in to use wishlist.', variant: 'destructive' });
+      return;
     }
   
-    setIsInWishlist(!isInWishlist);
+    try {
+      if (isInWishlist) {
+        console.log("Trying to REMOVE from wishlist...");
+        await removeProductFromWishlist(token, product.productId);
+        toast({ title: 'Removed from Wishlist', description: `${product.name} removed.` });
+      } else {
+        console.log("Trying to ADD to wishlist...");
+        await addProductToWishlist(token, product.productId);
+        toast({ title: 'Added to Wishlist', description: `${product.name} added.` });
+      }
+  
+      setIsInWishlist(!isInWishlist);
+      window.dispatchEvent(new Event('wishlist-updated'));
+    } catch (err) {
+      console.error("Wishlist update failed:", err);
+      toast({ title: 'Error', description: 'Failed to update wishlist.', variant: 'destructive' });
+    }
   };
+
+  const categoryName = categories.find(cat => cat.id === product.categoryId)?.name || 'Unknown';
 
   return (
     <div className="min-h-screen bg-driftmood-cream p-8">
       <div className="max-w-6xl mx-auto bg-white rounded-xl shadow-md p-6">
         <div className="flex flex-col md:flex-row gap-8">
-
-          {/* Image + Wishlist */}
-          <div className="md:w-1/2 relative">
-            <img 
-              src={product.picture} 
-              alt={product.name} 
-              className="w-full rounded-lg object-cover" 
-            />
-
-            <button
-              onClick={handleToggleWishlist}
-              className="absolute top-3 right-3 z-20 bg-white/90 hover:bg-white text-driftmood-dark p-1 rounded-full shadow transition"
-              title={isInWishlist ? "Remove from Wishlist" : "Add to Wishlist"}
-            >
-              <Heart
-                size={20}
-                fill={isInWishlist ? "#65a30d" : "none"}
-                stroke="#65a30d"
-              />
-            </button>
+          <div className="md:w-1/2">
+            <img src={product.picture} alt={product.name} className="w-full rounded-lg object-cover" />
           </div>
 
-          {/* Info */}
           <div className="md:w-1/2 space-y-4">
             <h1 className="text-2xl font-serif font-semibold">{product.name}</h1>
             <p className="text-driftmood-brown">{product.description}</p>
 
-            <div className="flex items-center space-x-2">
-            {[1, 2, 3, 4, 5].map((star) => (
-              <Star
-                key={star}
-                size={18}
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <Star
+                    key={star}
+                    size={18}
+                    className={cn(
+                      averageRating !== null && star <= Math.round(averageRating)
+                        ? "rating-star-filled"
+                        : "rating-star"
+                    )}
+                    fill={averageRating !== null && star <= Math.round(averageRating) ? "currentColor" : "none"}
+                  />
+                ))}
+                <span className="text-sm text-driftmood-brown">
+                  {averageRating !== null ? averageRating.toFixed(1) : 'No ratings yet'}
+                </span>
+              </div>
+
+              <button
+                onClick={handleToggleWishlist}
                 className={cn(
-                  averageRating !== null && star <= Math.round(averageRating) ? "rating-star-filled" : "rating-star"
+                  "flex items-center gap-1 px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                  isInWishlist ? "bg-green-100 text-green-800 hover:bg-green-200" : "bg-driftmood-cream text-driftmood-dark hover:bg-driftmood-lime"
                 )}
-                fill={averageRating !== null && star <= Math.round(averageRating) ? "currentColor" : "none"}
-              />
-            ))}
-            <span className="text-sm text-driftmood-brown">
-              {averageRating !== null ? averageRating.toFixed(1) : 'No ratings yet'}
-            </span>
+              >
+                <Heart size={16} fill={isInWishlist ? "#65a30d" : "none"} stroke="#65a30d" />
+                {isInWishlist ? "Remove from Wishlist" : "Add to Wishlist"}
+              </button>
             </div>
 
             <div className="text-xl font-bold">${product.price.toFixed(2)}</div>
 
             <div className="flex gap-2 flex-wrap">
-              <span className="chip bg-driftmood-lime text-driftmood-dark">{getCategoryName(product.categoryId)}</span>
-              {product.origin && (
-                <span className="chip bg-driftmood-cream text-driftmood-brown">Origin: {product.origin}</span>
-              )}
-              {product.roastLevel && (
-                <span className="chip bg-driftmood-cream text-driftmood-brown">Roast: {product.roastLevel}</span>
-              )}
-              {actualStock !== null && (
-  <>
-    {actualStock === 0 ? (
-      <span className="chip bg-red-100 text-red-800">Out of Stock!</span>
-    ) : actualStock <= 10 ? (
-      <span className="chip bg-yellow-100 text-yellow-800">Only {actualStock} left in stock!</span>
-    ) : (
-      <span className="chip bg-green-100 text-green-800">In Stock</span>
-    )}
-  </>
-)}
+              <span className="chip bg-driftmood-lime text-driftmood-dark">{categoryName}</span>
+              {product.origin && <span className="chip bg-driftmood-cream text-driftmood-brown">Origin: {product.origin}</span>}
+              {product.roastLevel && <span className="chip bg-driftmood-cream text-driftmood-brown">Roast: {product.roastLevel}</span>}
+              {actualStock !== null && (actualStock === 0 ? <span className="chip bg-red-100 text-red-800">Out of Stock!</span> : actualStock <= 10 ? <span className="chip bg-yellow-100 text-yellow-800">Only {actualStock} left!</span> : <span className="chip bg-green-100 text-green-800">In Stock</span>)}
             </div>
 
-            {/* Quantity selector + add to cart */}
             <div className="flex flex-col sm:flex-row sm:items-center gap-4 mt-4">
               <div className="flex items-center border border-driftmood-lightlime rounded-md overflow-hidden w-fit">
-                <button
-                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  className="quantity-btn"
-                  disabled={actualStock === 0}
-                >
-                  -
-                </button>
-                <input
-                  type="number"
-                  min={1}
-                  max={actualStock || 1}
-                  value={quantity}
-                  onChange={(e) => {
-                    const newQuantity = parseInt(e.target.value) || 1;
-                    setQuantity(Math.min(actualStock || 1, Math.max(1, newQuantity)));
-                  }}
-                  className="quantity-input"
-                  disabled={actualStock === 0}
-                />
-                <button
-                  onClick={() => setQuantity(Math.min((actualStock || 1), quantity + 1))}
-                  disabled={actualStock !== null && (actualStock === 0 || quantity >= actualStock)}
-                  className="quantity-btn"
-                >
-                  +
-                </button>
+                <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="quantity-btn" disabled={actualStock === 0}>-</button>
+                <input type="number" min={1} max={actualStock || 1} value={quantity} onChange={(e) => setQuantity(Math.min(actualStock || 1, Math.max(1, parseInt(e.target.value) || 1)))} className="quantity-input" disabled={actualStock === 0} />
+                <button onClick={() => setQuantity(Math.min(actualStock || 1, quantity + 1))} disabled={actualStock === 0 || quantity >= actualStock!} className="quantity-btn">+</button>
               </div>
 
-              <button
-                className={cn(
-                  "relative overflow-hidden bg-[#2d6a4f] text-white flex-1 flex items-center justify-center font-semibold py-3 px-4 rounded-md transition-all duration-300 ease-in-out hover:bg-[#1b4332]",
-                  (actualStock === 0 || quantity > actualStock) && "opacity-50 cursor-not-allowed"
-                )}
-                disabled={actualStock === 0 || quantity > actualStock}
-                onClick={handleAddToCart}
-              >
-                {/* Shimmer Effect */}
-                <span className="absolute inset-0 w-full h-full">
-                  <span className="block w-2/3 h-full bg-white opacity-5 transform rotate-45 translate-x-[-150%] group-hover:translate-x-[250%] transition-transform duration-[1500ms] ease-out" />
-                </span>
-
-                {/* Button Content */}
-                <div className="flex items-center z-10">
-                  <ShoppingCart size={16} className="mr-2" />
-                  {actualStock === 0 ? "Out of Stock" : "Add to Cart"}
-                </div>
-              </button>
+              <button onClick={handleAddToCart} disabled={actualStock === 0 || quantity > actualStock!} className={cn("relative overflow-hidden bg-[#2d6a4f] text-white flex-1 flex items-center justify-center font-semibold py-3 px-4 rounded-md transition-all duration-300 ease-in-out hover:bg-[#1b4332]", actualStock === 0 ? "opacity-50 cursor-not-allowed" : "")}>Add to Cart</button>
             </div>
           </div>
         </div>
 
-        {/* Tabs */}
         <div className="mt-10">
           <div className="border-b border-driftmood-lightlime mb-4 flex space-x-6">
-            {["description", "details", "reviews"].map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={cn(
-                  "py-2 text-sm font-medium relative",
-                  activeTab === tab ? "text-driftmood-dark" : "text-driftmood-brown hover:text-driftmood-dark"
-                )}
-              >
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                {activeTab === tab && (
-                  <span className="absolute bottom-0 left-0 w-full h-0.5 bg-driftmood-dark" />
-                )}
-              </button>
+            {['description', 'details', 'reviews'].map(tab => (
+              <button key={tab} onClick={() => setActiveTab(tab)} className={cn("py-2 text-sm font-medium relative", activeTab === tab ? "text-driftmood-dark" : "text-driftmood-brown hover:text-driftmood-dark")}>{tab.charAt(0).toUpperCase() + tab.slice(1)}{activeTab === tab && <span className="absolute bottom-0 left-0 w-full h-0.5 bg-driftmood-dark" />}</button>
             ))}
           </div>
 
-          {activeTab === "description" && (
-            <p className="text-driftmood-brown">{product.description}</p>
-          )}
-
-          {activeTab === "details" && (
-            <div className="space-y-4 text-driftmood-brown">
-              <div>
-                <h4 className="font-medium">Ingredients</h4>
-                <ul className="list-disc ml-6 text-sm">
-                  {product.ingredients?.map((item, idx) => (
-                    <li key={idx}>{item}</li>
-                  ))}
-
-                  
-                </ul>
-              </div>
-              <div>
-                <h4 className="font-medium">Origin</h4>
-                <p className="text-sm">{product.origin}</p>
-              </div>
-              {product.distributor && (
-                <div>
-                  <h4 className="font-medium">Distributor</h4>
-                  <p className="text-sm">{product.distributor}</p>
-                </div>
-              )}
-              {product.warrantyStatus && (
-                <div>
-                  <h4 className="font-medium">Warranty</h4>
-                  <p className="text-sm">{product.warrantyStatus}</p>
-                </div>
-              )}
-              {product.serialNumber && (
-                <div>
-                  <h4 className="font-medium">Serial Number</h4>
-                  <p className="text-sm">{product.serialNumber}</p>
-                </div>
-              )}
-              {product.model && (
-                <div>
-                  <h4 className="font-medium">Model</h4>
-                  <p className="text-sm">{product.model}</p>
-                </div>
-              )}
-            </div>
-          )}
-
-          {activeTab === "reviews" && (
-  <div className="space-y-4 text-driftmood-brown">
-    {comments.length > 0 ? (
-      comments.map((comment, idx) => (
-        <div key={comment.comment_id || idx} className="border-t pt-4">
-          <div className="flex items-center justify-between">
-            <span className="font-medium">{comment.user_name}</span>
-            <span className="text-xs">{new Date(comment.created_at).toLocaleDateString()}</span>
-          </div>
-          <div className="text-sm">{comment.comment}</div>
+          {activeTab === 'description' && <p className="text-driftmood-brown">{product.description}</p>}
+          {activeTab === 'details' && <div className="space-y-4 text-driftmood-brown">{product.ingredients && (<div><h4 className="font-medium">Ingredients</h4><ul className="list-disc ml-6 text-sm">{product.ingredients.map((item, idx) => <li key={idx}>{item}</li>)}</ul></div>)}{product.origin && <div><h4 className="font-medium">Origin</h4><p className="text-sm">{product.origin}</p></div>}{product.distributor && <div><h4 className="font-medium">Distributor</h4><p className="text-sm">{product.distributor}</p></div>}</div>}
+          {activeTab === 'reviews' && <div className="space-y-4 text-driftmood-brown">{comments.length > 0 ? comments.map((c, idx) => <div key={idx} className="border-t pt-4"><div className="flex items-center justify-between"><span className="font-medium">{c.user_name}</span><span className="text-xs">{new Date(c.created_at).toLocaleDateString()}</span></div><div className="text-sm">{c.comment}</div></div>) : <p>No comments yet.</p>}</div>}
         </div>
-      ))
-    ) : (
-      <p>No comments yet.</p>
-    )}
-  </div>
-)}
-        </div>
+
+        <OutOfStockDialog isOpen={isOutOfStockDialogOpen} onOpenChange={setIsOutOfStockDialogOpen} productName={insufficientStockMessage} />
       </div>
-      
-      <OutOfStockDialog 
-        isOpen={isOutOfStockDialogOpen}
-        onOpenChange={setIsOutOfStockDialogOpen}
-        productName={insufficientStockMessage}
-      />
     </div>
   );
 };

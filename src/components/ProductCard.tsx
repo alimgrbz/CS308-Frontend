@@ -155,15 +155,34 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, isTopThree }) => {
   const handleToggleWishlist = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-
+  
     if (isInWishlist) {
       removeFromLocalWishlist(productId);
-      toast({ title: 'Removed from Wishlist', description: `${name} was removed.`, duration: 2500 });
+      toast({
+        title: 'Removed from Wishlist',
+        description: `${name} was removed.`,
+        duration: 2500,
+      });
     } else {
-      addToLocalWishlist({ productId, name, price, picture, description, popularity, categoryType, categoryId });
-      toast({ title: 'Added to Wishlist', description: `${name} was added.`, duration: 2500 });
+      addToLocalWishlist({
+        productId,
+        name,
+        price,
+        picture,
+        description,
+        popularity,
+        categoryType,
+        categoryId,
+      });
+      toast({
+        title: 'Added to Wishlist',
+        description: `${name} was added.`,
+        duration: 2500,
+      });
     }
-
+  
+    window.dispatchEvent(new Event('wishlist-updated'));
+  
     setIsInWishlist(!isInWishlist);
   };
 
