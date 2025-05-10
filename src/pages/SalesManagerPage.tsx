@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useNavigate } from 'react-router-dom';
 import { getAllOrders } from '@/api/orderApi';
+import { toast } from 'sonner';
 
 interface Product {
   id: string;
@@ -75,25 +76,49 @@ const SalesManagerPage = () => {
   useEffect(() => {
     const fetchOrders = async () => {
       const token = localStorage.getItem('token');
-      if (!token) return;
+      if (!token) {
+        toast.error('Authentication required. Please log in.');
+        navigate('/login');
+        return;
+      }
+
       try {
+        console.log('Fetching all orders...');
         const rawOrders = await getAllOrders(token);
-        const mappedOrders = rawOrders.map((order) => ({
-          id: order.order_id?.toString() ?? '',
-          date: new Date(order.date).toLocaleDateString(),
-          customerName: order.user_name || order.username || order.name || order.customerName || '',
-          totalAmount: parseFloat(order.total_price),
-          status: order.order_status,
-          invoiceNumber: order.invoice_number || '',
-          items: order.product_list || [],
-        }));
+        console.log('Received orders:', rawOrders);
+
+        if (!Array.isArray(rawOrders)) {
+          console.error('Invalid orders data received:', rawOrders);
+          toast.error('Invalid data received from server');
+          return;
+        }
+
+        const mappedOrders = rawOrders.map((order) => {
+          console.log('Processing order:', order);
+          return {
+            id: order.order_id?.toString() ?? '',
+            date: new Date(order.date).toLocaleDateString(),
+            customerName: order.user_name || order.username || order.name || order.customerName || '',
+            totalAmount: parseFloat(order.total_price),
+            status: order.order_status,
+            invoiceNumber: order.invoice_number || '',
+            items: order.product_list || [],
+          };
+        });
+        console.log('Mapped orders:', mappedOrders);
         setOrders(mappedOrders);
-      } catch (err) {
-        // Optionally show a toast or error
+      } catch (err: any) {
+        console.error('Error fetching orders:', err);
+        if (err.response?.status === 401) {
+          toast.error('Your session has expired. Please log in again.');
+          navigate('/login');
+        } else {
+          toast.error(err.response?.data?.message || 'Failed to fetch orders. Please try again.');
+        }
       }
     };
     fetchOrders();
-  }, []);
+  }, [navigate]);
 
   return (
     <div className="container mx-auto p-6">

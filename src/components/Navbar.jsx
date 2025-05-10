@@ -88,6 +88,8 @@ const Navbar = () => {
           <ul className={`nav-menu ${isOpen ? 'active' : ''}`}>
             {userRole === 'product_manager' ? (
               <li className="nav-item"><Link to="/product-manager" className="nav-link">Product Manager</Link></li>
+            ) : userRole === 'sales_manager' ? (
+              <li className="nav-item"><Link to="/sales-manager" className="nav-link">Sales Manager</Link></li>
             ) : (
               <>
                 <li className="nav-item"><Link to="/" className="nav-link">Home</Link></li>
@@ -122,7 +124,7 @@ const Navbar = () => {
                 </button>
               </Link>
             )}
-            {userRole !== 'product_manager' && (
+            {userRole !== 'product_manager' && userRole !== 'sales_manager' && (
               <Link to="/cart" className="nav-icon cart-icon relative">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                   viewBox="0 0 24 24" fill="none" stroke="currentColor"
