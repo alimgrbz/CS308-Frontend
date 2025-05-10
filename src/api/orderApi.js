@@ -40,19 +40,14 @@ export const createOrder = async (token) => {
     throw error;
   }
 };
-
-export const getAllOrders = async (token) => {
+export const getAll = async (token) => {
   try {
-    console.log('Fetching all orders...');
-    const response = await axiosInstance.get('/api/orders/all');
-    console.log('Received orders response:', response.data);
-    if (!response.data || !response.data.orders) {
-      console.error('Invalid response format:', response.data);
-      throw new Error('Invalid response format from server');
-    }
-    return response.data.orders;
+    const response = await axiosInstance.post('/api/items/getAll', {
+      token
+    });
+    return response.data;
   } catch (error) {
-    console.error("Failed to fetch all orders:", error.response?.data || error.message);
+    console.error("Fetching all items failed:", error);
     throw error;
   }
 };

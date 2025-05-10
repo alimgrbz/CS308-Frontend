@@ -81,3 +81,12 @@ export const setStock = async (token, productId, stock) => {
     });
     return response.data;
 };
+
+export const setDiscount = async (token, productId, discount) => {
+    const response = await axiosInstance.post('/api/products/setDiscount', {
+      token,
+      productId,
+      discount,
+    });
+    return response.data;
+  };
