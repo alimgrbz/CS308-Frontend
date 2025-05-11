@@ -67,7 +67,8 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, isTopThree }) => {
     categoryType,
     badges,
     popularity = 0,
-    rating
+    rating,
+    discount = 0
   } = product;
 
   useEffect(() => {
@@ -98,6 +99,9 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, isTopThree }) => {
   }, [productId]);
 
   const starRating = getStarRatingFromPopularity(popularity);
+  const hasDiscount = discount > 0;
+  const discountedPrice = hasDiscount ? price * (1 - discount / 100) : price;
+
 
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -186,6 +190,17 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, isTopThree }) => {
                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-shimmer-slow"></div>
                 </div>
               )}
+              {hasDiscount && (
+              <div className="absolute bottom-3 left-3 z-10">
+              <Badge
+                variant="outline"
+                className="bg-red-600 border-red-700 text-white px-2 py-1 text-[10px] font-bold rounded-full shadow"
+              >
+              {discount}% OFF
+              </Badge>
+            </div>
+            )}
+
               <div className="absolute top-3 right-3">
                 <Badge 
                   variant="outline" 

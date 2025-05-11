@@ -2,10 +2,12 @@ import axiosInstance from './axiosConfig';
 
 // Get all products
 export const getAllProducts = async () => {
-    console.log('Fetching products from backend');
     const response = await axiosInstance.get('/api/products');
-    return response.data.products;
-};
+    return response.data.products; 
+  };
+  
+  
+  
 
 // Get product by ID
 export const getProductById = async (productId) => {
@@ -81,3 +83,17 @@ export const setStock = async (token, productId, stock) => {
     });
     return response.data;
 };
+
+export const setDiscount = async (token, productId, discount) => {
+    return await axiosInstance.post(
+      '/api/products/setDiscount',
+      { productId, discount },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      }
+    );
+  };
+  
+  
