@@ -8,11 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useNavigate } from 'react-router-dom';
 import { getAllCategories } from '@/api/categoryApi';
-import { getAllProducts, getProductsByCategory, setPrice,setDiscount } from '@/api/productApi';
-//import { getAllOrders } from '@/api/orderApi';
-import { getOrdersByUser, getOrderInvoice, getRevenueGraph } from '@/api/orderApi';
+import { getAllProducts, getProductsByCategory, setPrice, setDiscount } from '@/api/productApi';
+import { getAllOrders, getOrdersByUser, getOrderInvoice, getRevenueGraph} from '@/api/orderApi';
 import { Download } from 'lucide-react';
-
 import { toast } from 'sonner';
 
 interface Product {
@@ -60,50 +58,19 @@ interface Refund {
   createdAt: string;
 }
 
-const mockRefunds: Refund[] = [
-  {
-    id: 1,
-    userName: "Alice Johnson",
-    userEmail: "alice@example.com",
-    orderId: "ORD-101",
-    reason: "Product arrived damaged",
-    status: 0,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 2,
-    userName: "Bob Smith",
-    userEmail: "bob@example.com",
-    orderId: "ORD-102",
-    reason: "Wrong item delivered",
-    status: 1,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 3,
-    userName: "Carol Lee",
-    userEmail: "carol@example.com",
-    orderId: "ORD-103",
-    reason: "Changed my mind",
-    status: 2,
-    createdAt: new Date().toISOString(),
-  },
-];
 
-const SalesManagerPage = () => {
+  const SalesManagerPage = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [filterCategory, setFilterCategory] = useState<string>('');
   const [orders, setOrders] = useState<Order[]>([]);
   const [revenueData, setRevenueData] = useState<RevenueData[]>([]);
-  const navigate = useNavigate();
-  const [allOrders, setAllOrders] = useState<Order[]>([]);
-  const [isLoadingOrders, setIsLoadingOrders] = useState(false);
   const [refunds, setRefunds] = useState<Refund[]>([]);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-
-
+  const [allOrders, setAllOrders] = useState<Order[]>([]);
+  const [isLoadingOrders, setIsLoadingOrders] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchCategories();
@@ -114,12 +81,27 @@ const SalesManagerPage = () => {
   }, []);
   
   const fetchRefunds = async () => {
-    setTimeout(() => {
-      setRefunds(mockRefunds);
-      toast.success('Mock refunds loaded');
-    }, 500);
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error("No token found. Please log in again.");
+        return;
+      }
+      const response = await fetch('http://localhost:5000/api/orders/refundRequests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token })
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setRefunds(data.refunds || []);
+      } else {
+        toast.error(data.message || "Failed to fetch refund requests.");
+      }
+    } catch (error) {
+      toast.error("An error occurred while fetching refunds.");
+    }
   };
-  
   const fetchCategories = async () => {
     try {
       const data = await getAllCategories();
@@ -142,14 +124,37 @@ const SalesManagerPage = () => {
   };
 
   const fetchRevenueData = async (start: string, end: string) => {
-    // Mocked values — normally you'd call your real API
-    const mock = [
-      { date: "2025-04-05", revenue: 1500 },
-      { date: "2025-04-15", revenue: 3200 },
-      { date: "2025-04-20", revenue: 800 },
-      { date: "2025-05-01", revenue: 2000 },
-    ];
-    setRevenueData(mock);
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error("You must be logged in to fetch revenue data.");
+        return;
+      }
+  
+      const data = await getRevenueGraph(token, start, end);
+      setRevenueData(data);
+      toast.success("Revenue data loaded.");
+    } catch (error) {
+      console.error("❌ Error fetching revenue data:", error);
+      toast.error("Failed to load revenue data.");
+    }
+  };
+  
+  const handleRefundAction = async (orderId: number, accept: boolean) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      if (accept) {
+        await acceptRefund({ token, orderId });
+        toast.success('Refund accepted successfully.');
+      } else {
+        await cancelOrder({ token, orderId });
+        toast.success('Order cancelled successfully.');
+      }
+      fetchRefunds();
+    } catch (error) {
+      toast.error('Failed to process refund action.');
+    }
   };
   
   
@@ -238,27 +243,18 @@ const SalesManagerPage = () => {
         return;
       }
   
-      if (target.price > 0) {
-        // Skip backend call, just update local state
-        setProducts(products.map(product =>
-          product.id === productId ? { ...product, price: newPrice } : product
-        ));
-        toast.info("Price changed locally for display (existing product). Backend call skipped.");
-        return;
-      }
+      await setPrice({ token, productId, price: newPrice });
   
-      // Backend call for new products
-      await setPrice(token, productId, newPrice);
       setProducts(products.map(product =>
         product.id === productId ? { ...product, price: newPrice } : product
       ));
-      toast.success("Price updated and saved to backend.");
+      toast.success("Price updated successfully.");
     } catch (error) {
+      console.error("❌ Error in handlePriceChange:", error.response || error.message || error);
+
       toast.error('Failed to update price');
     }
   };
-  
-
   const handleDiscountChange = async (productId: string, newDiscount: number) => {
     try {
       const token = localStorage.getItem('token');
@@ -395,23 +391,23 @@ const SalesManagerPage = () => {
         <CardTitle>Revenue Overview</CardTitle>
       </CardHeader>
       <CardContent>
-        {/* 👇 INSERT THIS BLOCK HERE */}
-        <div className="flex items-center gap-4 mb-4">
+          <div className="flex items-center gap-4 mb-4">
           <div>
             <label className="block text-sm font-medium mb-1">Start Date</label>
             <Input
               type="date"
               value={startDate}
+              max={new Date().toISOString().split("T")[0]} 
               onChange={(e) => setStartDate(e.target.value)}
             />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">End Date</label>
+
             <Input
-              type="date"
+               type="date"
               value={endDate}
+              max={new Date().toISOString().split("T")[0]} 
               onChange={(e) => setEndDate(e.target.value)}
             />
+
           </div>
           <Button onClick={() => fetchRevenueData(startDate, endDate)}>
             Update Chart
@@ -511,11 +507,10 @@ const SalesManagerPage = () => {
             </Card>
           </div>
         </TabsContent>
-
         <TabsContent value="refunds">
   <Card>
     <CardHeader>
-      <CardTitle>User Refund Requests</CardTitle>
+      <CardTitle>User Refund Requests (Mock)</CardTitle>
     </CardHeader>
     <CardContent>
       <Table>
@@ -527,6 +522,7 @@ const SalesManagerPage = () => {
             <TableHead>Reason</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Date</TableHead>
+            <TableHead>Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -554,6 +550,16 @@ const SalesManagerPage = () => {
                 </Badge>
               </TableCell>
               <TableCell>{new Date(refund.createdAt).toLocaleString()}</TableCell>
+              <TableCell>
+                <div className="flex gap-2">
+                  <Button size="sm" disabled onClick={() => toast.info('Backend not ready')}>
+                    Accept
+                  </Button>
+                  <Button size="sm" variant="destructive" disabled onClick={() => toast.info('Backend not ready')}>
+                    Decline
+                  </Button>
+                </div>
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -561,6 +567,8 @@ const SalesManagerPage = () => {
     </CardContent>
   </Card>
 </TabsContent>
+
+
 
         
         <TabsContent value="deliveries">

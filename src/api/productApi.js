@@ -56,14 +56,20 @@ export const getStock = async (productId) => {
 };
 
 // Set product price (POST)
-export const setPrice = async (token, productId, price) => {
-    const response = await axiosInstance.post('/api/products/setPrice', {
-        token,
-        productId,
-        price
-    });
+export const setPrice = async ({ token, productId, price }) => {
+    const response = await axiosInstance.post(
+      '/api/products/setPrice',
+      { productId, price },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
     return response.data;
-};
+  };
+  
+  
 
 // Add product (POST, with token)
 export const addProductWithToken = async (token, productData) => {
@@ -95,5 +101,7 @@ export const setDiscount = async (token, productId, discount) => {
       }
     );
   };
+
+
   
   

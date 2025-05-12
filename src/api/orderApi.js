@@ -61,3 +61,8 @@ export const getRevenueGraph = async (token, startDate, endDate) => {
   });
   return response.data.data; // or .data if the shape is different
 };
+
+export const acceptRefund = async ({ token, orderId }) => {
+  const response = await axiosInstance.post('/api/orders/acceptRefund', { token, orderId });
+  return response.data;
+};
