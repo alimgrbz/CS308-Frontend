@@ -29,7 +29,7 @@ export const createOrder = async (token) => {
 
 export const getAllOrders = async (token) => {
   try {
-    const response = await axiosInstance.get('/api/orders/getAll', {
+    const response = await axiosInstance.get('/api/orders/all', {
       headers: {
         Authorization: `Bearer ${token}`
       }

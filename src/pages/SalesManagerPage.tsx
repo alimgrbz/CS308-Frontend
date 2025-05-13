@@ -77,8 +77,12 @@ interface Refund {
     fetchProducts();
     fetchAllOrders();
     fetchRefunds();
-    fetchRevenueData();
-  }, []);
+  
+    if (startDate && endDate) {
+      fetchRevenueData(startDate, endDate); // ✅ Pass them here
+    }
+  }, [startDate, endDate]);
+  
   
   const fetchRefunds = async () => {
     try {
@@ -133,6 +137,7 @@ interface Refund {
   
       const data = await getRevenueGraph(token, start, end);
       setRevenueData(data);
+      console.log("📊 Revenue API Response:", data);
       toast.success("Revenue data loaded.");
     } catch (error) {
       console.error("❌ Error fetching revenue data:", error);
@@ -157,10 +162,7 @@ interface Refund {
     }
   };
   
-  
-  
-
-  /*const fetchOrders = async () => {
+  const fetchOrders = async () => {
     try {
       const token = localStorage.getItem('token');
       if (!token) return;
@@ -178,7 +180,7 @@ interface Refund {
     } catch (error) {
       console.error('Failed to fetch orders');
     }
-  };*/
+  };
 
   const fetchAllOrders = async () => {
     setIsLoadingOrders(true);
@@ -391,25 +393,27 @@ interface Refund {
         <CardTitle>Revenue Overview</CardTitle>
       </CardHeader>
       <CardContent>
-          <div className="flex items-center gap-4 mb-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Start Date</label>
+      <div className="flex flex-col sm:flex-row sm:items-end gap-4 mb-4">
+      <div>
+      <label className="block text-sm font-medium mb-1">Start Date</label>
             <Input
               type="date"
               value={startDate}
               max={new Date().toISOString().split("T")[0]} 
               onChange={(e) => setStartDate(e.target.value)}
             />
+            </div>
 
+            <div>
+            <label className="block text-sm font-medium mb-1">End Date</label>
             <Input
                type="date"
               value={endDate}
               max={new Date().toISOString().split("T")[0]} 
               onChange={(e) => setEndDate(e.target.value)}
             />
-
-          </div>
-          <Button onClick={() => fetchRevenueData(startDate, endDate)}>
+           </div>
+           <Button onClick={() => fetchRevenueData(startDate, endDate)}>
             Update Chart
           </Button>
         </div>
@@ -510,7 +514,7 @@ interface Refund {
         <TabsContent value="refunds">
   <Card>
     <CardHeader>
-      <CardTitle>User Refund Requests (Mock)</CardTitle>
+      <CardTitle>User Refund Requests</CardTitle>
     </CardHeader>
     <CardContent>
       <Table>
