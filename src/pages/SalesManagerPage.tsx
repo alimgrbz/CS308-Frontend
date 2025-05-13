@@ -31,10 +31,12 @@ interface Order {
   date: string;
   customerName: string;
   totalAmount: number;
-  status: 'pending' | 'completed' | 'cancelled';
+  status: string;
   invoiceNumber: string;
+  address: string; 
   items: OrderItem[];
 }
+
 
 interface OrderItem {
   productName: string;
@@ -174,9 +176,11 @@ interface Refund {
         customerName: order.user_name || order.username || order.name || order.customerName || '',
         totalAmount: parseFloat(order.total_price),
         status: order.order_status,
+        address: order.address || '', // ✅ ADD THIS
         invoiceNumber: order.invoice_number || '',
         items: order.product_list || [],
       }));
+      
       setOrders(mappedOrders);
     } catch (error) {
       console.error('Failed to fetch orders');
@@ -447,16 +451,16 @@ interface Refund {
               </CardHeader>
               <CardContent>
                 <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Order ID</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Customer</TableHead>
-                      <TableHead>Amount</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
+                <TableHeader>
+                  <TableRow>
+                  <TableHead>Order ID</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Address</TableHead> 
+                  </TableRow>
+                </TableHeader>
+
                   <TableBody>
                   {orders
                     .filter(order => {
@@ -470,41 +474,10 @@ interface Refund {
                       <TableRow key={order.id}>
                         <TableCell>{order.id}</TableCell>
                         <TableCell>{order.date}</TableCell>
-                        <TableCell>{order.customerName}</TableCell>
                         <TableCell>${order.totalAmount}</TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={
-                              order.status === 'completed'
-                                ? 'default'
-                                : order.status === 'cancelled'
-                                ? 'destructive'
-                                : 'secondary'
-                            }
-                          >
-                            {order.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              onClick={() => handleOrderStatusChange(order.id, 'completed')}
-                              disabled={order.status === 'completed'}
-                            >
-                              Complete
-                            </Button>
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => handleOrderStatusChange(order.id, 'cancelled')}
-                              disabled={order.status === 'cancelled'}
-                            >
-                              Cancel
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
+                        <TableCell>{order.status}</TableCell> 
+                        <TableCell>{order.address}</TableCell> 
+                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
