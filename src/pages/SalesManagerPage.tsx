@@ -76,10 +76,11 @@ interface Refund {
     fetchCategories();
     fetchProducts();
     fetchAllOrders();
+    fetchOrders();
     fetchRefunds();
   
     if (startDate && endDate) {
-      fetchRevenueData(startDate, endDate); // ✅ Pass them here
+      fetchRevenueData(startDate, endDate);
     }
   }, [startDate, endDate]);
   

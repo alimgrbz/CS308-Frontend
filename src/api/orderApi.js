@@ -29,10 +29,8 @@ export const createOrder = async (token) => {
 
 export const getAllOrders = async (token) => {
   try {
-    const response = await axiosInstance.get('/api/orders/all', {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
+    const response = await axiosInstance.post('/api/orders/all', {
+      token: token
     });
     return response.data.orders;
   } catch (error) {
@@ -40,6 +38,7 @@ export const getAllOrders = async (token) => {
     throw error;
   }
 };
+
 // orderApi.js
 export const getAll = async (token) => {
   try {
