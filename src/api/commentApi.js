@@ -65,6 +65,33 @@ export const getAllComments = async () => {
   }
 };
 
+export const getAllCommentsPM = async () => {
+  try {
+    // First get all products
+    const productsResponse = await axiosInstance.get('/api/products');
+    const products = productsResponse.data.products;
+    
+    // Then get comments for each product
+    const allComments = [];
+    for (const product of products) {
+      const commentsResponse = await axiosInstance.post('/api/comments/all', {
+        productId: product.id
+      });
+      if (commentsResponse.data.comments) {
+        allComments.push(...commentsResponse.data.comments.map(comment => ({
+          ...comment,
+          productName: product.name
+        })));
+      }
+    }
+    
+    return allComments;
+  } catch (error) {
+    console.error('Failed to fetch all comments:', error);
+    return [];
+  }
+};
+
 export const deleteComment = async (commentId) => {
   try {
     const response = await axiosInstance.post('/api/comments/delete', { commentId });

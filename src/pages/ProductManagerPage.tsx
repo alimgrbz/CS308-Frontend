@@ -10,7 +10,7 @@ import { Plus, Trash2, Save, X, Download, ChevronDown, ChevronRight } from "luci
 import { getAllCategories, addCategory, deleteCategory } from '@/api/categoryApi';
 import { getAllProducts, addProduct, updateProduct, deleteProduct, setPrice, setStock } from '@/api/productApi';
 import { toast } from 'sonner';
-import { getAllComments, deleteComment, acceptComment, rejectComment } from '@/api/commentApi';
+import { getAllCommentsPM, deleteComment, acceptComment, rejectComment } from '@/api/commentApi';
 import { useNavigate } from 'react-router-dom';
 import { getAllOrders, getOrderInvoice } from '@/api/orderApi';
 
@@ -301,7 +301,7 @@ const ProductManagerPage = () => {
         toast.error('Authentication required. Please log in.');
         return;
       }
-      const commentsData = await getAllComments(token);
+      const commentsData = await getAllCommentsPM(token);
       if (!Array.isArray(commentsData)) {
         console.error('Invalid comments data received:', commentsData);
         toast.error('Invalid data received from server');
