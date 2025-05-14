@@ -110,12 +110,11 @@ export const deleteComment = async (commentId) => {
 };
 */
 
-export const acceptComment = async (token, productId, comment) => {
+export const acceptComment = async (token, commentId) => {
   try {
-    const response = await axiosInstance.post('/api/comments/add', {
+    const response = await axiosInstance.post('/api/comments/accept', {
       token,
-      productId,
-      comment
+      commentId
     })
     return response.data;
   } catch (error) {
@@ -124,12 +123,11 @@ export const acceptComment = async (token, productId, comment) => {
   }
 };
 
-export const rejectComment = async (token, productId, comment) => {
+export const rejectComment = async (token, commentId) => {
   try {
     const response = await axiosInstance.post('/api/comments/decline', {
       token,
-      productId,
-      comment
+      commentId
     });
     return response.data;
   } catch (error) {

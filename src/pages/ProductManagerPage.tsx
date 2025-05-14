@@ -103,6 +103,7 @@ const ProductManagerPage = () => {
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
   const [downloadingOrderId, setDownloadingOrderId] = useState<string | null>(null);
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
+  const [commentFilter, setCommentFilter] = useState<'all' | 'pending'>('all');
 
   useEffect(() => {
     // Check user role on component mount
@@ -735,8 +736,19 @@ const ProductManagerPage = () => {
             <TabsContent value="comments">
               <Card>
                 <CardHeader>
-                  <CardTitle>User Comments</CardTitle>
-                </CardHeader>
+  <div className="flex justify-between items-center w-full">
+    <CardTitle>User Comments</CardTitle>
+    <select
+      id="commentFilter"
+      className="p-2 border rounded-md"
+      value={commentFilter}
+      onChange={(e) => setCommentFilter(e.target.value as 'all' | 'pending')}
+    >
+      <option value="all">All Comments</option>
+      <option value="pending">Pending Only</option>
+    </select>
+  </div>
+</CardHeader>
                 <CardContent>
                   {isLoadingComments ? (
                     <div className="flex items-center justify-center py-8">
@@ -758,7 +770,9 @@ const ProductManagerPage = () => {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {comments.map((comment) => (
+                        {comments
+  .filter(comment => commentFilter === 'all' || comment.status === 0)
+  .map((comment) => (
                           <TableRow key={comment.id}>
                             <TableCell>{comment.productName || `Product #${comment.productId}`}</TableCell>
                             <TableCell>{comment.userName || `User #${comment.userId}`}</TableCell>
