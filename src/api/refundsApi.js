@@ -8,6 +8,10 @@ export const requestRefund = async (token, orderId, productId, quantity) => {
     orderId,
     productId,
     quantity,
+  }, {
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
   });
   return response.data;
 };
