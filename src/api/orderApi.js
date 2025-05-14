@@ -42,12 +42,14 @@ export const createOrder = async (token) => {
 };
 export const getAll = async (token) => {
   try {
-    const response = await axiosInstance.post('/api/items/getAll', {
+    const response = await axiosInstance.post('/api/orders/all', {
+
       token
     });
     return response.data;
   } catch (error) {
-    console.error("Fetching all items failed:", error);
+    console.error("Fetching all orders failed:", error);
+
     throw error;
   }
 };

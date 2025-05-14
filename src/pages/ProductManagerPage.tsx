@@ -6,12 +6,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, Save, X, Download } from "lucide-react";
+import { Plus, Trash2, Save, X, Download, ChevronDown, ChevronRight } from "lucide-react";
 import { getAllCategories, addCategory, deleteCategory } from '@/api/categoryApi';
 import { getAllProducts, addProduct, updateProduct, deleteProduct, setPrice, setStock } from '@/api/productApi';
 import { toast } from 'sonner';
+import { getAllCommentsPM, deleteComment, acceptComment, rejectComment } from '@/api/commentApi';
+import { useNavigate } from 'react-router-dom';
 import { getAllOrders, getOrderInvoice } from '@/api/orderApi';
-import { getAllComments, deleteComment, acceptComment, rejectComment } from '@/api/commentApi';
 
 interface Category {
   id: number;
@@ -70,6 +71,8 @@ interface Order {
 }
 
 const ProductManagerPage = () => {
+  const navigate = useNavigate();
+  const [userRole, setUserRole] = useState<string | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
@@ -88,15 +91,45 @@ const ProductManagerPage = () => {
   });
   const [filterName, setFilterName] = useState('');
   const [sortOption, setSortOption] = useState('date-desc'); // default: newest first
-  const [allOrders, setAllOrders] = useState<Order[]>([]);
-  const [isLoadingOrders, setIsLoadingOrders] = useState(false);
   const [isLoadingComments, setIsLoadingComments] = useState(false);
+  const [deletedCategories, setDeletedCategories] = useState<{id: number, name: string}[]>([]);
+  const [orders, setOrders] = useState<{ mapped: Order, raw: any }[]>([]);
+  const [isLoadingOrders, setIsLoadingOrders] = useState(false);
+  const [downloadingOrderId, setDownloadingOrderId] = useState<string | null>(null);
+  const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
 
-  // Fetch categories and products on component mount
   useEffect(() => {
-    fetchCategories();
-    fetchProducts();
-  }, []);
+    // Check user role on component mount
+    const token = localStorage.getItem('token');
+    if (!token) {
+      toast.error('Authentication required. Please log in.');
+      navigate('/login');
+      return;
+    }
+
+    try {
+      // Decode JWT token to get user role
+      const tokenPayload = JSON.parse(atob(token.split('.')[1]));
+      const role = tokenPayload.role;
+      setUserRole(role);
+
+      if (role !== 'product_manager') {
+        toast.error('Access denied. Product manager role required.');
+        navigate('/');
+        return;
+      }
+
+      // If role is product_manager, proceed with fetching data
+      fetchCategories();
+      fetchProducts();
+      fetchComments();
+      fetchOrders();
+    } catch (error) {
+      console.error('Error decoding token:', error);
+      toast.error('Invalid authentication token');
+      navigate('/login');
+    }
+  }, [navigate]);
 
   const fetchCategories = async () => {
     try {
@@ -132,14 +165,20 @@ const ProductManagerPage = () => {
     }
   };
 
-  const handleDeleteCategory = async (id: number) => {
-    try {
-      await deleteCategory(id);
-      setCategories(categories.filter(cat => cat.id !== id));
-      toast.success('Category deleted successfully');
-    } catch (error) {
-      console.error('Error deleting category:', error);
-      toast.error('Failed to delete category');
+  const handleDeleteCategory = (id: number) => {
+    const deletedCat = categories.find(cat => cat.id === id);
+    setCategories(categories.filter(cat => cat.id !== id));
+    if (deletedCat) setDeletedCategories([...deletedCategories, deletedCat]);
+    setProducts(products.map(prod => prod.categoryId === id ? { ...prod, categoryId: 0 } : prod));
+  };
+
+  const handleRecoverCategory = (id: number) => {
+    const recoveredCategory = deletedCategories.find(cat => cat.id === id);
+    if (recoveredCategory) {
+      setCategories([...categories, recoveredCategory]);
+      setDeletedCategories(deletedCategories.filter(cat => cat.id !== id));
+      setProducts(products.map(prod => prod.categoryId === 0 && prod.category === recoveredCategory.name ? { ...prod, categoryId: id } : prod));
+      toast.success('Category recovered successfully');
     }
   };
 
@@ -214,14 +253,9 @@ const ProductManagerPage = () => {
         toast.error('Authentication required. Please log in.');
         return;
       }
-      const comment = comments.find(c => c.id === commentId);
-      if (!comment) {
-        toast.error('Comment not found');
-        return;
-      }
-      await acceptComment(token, comment.productId, comment.content);
+      await acceptComment(token, commentId);
       setComments(comments.map(c => c.id === commentId ? { ...c, status: 1 } : c));
-      toast.success('Comment accepted');
+      toast.success('Comment accepted successfully');
     } catch (error) {
       console.error('Error accepting comment:', error);
       toast.error('Failed to accept comment');
@@ -235,14 +269,9 @@ const ProductManagerPage = () => {
         toast.error('Authentication required. Please log in.');
         return;
       }
-      const comment = comments.find(c => c.id === commentId);
-      if (!comment) {
-        toast.error('Comment not found');
-        return;
-      }
-      await rejectComment(token, comment.productId, comment.content);
+      await rejectComment(token, commentId);
       setComments(comments.map(c => c.id === commentId ? { ...c, status: 0 } : c));
-      toast.success('Comment rejected');
+      toast.success('Comment rejected successfully');
     } catch (error) {
       console.error('Error rejecting comment:', error);
       toast.error('Failed to reject comment');
@@ -251,14 +280,13 @@ const ProductManagerPage = () => {
 
   const handleDeleteComment = async (commentId: number) => {
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        toast.error('Authentication required. Please log in.');
-        return;
+      const response = await deleteComment(commentId);
+      if (response.status === "deleted") {
+        setComments(comments.filter(c => c.id !== commentId));
+        toast.success('Comment deleted successfully');
+      } else {
+        throw new Error('Failed to delete comment');
       }
-      await deleteComment(commentId);
-      setComments(comments.filter(c => c.id !== commentId));
-      toast.success('Comment deleted');
     } catch (error) {
       console.error('Error deleting comment:', error);
       toast.error('Failed to delete comment');
@@ -268,9 +296,12 @@ const ProductManagerPage = () => {
   const fetchComments = async () => {
     setIsLoadingComments(true);
     try {
-      console.log('Fetching all comments...');
-      const commentsData = await getAllComments();
-      console.log('Received comments:', commentsData);
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error('Authentication required. Please log in.');
+        return;
+      }
+      const commentsData = await getAllCommentsPM(token);
       if (!Array.isArray(commentsData)) {
         console.error('Invalid comments data received:', commentsData);
         toast.error('Invalid data received from server');
@@ -285,13 +316,75 @@ const ProductManagerPage = () => {
     }
   };
 
-  useEffect(() => {
-    fetchComments();
-  }, []);
+  const fetchOrders = async () => {
+    setIsLoadingOrders(true);
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error('Authentication required. Please log in.');
+        return;
+      }
+      const response = await getAllOrders(token);
+      const rawOrders = Array.isArray(response) ? response : response.orders;
+      // Map backend fields to Order interface
+      const mappedOrders: { mapped: Order, raw: any }[] = (rawOrders || []).map((order: any) => {
+        const mapped = {
+          id: order.order_id?.toString() ?? order.id?.toString() ?? '-',
+          date: order.date ? new Date(order.date).toISOString() : '',
+          status: mapBackendStatus(order.order_status),
+          total: parseFloat(order.total_price ?? order.total ?? '0'),
+          products: order.product_list || [],
+          userName: order.user_name || order.user_fullname || '',
+          userEmail: order.user_email || '',
+          address: order.address || order.shipping_address || '',
+          invoicePdf: order.invoice_number || order.invoicePdf || '',
+        };
+        console.log('Raw order:', order);
+        console.log('Mapped order:', mapped);
+        return { mapped, raw: order };
+      });
+      setOrders(mappedOrders);
+    } catch (error) {
+      console.error('Error fetching orders:', error);
+      toast.error('Failed to fetch orders');
+    } finally {
+      setIsLoadingOrders(false);
+    }
+  };
+
+  const handleDownloadInvoice = async (orderId: string) => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      toast.error('Authentication required. Please log in.');
+      return;
+    }
+    setDownloadingOrderId(orderId);
+    try {
+      const invoiceBase64 = await getOrderInvoice(token, orderId);
+      if (!invoiceBase64) {
+        toast.error('No invoice data received from server.');
+        setDownloadingOrderId(null);
+        return;
+      }
+      const link = document.createElement('a');
+      link.href = `data:application/pdf;base64,${invoiceBase64}`;
+      link.download = `Order-${orderId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      toast.success('Invoice downloaded successfully!');
+    } catch (error) {
+      console.error('Download invoice error:', error);
+      toast.error('Failed to download invoice. Please try again.');
+    } finally {
+      setDownloadingOrderId(null);
+    }
+  };
 
   // Filter and sort products
   const getFilteredSortedProducts = () => {
     let filtered = products.filter(p =>
+      p.categoryId !== 0 &&
       p.name.toLowerCase().includes(filterName.toLowerCase())
     );
     switch (sortOption) {
@@ -330,510 +423,459 @@ const ProductManagerPage = () => {
     }
   };
 
-  const fetchAllOrders = async () => {
-    setIsLoadingOrders(true);
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        toast.error('Authentication required. Please log in.');
-        return;
-      }
-      console.log('Fetching all orders...');
-      const rawOrders = await getAllOrders(token);
-      console.log('Received orders:', rawOrders);
-      
-      if (!Array.isArray(rawOrders)) {
-        console.error('Invalid orders data received:', rawOrders);
-        toast.error('Invalid data received from server');
-        return;
-      }
-
-      const mappedOrders: Order[] = rawOrders.map((order: any) => {
-        console.log('Processing order:', order);
-        const mappedOrder: Order = {
-          id: order.order_id?.toString() ?? '',
-          date: new Date(order.date).toISOString(),
-          status: mapBackendStatus(order.order_status),
-          total: parseFloat(order.total_price),
-          products: Array.isArray(order.product_list) ? order.product_list.map((prod: any) => ({
-            id: prod.p_id?.toString() ?? '',
-            name: prod.name,
-            image: prod.image,
-            price: parseFloat(prod.total_price),
-            quantity: prod.quantity,
-            grind: prod.grind,
-          })) : [],
-          userEmail: order.user_email || order.email || '',
-          userName: order.user_name || order.username || order.name || '',
-          address: order.address || '',
-          invoicePdf: order.invoice_pdf || ''
-        };
-        return mappedOrder;
-      });
-      console.log('Mapped orders:', mappedOrders);
-      setAllOrders(mappedOrders);
-    } catch (err) {
-      console.error('Error fetching orders:', err);
-      toast.error(err.response?.data?.message || 'Failed to fetch orders. Please try again.');
-    } finally {
-      setIsLoadingOrders(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchAllOrders();
-  }, []);
-
-  const handleDownloadInvoice = async (orderId: string) => {
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        toast.error('You must be logged in to download invoices.');
-        return;
-      }
-      console.log('Downloading invoice for order:', orderId);
-      const invoiceBase64 = await getOrderInvoice(token, orderId);
-      if (!invoiceBase64) {
-        toast.error('No invoice data received from server.');
-        return;
-      }
-      const link = document.createElement('a');
-      link.href = `data:application/pdf;base64,${invoiceBase64}`;
-      link.download = `DriftMood-Order-${orderId}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      toast.success('Invoice downloaded successfully!');
-    } catch (error) {
-      console.error('Error downloading invoice:', error);
-      toast.error('Failed to download invoice. Please try again.');
-    }
-  };
-
   return (
     <div className="container mx-auto p-6">
-      <h1 className="text-3xl font-bold mb-6">Product Manager Dashboard</h1>
-      
-      <Tabs defaultValue="inventory" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="inventory">Inventory Management</TabsTrigger>
-          <TabsTrigger value="deliveries">Deliveries & Invoices</TabsTrigger>
-          <TabsTrigger value="comments">User Comments</TabsTrigger>
-        </TabsList>
+      {userRole === 'product_manager' ? (
+        <>
+          <h1 className="text-3xl font-bold mb-6">Product Manager Dashboard</h1>
+          <Tabs defaultValue="inventory" className="w-full">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="inventory">Inventory Management</TabsTrigger>
+              <TabsTrigger value="comments">User Comments</TabsTrigger>
+              <TabsTrigger value="orders">Orders</TabsTrigger>
+            </TabsList>
 
-        <TabsContent value="inventory">
-          <div className="space-y-6">
-            {/* Categories Section */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Categories</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex gap-2 mb-4">
-                  <Input
-                    value={newCategory}
-                    onChange={(e) => setNewCategory(e.target.value)}
-                    placeholder="New category name"
-                  />
-                  <Button onClick={handleAddCategory}>Add</Button>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {categories.map((category) => (
-                    <Badge key={category.id} variant="secondary" className="flex items-center gap-2">
-                      {category.name}
-                    </Badge>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Filter and Sort Controls (now below Categories, above Products) */}
-            <div className="flex flex-col md:flex-row gap-4 my-4 items-center">
-              <Input
-                className="w-full md:w-1/3"
-                placeholder="Filter by product name..."
-                value={filterName}
-                onChange={e => setFilterName(e.target.value)}
-              />
-              <select
-                className="w-full md:w-1/4 p-2 border rounded-md"
-                value={sortOption}
-                onChange={e => setSortOption(e.target.value)}
-              >
-                <option value="date-desc">Newest First</option>
-                <option value="date-asc">Oldest First</option>
-                <option value="alpha-asc">A-Z</option>
-                <option value="alpha-desc">Z-A</option>
-              </select>
-            </div>
-
-            {/* Products Section */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>Products</CardTitle>
-                <Button onClick={() => setIsAddingProduct(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add New Product
-                </Button>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {/* Add New Product Form */}
-                  {isAddingProduct && (
-                    <Card className="border-2 border-dashed">
-                      <CardContent className="pt-6">
-                        <div className="space-y-4">
-                          <div>
-                            <Label>Name</Label>
-                            <Input
-                              value={newProduct.name}
-                              onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
-                              placeholder="Product name"
-                            />
-                          </div>
-                          <div>
-                            <Label>Category</Label>
-                            <select
-                              className="w-full p-2 border rounded-md"
-                              value={newProduct.categoryId}
-                              onChange={(e) => setNewProduct({ 
-                                ...newProduct, 
-                                categoryId: Number(e.target.value),
-                                category: categories.find(c => c.id === Number(e.target.value))?.name || ''
-                              })}
-                            >
-                              <option value="">Select a category</option>
-                              {categories.map((category) => (
-                                <option key={category.id} value={category.id}>
-                                  {category.name}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                          <div>
-                            <Label>Price</Label>
-                            <Input
-                              type="number"
-                              value={newProduct.price}
-                              onChange={(e) => setNewProduct({ ...newProduct, price: Number(e.target.value) })}
-                            />
-                          </div>
-                          <div>
-                            <Label>Stock</Label>
-                            <Input
-                              type="number"
-                              value={newProduct.stock}
-                              onChange={(e) => setNewProduct({ ...newProduct, stock: Number(e.target.value) })}
-                            />
-                          </div>
-                          <div>
-                            <Label>Description</Label>
-                            <Input
-                              value={newProduct.description}
-                              onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
-                              placeholder="Product description"
-                            />
-                          </div>
-                          <div>
-                            <Label>Image URL</Label>
-                            <Input
-                              value={newProduct.image}
-                              onChange={(e) => setNewProduct({ ...newProduct, image: e.target.value })}
-                              placeholder="Image URL"
-                            />
-                          </div>
-                          <div className="flex gap-2">
-                            <Button onClick={handleAddProduct}>Save</Button>
-                            <Button variant="outline" onClick={() => setIsAddingProduct(false)}>Cancel</Button>
-                          </div>
+            <TabsContent value="inventory">
+              <div className="space-y-6">
+                {/* Categories Section */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Categories</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex gap-2 mb-4">
+                      <Input
+                        value={newCategory}
+                        onChange={(e) => setNewCategory(e.target.value)}
+                        placeholder="New category name"
+                      />
+                      <Button onClick={handleAddCategory}>Add</Button>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {categories.filter(category => !deletedCategories.some(dc => dc.id === category.id)).map((category) => (
+                        <Badge key={category.id} variant="secondary" className="flex items-center gap-2">
+                          {category.name}
+                          <Button size="icon" variant="ghost" onClick={() => handleDeleteCategory(category.id)} className="p-0 h-4 w-4 text-red-500 hover:bg-red-100">
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </Badge>
+                      ))}
+                    </div>
+                    {deletedCategories.length > 0 && (
+                      <div className="mt-4">
+                        <h4 className="font-semibold text-sm mb-2">Deleted Categories</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {deletedCategories.map((cat) => (
+                            <Badge key={cat.id.toString()} variant="outline" className="flex items-center gap-2">
+                              {cat.name}
+                              <Button size="icon" variant="ghost" onClick={() => handleRecoverCategory(cat.id)} className="p-0 h-4 w-4 text-green-600 hover:bg-green-100">
+                                <Plus className="h-3 w-3" />
+                              </Button>
+                            </Badge>
+                          ))}
                         </div>
-                      </CardContent>
-                    </Card>
-                  )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
 
-                  {/* Product Cards */}
-                  {getFilteredSortedProducts().map((product) => (
-                    <Card key={product.id}>
-                      <CardContent className="pt-6">
-                        {editingProduct?.id === product.id ? (
-                          <div className="space-y-4">
-                            <div>
-                              <Label>Name</Label>
-                              <p className="font-semibold text-lg">{editingProduct.name}</p>
-                            </div>
-                            <div>
-                              <Label>Category</Label>
-                              <p className="text-sm text-gray-500">{editingProduct.category}</p>
-                            </div>
-                            <div>
-                              <Label>Description</Label>
-                              <p className="text-sm text-gray-600">{editingProduct.description}</p>
-                            </div>
-                            <div>
-                              <Label>Image URL</Label>
-                              {editingProduct.image && (
-                                <img
-                                  src={editingProduct.image}
-                                  alt={editingProduct.name}
-                                  className="w-full h-32 object-cover rounded-md mb-2"
+                {/* Filter and Sort Controls (now below Categories, above Products) */}
+                <div className="flex flex-col md:flex-row gap-4 my-4 items-center">
+                  <Input
+                    className="w-full md:w-1/3"
+                    placeholder="Filter by product name..."
+                    value={filterName}
+                    onChange={e => setFilterName(e.target.value)}
+                  />
+                  <select
+                    className="w-full md:w-1/4 p-2 border rounded-md"
+                    value={sortOption}
+                    onChange={e => setSortOption(e.target.value)}
+                  >
+                    <option value="date-desc">Newest First</option>
+                    <option value="date-asc">Oldest First</option>
+                    <option value="alpha-asc">A-Z</option>
+                    <option value="alpha-desc">Z-A</option>
+                  </select>
+                </div>
+
+                {/* Products Section */}
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between">
+                    <CardTitle>Products</CardTitle>
+                    <Button onClick={() => setIsAddingProduct(true)}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add New Product
+                    </Button>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {/* Add New Product Form */}
+                      {isAddingProduct && (
+                        <Card className="border-2 border-dashed">
+                          <CardContent className="pt-6">
+                            <div className="space-y-4">
+                              <div>
+                                <Label>Name</Label>
+                                <Input
+                                  value={newProduct.name}
+                                  onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
+                                  placeholder="Product name"
                                 />
-                              )}
-                              <p className="text-xs text-gray-400">{editingProduct.image}</p>
-                            </div>
-                            <div>
-                              <Label>Price</Label>
-                              <Input
-                                type="number"
-                                value={editingProduct.price}
-                                onChange={(e) => setEditingProduct({ ...editingProduct, price: Number(e.target.value) })}
-                              />
-                            </div>
-                            <div>
-                              <Label>Stock</Label>
-                              <Input
-                                type="number"
-                                value={editingProduct.stock}
-                                onChange={(e) => setEditingProduct({ ...editingProduct, stock: Number(e.target.value) })}
-                              />
-                            </div>
-                            <div className="flex gap-2">
-                              <Button onClick={handleSaveEdit}>
-                                <Save className="h-4 w-4 mr-2" />
-                                Save
-                              </Button>
-                              <Button variant="outline" onClick={handleCancelEdit}>
-                                <X className="h-4 w-4 mr-2" />
-                                Cancel
-                              </Button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="space-y-4">
-                            {product.image && (
-                              <img
-                                src={product.image}
-                                alt={product.name}
-                                className="w-full h-48 object-cover rounded-md"
-                              />
-                            )}
-                            <div>
-                              <h3 className="font-semibold text-lg">{product.name}</h3>
-                              <p className="text-sm text-gray-500">{product.category}</p>
-                            </div>
-                            <div className="grid grid-cols-2 gap-2">
+                              </div>
+                              <div>
+                                <Label>Category</Label>
+                                <select
+                                  className="w-full p-2 border rounded-md"
+                                  value={newProduct.categoryId}
+                                  onChange={(e) => setNewProduct({ 
+                                    ...newProduct, 
+                                    categoryId: Number(e.target.value),
+                                    category: categories.find(c => c.id === Number(e.target.value))?.name || ''
+                                  })}
+                                >
+                                  <option value="">Select a category</option>
+                                  {categories.map((category) => (
+                                    <option key={category.id} value={category.id}>
+                                      {category.name}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
                               <div>
                                 <Label>Price</Label>
-                                <p className="font-medium">${product.price}</p>
+                                <Input
+                                  type="number"
+                                  value={newProduct.price}
+                                  onChange={(e) => setNewProduct({ ...newProduct, price: Number(e.target.value) })}
+                                />
                               </div>
                               <div>
                                 <Label>Stock</Label>
-                                <p className="font-medium">{product.stock}</p>
+                                <Input
+                                  type="number"
+                                  value={newProduct.stock}
+                                  onChange={(e) => setNewProduct({ ...newProduct, stock: Number(e.target.value) })}
+                                />
+                              </div>
+                              <div>
+                                <Label>Description</Label>
+                                <Input
+                                  value={newProduct.description}
+                                  onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
+                                  placeholder="Product description"
+                                />
+                              </div>
+                              <div>
+                                <Label>Image URL</Label>
+                                <Input
+                                  value={newProduct.image}
+                                  onChange={(e) => setNewProduct({ ...newProduct, image: e.target.value })}
+                                  placeholder="Image URL"
+                                />
+                              </div>
+                              <div className="flex gap-2">
+                                <Button onClick={handleAddProduct}>Save</Button>
+                                <Button variant="outline" onClick={() => setIsAddingProduct(false)}>Cancel</Button>
                               </div>
                             </div>
-                            {product.description && (
-                              <p className="text-sm text-gray-600">{product.description}</p>
-                            )}
-                            <div className="flex gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleEditProduct(product)}
-                              >
-                                Edit
-                              </Button>
-                              <Button
-                                variant="destructive"
-                                size="sm"
-                                onClick={() => handleDeleteProduct(product.id)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
+                          </CardContent>
+                        </Card>
+                      )}
 
-        <TabsContent value="deliveries">
-          <Card>
-            <CardHeader>
-              <CardTitle>Deliveries & Invoices</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {isLoadingOrders ? (
-                <div className="flex items-center justify-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-                  <span className="ml-2">Loading orders...</span>
-                </div>
-              ) : allOrders.length === 0 ? (
-                <div className="text-center text-gray-500 py-4">No orders found</div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Order ID</TableHead>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Total</TableHead>
-                        <TableHead>User</TableHead>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Address</TableHead>
-                        <TableHead>Products</TableHead>
-                        <TableHead>Invoice</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {allOrders.map((order) => (
-                        <TableRow key={order.id}>
-                          <TableCell className="font-medium">{order.id}</TableCell>
-                          <TableCell>{new Date(order.date).toLocaleDateString()}</TableCell>
-                          <TableCell>
-                            <Badge
-                              variant={
-                                order.status === 'Delivered'
-                                  ? 'default'
-                                  : order.status === 'Cancelled'
-                                  ? 'destructive'
-                                  : 'secondary'
-                              }
-                            >
-                              {order.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>${order.total.toFixed(2)}</TableCell>
-                          <TableCell>{order.userName || 'N/A'}</TableCell>
-                          <TableCell>{order.userEmail || 'N/A'}</TableCell>
-                          <TableCell className="max-w-xs truncate">{order.address || 'N/A'}</TableCell>
-                          <TableCell>
-                            <div className="max-w-xs">
-                              {order.products.map((prod) => (
-                                <div key={prod.id} className="flex items-center gap-2 mb-1">
-                                  {prod.image && (
+                      {/* Product Cards */}
+                      {getFilteredSortedProducts().map((product) => (
+                        <Card key={product.id}>
+                          <CardContent className="pt-6">
+                            {editingProduct?.id === product.id ? (
+                              <div className="space-y-4">
+                                <div>
+                                  <Label>Name</Label>
+                                  <p className="font-semibold text-lg">{editingProduct.name}</p>
+                                </div>
+                                <div>
+                                  <Label>Category</Label>
+                                  <p className="text-sm text-gray-500">{editingProduct.category}</p>
+                                </div>
+                                <div>
+                                  <Label>Description</Label>
+                                  <p className="text-sm text-gray-600">{editingProduct.description}</p>
+                                </div>
+                                <div>
+                                  <Label>Image URL</Label>
+                                  {editingProduct.image && (
                                     <img
-                                      src={prod.image}
-                                      alt={prod.name}
-                                      className="w-8 h-8 object-cover rounded"
+                                      src={editingProduct.image}
+                                      alt={editingProduct.name}
+                                      className="w-full h-32 object-cover rounded-md mb-2"
                                     />
                                   )}
+                                  <p className="text-xs text-gray-400">{editingProduct.image}</p>
+                                </div>
+                                <div>
+                                  <Label>Price</Label>
+                                  <Input
+                                    type="number"
+                                    value={editingProduct.price}
+                                    onChange={(e) => setEditingProduct({ ...editingProduct, price: Number(e.target.value) })}
+                                  />
+                                </div>
+                                <div>
+                                  <Label>Stock</Label>
+                                  <Input
+                                    type="number"
+                                    value={editingProduct.stock}
+                                    onChange={(e) => setEditingProduct({ ...editingProduct, stock: Number(e.target.value) })}
+                                  />
+                                </div>
+                                <div className="flex gap-2">
+                                  <Button onClick={handleSaveEdit}>
+                                    <Save className="h-4 w-4 mr-2" />
+                                    Save
+                                  </Button>
+                                  <Button variant="outline" onClick={handleCancelEdit}>
+                                    <X className="h-4 w-4 mr-2" />
+                                    Cancel
+                                  </Button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="space-y-4">
+                                {product.image && (
+                                  <img
+                                    src={product.image}
+                                    alt={product.name}
+                                    className="w-full h-48 object-cover rounded-md"
+                                  />
+                                )}
+                                <div>
+                                  <h3 className="font-semibold text-lg">{product.name}</h3>
+                                  <p className="text-sm text-gray-500">{product.category}</p>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
                                   <div>
-                                    <p className="text-sm font-medium">{prod.name}</p>
-                                    <p className="text-xs text-gray-500">
-                                      {prod.quantity}x ${prod.price.toFixed(2)}
-                                      {prod.grind && ` (${prod.grind})`}
-                                    </p>
+                                    <Label>Price</Label>
+                                    <p className="font-medium">${product.price}</p>
+                                  </div>
+                                  <div>
+                                    <Label>Stock</Label>
+                                    <p className="font-medium">{product.stock}</p>
                                   </div>
                                 </div>
-                              ))}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Button 
-                              size="sm" 
-                              onClick={() => handleDownloadInvoice(order.id)}
-                              className="bg-blue-600 hover:bg-blue-700"
-                            >
-                              <Download className="h-4 w-4 mr-2" />
-                              Download
-                            </Button>
-                          </TableCell>
-                        </TableRow>
+                                {product.description && (
+                                  <p className="text-sm text-gray-600">{product.description}</p>
+                                )}
+                                <div className="flex gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleEditProduct(product)}
+                                  >
+                                    Edit
+                                  </Button>
+                                  <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    onClick={() => handleDeleteProduct(product.id)}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
                       ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
 
-        <TabsContent value="comments">
-          <Card>
-            <CardHeader>
-              <CardTitle>User Comments</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {isLoadingComments ? (
-                <div className="flex items-center justify-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-                  <span className="ml-2">Loading comments...</span>
-                </div>
-              ) : comments.length === 0 ? (
-                <div className="text-center text-gray-500 py-4">No comments found</div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Product</TableHead>
-                      <TableHead>User</TableHead>
-                      <TableHead>Comment</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Created At</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {comments.map((comment) => (
-                      <TableRow key={comment.id}>
-                        <TableCell>{comment.productName || `Product #${comment.productId}`}</TableCell>
-                        <TableCell>{comment.userName || `User #${comment.userId}`}</TableCell>
-                        <TableCell className="max-w-md truncate">{comment.content}</TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={
-                              comment.status === 1
-                                ? 'default'
-                                : comment.status === 0
-                                ? 'destructive'
-                                : 'secondary'
-                            }
-                          >
-                            {comment.status === 1 ? 'Accepted' : comment.status === 0 ? 'Rejected' : 'Pending'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{new Date(comment.createdAt).toLocaleString()}</TableCell>
-                        <TableCell>
-                          <div className="flex gap-2">
-                            <Button 
-                              size="sm" 
-                              onClick={() => handleAcceptComment(comment.id)} 
-                              disabled={comment.status === 1}
-                              className="bg-green-600 hover:bg-green-700"
-                            >
-                              Accept
-                            </Button>
-                            <Button 
-                              variant="destructive" 
-                              size="sm" 
-                              onClick={() => handleRejectComment(comment.id)} 
-                              disabled={comment.status === 0}
-                            >
-                              Reject
-                            </Button>
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              onClick={() => handleDeleteComment(comment.id)}
-                            >
-                              Delete
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+            <TabsContent value="comments">
+              <Card>
+                <CardHeader>
+                  <CardTitle>User Comments</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {isLoadingComments ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+                      <span className="ml-2">Loading comments...</span>
+                    </div>
+                  ) : comments.length === 0 ? (
+                    <div className="text-center text-gray-500 py-4">No comments found</div>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Product</TableHead>
+                          <TableHead>User</TableHead>
+                          <TableHead>Comment</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Created At</TableHead>
+                          <TableHead>Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {comments.map((comment) => (
+                          <TableRow key={comment.id}>
+                            <TableCell>{comment.productName || `Product #${comment.productId}`}</TableCell>
+                            <TableCell>{comment.userName || `User #${comment.userId}`}</TableCell>
+                            <TableCell className="max-w-md truncate">{comment.content}</TableCell>
+                            <TableCell>
+                              <Badge
+                                variant={
+                                  comment.status === 1
+                                    ? 'default'
+                                    : comment.status === 0
+                                    ? 'destructive'
+                                    : 'secondary'
+                                }
+                              >
+                                {comment.status === 1 ? 'Accepted' : comment.status === 0 ? 'Rejected' : 'Pending'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>{new Date(comment.createdAt).toLocaleString()}</TableCell>
+                            <TableCell>
+                              <div className="flex gap-2">
+                                <Button 
+                                  size="sm" 
+                                  onClick={() => handleAcceptComment(comment.id)} 
+                                  disabled={comment.status === 1}
+                                  className="bg-green-600 hover:bg-green-700"
+                                >
+                                  Accept
+                                </Button>
+                                <Button 
+                                  variant="destructive" 
+                                  size="sm" 
+                                  onClick={() => handleRejectComment(comment.id)} 
+                                  disabled={comment.status === 0}
+                                >
+                                  Reject
+                                </Button>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  onClick={() => handleDeleteComment(comment.id)}
+                                >
+                                  Delete
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="orders">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Orders</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {isLoadingOrders ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+                      <span className="ml-2">Loading orders...</span>
+                    </div>
+                  ) : orders.length === 0 ? (
+                    <div className="text-center text-gray-500 py-4">No orders found</div>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Order ID</TableHead>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Total</TableHead>
+                          <TableHead>User Email</TableHead>
+                          <TableHead>Address</TableHead>
+                          <TableHead>Invoice</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {orders.map(({ mapped, raw }) => (
+                          <React.Fragment key={mapped.id}>
+                            <TableRow>
+                              <TableCell>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={() => setExpandedOrderId(expandedOrderId === mapped.id ? null : mapped.id)}
+                                  aria-label={expandedOrderId === mapped.id ? 'Hide Products' : 'Show Products'}
+                                >
+                                  {expandedOrderId === mapped.id ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                                </Button>
+                                {mapped.id}
+                              </TableCell>
+                              <TableCell>{mapped.date ? new Date(mapped.date).toLocaleDateString() : '-'}</TableCell>
+                              <TableCell>{mapped.status}</TableCell>
+                              <TableCell>${mapped.total?.toFixed ? mapped.total.toFixed(2) : mapped.total}</TableCell>
+                              <TableCell>{mapped.userEmail || '-'}</TableCell>
+                              <TableCell>{mapped.address || '-'}</TableCell>
+                              <TableCell>
+                                <Button size="icon" variant="outline" onClick={() => handleDownloadInvoice(raw.order_id)} disabled={downloadingOrderId === mapped.id}>
+                                  {downloadingOrderId === mapped.id ? (
+                                    <span className="flex items-center"><span className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900 mr-1"></span>...</span>
+                                  ) : (
+                                    <Download className="h-4 w-4" />
+                                  )}
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                            {expandedOrderId === mapped.id && (
+                              <TableRow>
+                                <TableCell colSpan={7} className="bg-gray-50 p-0">
+                                  <div className="p-4">
+                                    <div className="font-semibold mb-2">Products in this order:</div>
+                                    <Table className="mb-0">
+                                      <TableHeader>
+                                        <TableRow>
+                                          <TableHead>Product Name</TableHead>
+                                          <TableHead>Quantity</TableHead>
+                                        </TableRow>
+                                      </TableHeader>
+                                      <TableBody>
+                                        {mapped.products && mapped.products.length > 0 ? (
+                                          mapped.products.map((prod, idx) => (
+                                            <TableRow key={prod.id || idx}>
+                                              <TableCell>{prod.name}</TableCell>
+                                              <TableCell>{prod.quantity}</TableCell>
+                                            </TableRow>
+                                          ))
+                                        ) : (
+                                          <TableRow>
+                                            <TableCell colSpan={2} className="text-center text-gray-400">No products found</TableCell>
+                                          </TableRow>
+                                        )}
+                                      </TableBody>
+                                    </Table>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </React.Fragment>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </>
+      ) : (
+        <div className="text-center py-8">
+          <h2 className="text-2xl font-bold text-red-600">Access Denied</h2>
+          <p className="mt-2">You must be a product manager to access this page.</p>
+        </div>
+      )}
     </div>
   );
 };
