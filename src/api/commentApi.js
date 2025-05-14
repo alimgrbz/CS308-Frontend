@@ -79,9 +79,15 @@ export const getAllCommentsPM = async () => {
       });
       if (commentsResponse.data.comments) {
         allComments.push(...commentsResponse.data.comments.map(comment => ({
-          ...comment,
-          productName: product.name
-        })));
+        id: comment.id,
+        productId: comment.product_id,
+        userId: comment.user_id,
+        userName: comment.user_name,
+        productName: product.name,
+        content: comment.content,
+        status: comment.status,
+        createdAt: comment.created_at
+})));
       }
     }
     
@@ -92,6 +98,7 @@ export const getAllCommentsPM = async () => {
   }
 };
 
+/*
 export const deleteComment = async (commentId) => {
   try {
     const response = await axiosInstance.post('/api/comments/delete', { commentId });
@@ -101,6 +108,7 @@ export const deleteComment = async (commentId) => {
     throw error;
   }
 };
+*/
 
 export const acceptComment = async (token, productId, comment) => {
   try {

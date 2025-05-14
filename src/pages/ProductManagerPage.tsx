@@ -10,7 +10,7 @@ import { Plus, Trash2, Save, X, Download, ChevronDown, ChevronRight } from "luci
 import { getAllCategories, addCategory, deleteCategory } from '@/api/categoryApi';
 import { getAllProducts, addProduct, updateProduct, deleteProduct, setPrice, setStock } from '@/api/productApi';
 import { toast } from 'sonner';
-import { getAllCommentsPM, deleteComment, acceptComment, rejectComment } from '@/api/commentApi';
+import { getAllCommentsPM, acceptComment, rejectComment } from '@/api/commentApi';
 import { useNavigate } from 'react-router-dom';
 import { getAllOrders, getOrderInvoice } from '@/api/orderApi';
 
@@ -270,7 +270,7 @@ const ProductManagerPage = () => {
         return;
       }
       await rejectComment(token, commentId);
-      setComments(comments.map(c => c.id === commentId ? { ...c, status: 0 } : c));
+      setComments(comments.map(c => c.id === commentId ? { ...c, status: -1 } : c));
       toast.success('Comment rejected successfully');
     } catch (error) {
       console.error('Error rejecting comment:', error);
@@ -278,6 +278,7 @@ const ProductManagerPage = () => {
     }
   };
 
+  /*
   const handleDeleteComment = async (commentId: number) => {
     try {
       const response = await deleteComment(commentId);
@@ -292,6 +293,7 @@ const ProductManagerPage = () => {
       toast.error('Failed to delete comment');
     }
   };
+  */
 
   const fetchComments = async () => {
     setIsLoadingComments(true);
@@ -722,18 +724,18 @@ const ProductManagerPage = () => {
                           <TableRow key={comment.id}>
                             <TableCell>{comment.productName || `Product #${comment.productId}`}</TableCell>
                             <TableCell>{comment.userName || `User #${comment.userId}`}</TableCell>
-                            <TableCell className="max-w-md truncate">{comment.content}</TableCell>
+                            <TableCell className="whitespace-pre-wrap break-words">{comment.content}</TableCell>
                             <TableCell>
                               <Badge
                                 variant={
                                   comment.status === 1
                                     ? 'default'
-                                    : comment.status === 0
+                                    : comment.status === -1
                                     ? 'destructive'
                                     : 'secondary'
                                 }
                               >
-                                {comment.status === 1 ? 'Accepted' : comment.status === 0 ? 'Rejected' : 'Pending'}
+                                {comment.status === 1 ? 'Accepted' : comment.status === -1 ? 'Rejected' : 'Pending'}
                               </Badge>
                             </TableCell>
                             <TableCell>{new Date(comment.createdAt).toLocaleString()}</TableCell>
@@ -751,16 +753,9 @@ const ProductManagerPage = () => {
                                   variant="destructive" 
                                   size="sm" 
                                   onClick={() => handleRejectComment(comment.id)} 
-                                  disabled={comment.status === 0}
+                                  disabled={comment.status === -1}
                                 >
                                   Reject
-                                </Button>
-                                <Button 
-                                  variant="outline" 
-                                  size="sm" 
-                                  onClick={() => handleDeleteComment(comment.id)}
-                                >
-                                  Delete
                                 </Button>
                               </div>
                             </TableCell>
