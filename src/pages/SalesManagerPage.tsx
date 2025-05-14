@@ -3,10 +3,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { useNavigate } from 'react-router-dom';
+import { getAllCategories } from '@/api/categoryApi';
+import { getAllProducts, getProductsByCategory, setPrice, setDiscount } from '@/api/productApi';
+import { getAll } from '@/api/orderApi';
+import { getAllOrders } from '@/api/orderApi';
+import { toast } from 'sonner';
+
 
 interface Product {
   id: string;
@@ -14,6 +20,11 @@ interface Product {
   price: number;
   discountRate: number;
   category: string;
+}
+
+interface Category {
+  id: number;
+  name: string;
 }
 
 interface Order {
@@ -40,20 +51,99 @@ interface RevenueData {
 
 const SalesManagerPage = () => {
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [filterCategory, setFilterCategory] = useState<string>('');
   const [orders, setOrders] = useState<Order[]>([]);
   const [revenueData, setRevenueData] = useState<RevenueData[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const navigate = useNavigate();
 
-  const handlePriceChange = (productId: string, newPrice: number) => {
-    setProducts(products.map(product =>
-      product.id === productId ? { ...product, price: newPrice } : product
-    ));
+
+  useEffect(() => {
+    fetchCategories();
+    fetchProducts();
+    fetchOrders();
+  }, []);
+
+  const fetchCategories = async () => {
+    try {
+      const data = await getAllCategories();
+      setCategories(data);
+    } catch (error) {
+      console.error('Failed to fetch categories');
+    }
   };
 
-  const handleDiscountChange = (productId: string, newDiscount: number) => {
-    setProducts(products.map(product =>
-      product.id === productId ? { ...product, discountRate: newDiscount } : product
-    ));
+  const fetchProducts = async () => {
+    try {
+      const data = await getAllProducts();
+      setProducts(data);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      toast.error('Failed to fetch products');
+    }
+  };
+
+  const fetchOrders = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      const rawOrders = await getAll();
+      const mappedOrders = rawOrders.map((order: any) => ({
+        id: order.order_id?.toString() ?? '',
+        date: new Date(order.date).toLocaleDateString(),
+        customerName: order.user_name || order.username || order.name || order.customerName || '',
+        totalAmount: parseFloat(order.total_price),
+        status: order.order_status,
+        invoiceNumber: order.invoice_number || '',
+        items: order.product_list || [],
+      }));
+      setOrders(mappedOrders);
+    } catch (error) {
+      console.error('Failed to fetch orders');
+    }
+  };
+
+  const fetchProductsByCategoryName = async (name: string) => {
+    try {
+      const matched = categories.find(c => c.name === name);
+      if (!matched) return;
+      const data = await getProductsByCategory(matched.id);
+      setProducts(data);
+    } catch (error) {
+      console.error('Error fetching category products:', error);
+      toast.error('Failed to fetch category products');
+    }
+  };
+
+  const handlePriceChange = async (productId: string, newPrice: number) => {
+    try {
+      const token = localStorage.getItem('token');
+      const target = products.find(p => p.id === productId);
+      if (!target) return;
+      if (target.price > 0) {
+        toast.warning("Price has already been set and cannot be changed.");
+        return;
+      }
+      await setPrice(token, productId, newPrice);
+      setProducts(products.map(product =>
+        product.id === productId ? { ...product, price: newPrice } : product
+      ));
+    } catch (error) {
+      toast.error('Failed to update price');
+    }
+  };
+
+  const handleDiscountChange = async (productId: string, newDiscount: number) => {
+    try {
+      const token = localStorage.getItem('token');
+      await setDiscount(token, productId, newDiscount);
+      setProducts(products.map(product =>
+        product.id === productId ? { ...product, discountRate: newDiscount } : product
+      ));
+    } catch (error) {
+      toast.error('Failed to update discount');
+    }
   };
 
   const handleOrderStatusChange = (orderId: string, newStatus: Order['status']) => {
@@ -65,7 +155,6 @@ const SalesManagerPage = () => {
   return (
     <div className="container mx-auto p-6">
       <h1 className="text-3xl font-bold mb-6">Sales Manager Dashboard</h1>
-      
       <Tabs defaultValue="pricing" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="pricing">Pricing & Discounts</TabsTrigger>
@@ -82,7 +171,26 @@ const SalesManagerPage = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Product Name</TableHead>
-                    <TableHead>Category</TableHead>
+                    <TableHead>
+                      <select
+                        className="border p-1 rounded text-sm"
+                        value={filterCategory}
+                        onChange={(e) => {
+                          const selected = e.target.value;
+                          setFilterCategory(selected);
+                          if (selected === '') {
+                            fetchProducts();
+                          } else {
+                            fetchProductsByCategoryName(selected);
+                          }
+                        }}
+                      >
+                        <option value="">All Categories</option>
+                        {categories.map((cat) => (
+                          <option key={cat.id} value={cat.name}>{cat.name}</option>
+                        ))}
+                      </select>
+                    </TableHead>
                     <TableHead>Current Price</TableHead>
                     <TableHead>Discount Rate</TableHead>
                     <TableHead>Actions</TableHead>
@@ -101,6 +209,7 @@ const SalesManagerPage = () => {
                             value={product.price}
                             onChange={(e) => handlePriceChange(product.id, Number(e.target.value))}
                             className="w-24"
+                            disabled={product.price > 0}
                           />
                         </div>
                       </TableCell>
@@ -116,13 +225,7 @@ const SalesManagerPage = () => {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setSelectedProduct(product)}
-                        >
-                          View Details
-                        </Button>
+                        <Button variant="outline" size="sm">View Details</Button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -134,7 +237,6 @@ const SalesManagerPage = () => {
 
         <TabsContent value="orders">
           <div className="grid grid-cols-2 gap-6">
-            {/* Revenue Chart */}
             <Card>
               <CardHeader>
                 <CardTitle>Revenue Overview</CardTitle>
@@ -160,7 +262,6 @@ const SalesManagerPage = () => {
               </CardContent>
             </Card>
 
-            {/* Orders Table */}
             <Card>
               <CardHeader>
                 <CardTitle>Recent Orders</CardTitle>
@@ -229,4 +330,4 @@ const SalesManagerPage = () => {
   );
 };
 
-export default SalesManagerPage; 
+export default SalesManagerPage;
