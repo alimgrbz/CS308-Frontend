@@ -172,7 +172,7 @@ interface Refund {
       const rawOrders = await getAllOrders(token);
       const mappedOrders = rawOrders.map((order: any) => ({
         id: order.order_id?.toString() ?? '',
-        date: new Date(order.date).toLocaleDateString(),
+        date: new Date(order.date).toISOString().split("T")[0], // ✅ format: '2025-05-14'
         customerName: order.user_name || order.username || order.name || order.customerName || '',
         totalAmount: parseFloat(order.total_price),
         status: order.order_status,
