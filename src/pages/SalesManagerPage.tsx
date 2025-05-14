@@ -10,6 +10,8 @@ import { useNavigate } from 'react-router-dom';
 import { getAllCategories } from '@/api/categoryApi';
 import { getAllProducts, getProductsByCategory, setPrice, setDiscount } from '@/api/productApi';
 import { getAllOrders, getOrdersByUser, getOrderInvoice, getRevenueGraph} from '@/api/orderApi';
+import { getAllRefunds, refundDecision } from '@/api/refundsApi';
+
 import { Download } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -86,7 +88,6 @@ interface Refund {
     }
   }, [startDate, endDate]);
   
-  
   const fetchRefunds = async () => {
     try {
       const token = localStorage.getItem('token');
@@ -94,21 +95,14 @@ interface Refund {
         toast.error("No token found. Please log in again.");
         return;
       }
-      const response = await fetch('http://localhost:5000/api/orders/refundRequests', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token })
-      });
-      const data = await response.json();
-      if (response.ok) {
-        setRefunds(data.refunds || []);
-      } else {
-        toast.error(data.message || "Failed to fetch refund requests.");
-      }
+      const data = await getAllRefunds(token);
+      setRefunds(data || []);
     } catch (error) {
-      toast.error("An error occurred while fetching refunds.");
+      console.error("Error fetching refunds:", error);
+      toast.error("Failed to fetch refund requests.");
     }
   };
+  
   const fetchCategories = async () => {
     try {
       const data = await getAllCategories();
@@ -148,22 +142,22 @@ interface Refund {
     }
   };
   
-  const handleRefundAction = async (orderId: number, accept: boolean) => {
+  const handleRefundAction = async (refundId: number, decision: 'approved' | 'rejected') => {
     try {
       const token = localStorage.getItem('token');
-      if (!token) return;
-      if (accept) {
-        await acceptRefund({ token, orderId });
-        toast.success('Refund accepted successfully.');
-      } else {
-        await cancelOrder({ token, orderId });
-        toast.success('Order cancelled successfully.');
+      if (!token) {
+        toast.error("Token missing");
+        return;
       }
-      fetchRefunds();
+      await refundDecision(token, refundId, decision);
+      toast.success(`Refund ${decision} successfully.`);
+      fetchRefunds(); // Refresh list
     } catch (error) {
-      toast.error('Failed to process refund action.');
+      console.error("Error processing refund:", error);
+      toast.error("Failed to update refund decision.");
     }
   };
+  
   
   const fetchOrders = async () => {
     try {
@@ -545,15 +539,16 @@ interface Refund {
               </TableCell>
               <TableCell>{new Date(refund.createdAt).toLocaleString()}</TableCell>
               <TableCell>
-                <div className="flex gap-2">
-                  <Button size="sm" disabled onClick={() => toast.info('Backend not ready')}>
-                    Accept
-                  </Button>
-                  <Button size="sm" variant="destructive" disabled onClick={() => toast.info('Backend not ready')}>
-                    Decline
-                  </Button>
-                </div>
-              </TableCell>
+              <div className="flex gap-2">
+                <Button size="sm" onClick={() => handleRefundAction(refund.id, 'approved')} disabled={refund.status !== 0}>
+                  Accept
+                </Button>
+                <Button size="sm" variant="destructive" onClick={() => handleRefundAction(refund.id, 'rejected')} disabled={refund.status !== 0}>
+                  Decline
+                </Button>
+              </div>
+            </TableCell>
+
             </TableRow>
           ))}
         </TableBody>
