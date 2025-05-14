@@ -12,8 +12,6 @@ import { getAllProducts, getProductsByCategory, setPrice, setDiscount } from '@/
 import { getAllOrders, getOrdersByUser, getOrderInvoice, getRevenueGraph} from '@/api/orderApi';
 import { Download } from 'lucide-react';
 import { toast } from 'sonner';
-import { getAll } from '@/api/orderApi';
-
 
 interface Product {
   id: string;
@@ -69,8 +67,6 @@ interface Refund {
   const [filterCategory, setFilterCategory] = useState<string>('');
   const [orders, setOrders] = useState<Order[]>([]);
   const [revenueData, setRevenueData] = useState<RevenueData[]>([]);
-   
-    
   const [refunds, setRefunds] = useState<Refund[]>([]);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -113,7 +109,6 @@ interface Refund {
       toast.error("An error occurred while fetching refunds.");
     }
   };
-
   const fetchCategories = async () => {
     try {
       const data = await getAllCategories();
@@ -125,16 +120,15 @@ interface Refund {
 
   const fetchProducts = async () => {
     try {
-      console.log('fetchProducts started');
+      console.log('🔁 fetchProducts started');
       const data = await getAllProducts();
-      console.log('Received products:', data);
+      console.log('📦 Received products:', data);
       setProducts(data);
     } catch (error) {
-      console.error('Error fetching products:', error);
+      console.error('🚨 Error fetching products:', error);
       toast.error('Failed to fetch products');
     }
   };
-
 
   const fetchRevenueData = async (start: string, end: string) => {
     try {
@@ -171,7 +165,6 @@ interface Refund {
     }
   };
   
-
   const fetchOrders = async () => {
     try {
       const token = localStorage.getItem('token');
@@ -188,25 +181,26 @@ interface Refund {
         items: order.product_list || [],
       }));
       
-
       setOrders(mappedOrders);
     } catch (error) {
       console.error('Failed to fetch orders');
     }
   };
 
-    
   const fetchAllOrders = async () => {
     setIsLoadingOrders(true);
     try {
       const token = localStorage.getItem('token');
       if (!token) throw new Error('No token found');
-      const rawOrders = await getOrdersByUser(token);
+      const rawOrders = await getAllOrders(token);
       const mappedOrders = rawOrders.map((order: any) => ({
         id: order.order_id?.toString() ?? '',
         date: new Date(order.date).toISOString(),
-        status: order.order_status,
-        total: parseFloat(order.total_price),
+        status: mapBackendStatus(order.order_status),
+        total: parseFloat(order.total_price ?? order.total ?? '0'),
+        address: order.address || order.shipping_address || '',
+        userEmail: order.user_email || order.email || '',
+        userName: order.user_name || order.username || order.name || '',
         products: order.product_list.map((prod: any) => ({
           id: prod.p_id?.toString() ?? '',
           name: prod.name,
@@ -214,11 +208,11 @@ interface Refund {
           price: parseFloat(prod.total_price),
           quantity: prod.quantity,
           grind: prod.grind,
-        })),
-        userEmail: order.user_email || order.email || '',
-        userName: order.user_name || order.username || order.name || '',
+        })) || [],
+        invoicePdf: order.invoice_number || order.invoicePdf || '',
       }));
       setAllOrders(mappedOrders);
+  
       if (mappedOrders.length > 0) {
         const dates = mappedOrders.map(o => new Date(o.date));
         const minDate = new Date(Math.min(...dates));
@@ -226,17 +220,13 @@ interface Refund {
         setStartDate(minDate.toISOString().split("T")[0]);
         setEndDate(maxDate.toISOString().split("T")[0]);
       }
-
-      // Backend doesnt have the functionalities yet:
-      //setStartDate(minDate.toISOString().split("T")[0]); // YYYY-MM-DD
-      //setEndDate(maxDate.toISOString().split("T")[0]);
-      
     } catch (err) {
       toast.error('Failed to fetch orders');
     } finally {
       setIsLoadingOrders(false);
     }
   };
+  
   
 
   const fetchProductsByCategoryName = async (name: string) => {
@@ -250,7 +240,6 @@ interface Refund {
       toast.error('Failed to fetch category products');
     }
   };
-    
   const handlePriceChange = async (productId: string, newPrice: number) => {
     try {
       const token = localStorage.getItem('token');
@@ -297,9 +286,10 @@ interface Refund {
   const handleDownloadInvoice = async (orderId: string) => {
     const token = localStorage.getItem('token');
     if (!token) {
-      toast.error('You must be logged in to download invoices.');
+      toast.error('Authentication required. Please log in.');
       return;
     }
+  
     try {
       const invoiceBase64 = await getOrderInvoice(token, orderId);
       if (!invoiceBase64) {
@@ -308,13 +298,31 @@ interface Refund {
       }
       const link = document.createElement('a');
       link.href = `data:application/pdf;base64,${invoiceBase64}`;
-      link.download = `DriftMood-Order-${orderId}.pdf`;
+      link.download = `Order-${orderId}.pdf`;
       document.body.appendChild(link);
       link.click();
       link.remove();
       toast.success('Invoice downloaded successfully!');
     } catch (error) {
-      toast.error('Failed to download invoice.');
+      console.error('Download invoice error:', error);
+      toast.error('Failed to download invoice. Please try again.');
+    }
+  };
+  
+  const mapBackendStatus = (backendStatus: string): string => {
+    switch (backendStatus?.toLowerCase()) {
+      case 'processing':
+      case 'getting ready':
+        return 'Getting ready';
+      case 'in-transit':
+      case 'on the way':
+        return 'On the way';
+      case 'delivered':
+        return 'Delivered';
+      case 'cancelled':
+        return 'Cancelled';
+      default:
+        return 'Ordered';
     }
   };
   
@@ -378,7 +386,6 @@ interface Refund {
                             value={product.price}
                             onChange={(e) => handlePriceChange(product.id, Number(e.target.value))}
                             className="w-24"
-                            disabled={product.price > 0}
                           />
                         </div>
                       </TableCell>
@@ -393,6 +400,7 @@ interface Refund {
                           <span>%</span>
                         </div>
                       </TableCell>
+                     
                     </TableRow>
                   ))}
                 </TableBody>
@@ -402,7 +410,6 @@ interface Refund {
         </TabsContent>
 
         <TabsContent value="orders">
-
   <div className="grid grid-cols-2 gap-6">
     <Card>
       <CardHeader>
@@ -455,6 +462,7 @@ interface Refund {
       </CardContent>
     </Card>
 
+
             <Card>
               <CardHeader>
                 <CardTitle>Recent Orders</CardTitle>
@@ -504,7 +512,6 @@ interface Refund {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>User</TableHead>
             <TableHead>Email</TableHead>
             <TableHead>Order ID</TableHead>
             <TableHead>Reason</TableHead>
@@ -516,7 +523,6 @@ interface Refund {
         <TableBody>
           {refunds.map((refund) => (
             <TableRow key={refund.id}>
-              <TableCell>{refund.userName}</TableCell>
               <TableCell>{refund.userEmail}</TableCell>
               <TableCell>{refund.orderId}</TableCell>
               <TableCell>{refund.reason}</TableCell>
@@ -575,9 +581,7 @@ interface Refund {
               <TableHead>Date</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Total</TableHead>
-              <TableHead>User</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Products</TableHead>
+             <TableHead>Products</TableHead>
               <TableHead>Invoice</TableHead>
             </TableRow>
           </TableHeader>
@@ -588,8 +592,6 @@ interface Refund {
                 <TableCell>{new Date(order.date).toLocaleDateString()}</TableCell>
                 <TableCell>{order.status}</TableCell>
                 <TableCell>${order.total.toFixed(2)}</TableCell>
-                <TableCell>{order.userName}</TableCell>
-                <TableCell>{order.userEmail}</TableCell>
                 <TableCell>
                   <ul className="list-disc pl-4">
                     {order.products.map((prod) => (
@@ -615,7 +617,6 @@ interface Refund {
     </div>
   );
 };
-
 
 export default SalesManagerPage;
 
