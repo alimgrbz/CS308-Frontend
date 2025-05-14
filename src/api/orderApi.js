@@ -52,6 +52,7 @@ export const getAll = async (token) => {
   }
 };
 
+
 export const getRevenueGraph = async (token, startDate, endDate) => {
   const response = await axiosInstance.post('/api/orders/revenueGraph', {
     token,
@@ -64,4 +65,18 @@ export const getRevenueGraph = async (token, startDate, endDate) => {
 export const acceptRefund = async ({ token, orderId }) => {
   const response = await axiosInstance.post('/api/orders/acceptRefund', { token, orderId });
   return response.data;
+
+  
+export const getAll = async (token) => {
+  try {
+    const response = await axiosInstance.post('/api/orders/all', {
+
+      token
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Fetching all orders failed:", error);
+
+    throw error;
+  }
 };

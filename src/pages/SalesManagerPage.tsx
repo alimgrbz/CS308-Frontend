@@ -12,6 +12,8 @@ import { getAllProducts, getProductsByCategory, setPrice, setDiscount } from '@/
 import { getAllOrders, getOrdersByUser, getOrderInvoice, getRevenueGraph} from '@/api/orderApi';
 import { Download } from 'lucide-react';
 import { toast } from 'sonner';
+import { getAll } from '@/api/orderApi';
+
 
 interface Product {
   id: string;
@@ -67,6 +69,8 @@ interface Refund {
   const [filterCategory, setFilterCategory] = useState<string>('');
   const [orders, setOrders] = useState<Order[]>([]);
   const [revenueData, setRevenueData] = useState<RevenueData[]>([]);
+   
+    
   const [refunds, setRefunds] = useState<Refund[]>([]);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -109,6 +113,7 @@ interface Refund {
       toast.error("An error occurred while fetching refunds.");
     }
   };
+
   const fetchCategories = async () => {
     try {
       const data = await getAllCategories();
@@ -120,15 +125,16 @@ interface Refund {
 
   const fetchProducts = async () => {
     try {
-      console.log('🔁 fetchProducts started');
+      console.log('fetchProducts started');
       const data = await getAllProducts();
-      console.log('📦 Received products:', data);
+      console.log('Received products:', data);
       setProducts(data);
     } catch (error) {
-      console.error('🚨 Error fetching products:', error);
+      console.error('Error fetching products:', error);
       toast.error('Failed to fetch products');
     }
   };
+
 
   const fetchRevenueData = async (start: string, end: string) => {
     try {
@@ -165,6 +171,7 @@ interface Refund {
     }
   };
   
+
   const fetchOrders = async () => {
     try {
       const token = localStorage.getItem('token');
@@ -176,17 +183,19 @@ interface Refund {
         customerName: order.user_name || order.username || order.name || order.customerName || '',
         totalAmount: parseFloat(order.total_price),
         status: order.order_status,
-        address: order.address || '', // ✅ ADD THIS
+        address: order.address || '', 
         invoiceNumber: order.invoice_number || '',
         items: order.product_list || [],
       }));
       
+
       setOrders(mappedOrders);
     } catch (error) {
       console.error('Failed to fetch orders');
     }
   };
 
+    
   const fetchAllOrders = async () => {
     setIsLoadingOrders(true);
     try {
@@ -241,6 +250,7 @@ interface Refund {
       toast.error('Failed to fetch category products');
     }
   };
+    
   const handlePriceChange = async (productId: string, newPrice: number) => {
     try {
       const token = localStorage.getItem('token');
@@ -368,6 +378,7 @@ interface Refund {
                             value={product.price}
                             onChange={(e) => handlePriceChange(product.id, Number(e.target.value))}
                             className="w-24"
+                            disabled={product.price > 0}
                           />
                         </div>
                       </TableCell>
@@ -382,7 +393,6 @@ interface Refund {
                           <span>%</span>
                         </div>
                       </TableCell>
-                     
                     </TableRow>
                   ))}
                 </TableBody>
@@ -392,6 +402,7 @@ interface Refund {
         </TabsContent>
 
         <TabsContent value="orders">
+
   <div className="grid grid-cols-2 gap-6">
     <Card>
       <CardHeader>
@@ -443,7 +454,6 @@ interface Refund {
         </div>
       </CardContent>
     </Card>
-
 
             <Card>
               <CardHeader>
@@ -606,4 +616,6 @@ interface Refund {
   );
 };
 
+
 export default SalesManagerPage;
+
