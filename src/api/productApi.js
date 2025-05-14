@@ -71,11 +71,13 @@ export const setPrice = async ({ token, productId, price }) => {
   
   
 
-// Add product (POST, with token)
-export const addProductWithToken = async (token, productData) => {
-    const response = await axiosInstance.post('/api/products/add', {
-        token,
-        ...productData
+// Add new product (with token)
+export const addProductWithToken = async (productData) => {
+    const token = localStorage.getItem('token');
+    const response = await axiosInstance.post('/api/products/add', productData, {
+        headers: {
+            Authorization: `Bearer ${token}`
+        }
     });
     return response.data;
 };

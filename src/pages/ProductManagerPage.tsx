@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Plus, Trash2, Save, X, Download, ChevronDown, ChevronRight } from "lucide-react";
 import { getAllCategories, addCategory, deleteCategory } from '@/api/categoryApi';
-import { getAllProducts, addProduct, updateProduct, deleteProduct, setPrice, setStock } from '@/api/productApi';
+import { getAllProducts, addProductWithToken, updateProduct, deleteProduct, setPrice, setStock } from '@/api/productApi';
 import { toast } from 'sonner';
 import { getAllCommentsPM, deleteComment, acceptComment, rejectComment } from '@/api/commentApi';
 import { useNavigate } from 'react-router-dom';
@@ -22,12 +22,15 @@ interface Category {
 interface Product {
   id: number;
   name: string;
-  category: string;
-  categoryId: number;
-  price: number;
+  model: string;
+  serialNumber: string;
+  description: string;
   stock: number;
-  description?: string;
-  image?: string;
+  price: number;
+  warrantyStatus: string;
+  distributor: string;
+  category_id: number;
+  picture: string;
 }
 
 interface Delivery {
@@ -82,12 +85,15 @@ const ProductManagerPage = () => {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [newProduct, setNewProduct] = useState<Partial<Product>>({
     name: '',
-    category: '',
-    categoryId: 0,
-    price: 0,
-    stock: 0,
+    model: '',
+    serialNumber: '',
     description: '',
-    image: ''
+    stock: -1,
+    price: -1,
+    warrantyStatus: 'No',
+    distributor: '',
+    category_id: 0,
+    picture: ''
   });
   const [filterName, setFilterName] = useState('');
   const [sortOption, setSortOption] = useState('date-desc'); // default: newest first
@@ -169,7 +175,7 @@ const ProductManagerPage = () => {
     const deletedCat = categories.find(cat => cat.id === id);
     setCategories(categories.filter(cat => cat.id !== id));
     if (deletedCat) setDeletedCategories([...deletedCategories, deletedCat]);
-    setProducts(products.map(prod => prod.categoryId === id ? { ...prod, categoryId: 0 } : prod));
+    setProducts(products.map(prod => prod.category_id === id ? { ...prod, category_id: 0 } : prod));
   };
 
   const handleRecoverCategory = (id: number) => {
@@ -177,31 +183,40 @@ const ProductManagerPage = () => {
     if (recoveredCategory) {
       setCategories([...categories, recoveredCategory]);
       setDeletedCategories(deletedCategories.filter(cat => cat.id !== id));
-      setProducts(products.map(prod => prod.categoryId === 0 && prod.category === recoveredCategory.name ? { ...prod, categoryId: id } : prod));
+      setProducts(products.map(prod => prod.category_id === 0 && prod.name === recoveredCategory.name ? { ...prod, category_id: id } : prod));
       toast.success('Category recovered successfully');
     }
   };
 
   const handleAddProduct = async () => {
-    if (newProduct.name && newProduct.categoryId) {
-      try {
-        const response = await addProduct(newProduct);
+    // Validate all required fields
+    if (!newProduct.name || !newProduct.model || !newProduct.serialNumber || 
+        !newProduct.description || !newProduct.distributor || !newProduct.category_id || 
+        !newProduct.picture) {
+        toast.error('Please fill in all required fields');
+        return;
+    }
+
+    try {
+        const response = await addProductWithToken(newProduct);
         setProducts([...products, response]);
         setNewProduct({
-          name: '',
-          category: '',
-          categoryId: 0,
-          price: 0,
-          stock: 0,
-          description: '',
-          image: ''
+            name: '',
+            model: '',
+            serialNumber: '',
+            description: '',
+            stock: -1,
+            price: -1,
+            warrantyStatus: 'No',
+            distributor: '',
+            category_id: 0,
+            picture: ''
         });
         setIsAddingProduct(false);
         toast.success('Product added successfully');
-      } catch (error) {
+    } catch (error) {
         console.error('Error adding product:', error);
         toast.error('Failed to add product');
-      }
     }
   };
 
@@ -384,7 +399,7 @@ const ProductManagerPage = () => {
   // Filter and sort products
   const getFilteredSortedProducts = () => {
     let filtered = products.filter(p =>
-      p.categoryId !== 0 &&
+      p.category_id !== 0 &&
       p.name.toLowerCase().includes(filterName.toLowerCase())
     );
     switch (sortOption) {
@@ -516,23 +531,69 @@ const ProductManagerPage = () => {
                           <CardContent className="pt-6">
                             <div className="space-y-4">
                               <div>
-                                <Label>Name</Label>
+                                <Label>Name *</Label>
                                 <Input
                                   value={newProduct.name}
                                   onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
                                   placeholder="Product name"
+                                  required
                                 />
                               </div>
                               <div>
-                                <Label>Category</Label>
+                                <Label>Model *</Label>
+                                <Input
+                                  value={newProduct.model}
+                                  onChange={(e) => setNewProduct({ ...newProduct, model: e.target.value })}
+                                  placeholder="Product model"
+                                  required
+                                />
+                              </div>
+                              <div>
+                                <Label>Serial Number *</Label>
+                                <Input
+                                  value={newProduct.serialNumber}
+                                  onChange={(e) => setNewProduct({ ...newProduct, serialNumber: e.target.value })}
+                                  placeholder="Product serial number"
+                                  required
+                                />
+                              </div>
+                              <div>
+                                <Label>Description *</Label>
+                                <Input
+                                  value={newProduct.description}
+                                  onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
+                                  placeholder="Product description"
+                                  required
+                                />
+                              </div>
+                              <div>
+                                <Label>Warranty Status *</Label>
                                 <select
                                   className="w-full p-2 border rounded-md"
-                                  value={newProduct.categoryId}
-                                  onChange={(e) => setNewProduct({ 
-                                    ...newProduct, 
-                                    categoryId: Number(e.target.value),
-                                    category: categories.find(c => c.id === Number(e.target.value))?.name || ''
-                                  })}
+                                  value={newProduct.warrantyStatus}
+                                  onChange={(e) => setNewProduct({ ...newProduct, warrantyStatus: e.target.value })}
+                                  required
+                                >
+                                  <option value="No">No</option>
+                                  <option value="Yes">Yes</option>
+                                </select>
+                              </div>
+                              <div>
+                                <Label>Distributor *</Label>
+                                <Input
+                                  value={newProduct.distributor}
+                                  onChange={(e) => setNewProduct({ ...newProduct, distributor: e.target.value })}
+                                  placeholder="Product distributor"
+                                  required
+                                />
+                              </div>
+                              <div>
+                                <Label>Category *</Label>
+                                <select
+                                  className="w-full p-2 border rounded-md"
+                                  value={newProduct.category_id}
+                                  onChange={(e) => setNewProduct({ ...newProduct, category_id: Number(e.target.value) })}
+                                  required
                                 >
                                   <option value="">Select a category</option>
                                   {categories.map((category) => (
@@ -543,35 +604,12 @@ const ProductManagerPage = () => {
                                 </select>
                               </div>
                               <div>
-                                <Label>Price</Label>
+                                <Label>Picture URL *</Label>
                                 <Input
-                                  type="number"
-                                  value={newProduct.price}
-                                  onChange={(e) => setNewProduct({ ...newProduct, price: Number(e.target.value) })}
-                                />
-                              </div>
-                              <div>
-                                <Label>Stock</Label>
-                                <Input
-                                  type="number"
-                                  value={newProduct.stock}
-                                  onChange={(e) => setNewProduct({ ...newProduct, stock: Number(e.target.value) })}
-                                />
-                              </div>
-                              <div>
-                                <Label>Description</Label>
-                                <Input
-                                  value={newProduct.description}
-                                  onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
-                                  placeholder="Product description"
-                                />
-                              </div>
-                              <div>
-                                <Label>Image URL</Label>
-                                <Input
-                                  value={newProduct.image}
-                                  onChange={(e) => setNewProduct({ ...newProduct, image: e.target.value })}
-                                  placeholder="Image URL"
+                                  value={newProduct.picture}
+                                  onChange={(e) => setNewProduct({ ...newProduct, picture: e.target.value })}
+                                  placeholder="Product image URL"
+                                  required
                                 />
                               </div>
                               <div className="flex gap-2">
@@ -595,7 +633,7 @@ const ProductManagerPage = () => {
                                 </div>
                                 <div>
                                   <Label>Category</Label>
-                                  <p className="text-sm text-gray-500">{editingProduct.category}</p>
+                                  <p className="text-sm text-gray-500">{editingProduct.name}</p>
                                 </div>
                                 <div>
                                   <Label>Description</Label>
@@ -603,14 +641,14 @@ const ProductManagerPage = () => {
                                 </div>
                                 <div>
                                   <Label>Image URL</Label>
-                                  {editingProduct.image && (
+                                  {editingProduct.picture && (
                                     <img
-                                      src={editingProduct.image}
+                                      src={editingProduct.picture}
                                       alt={editingProduct.name}
                                       className="w-full h-32 object-cover rounded-md mb-2"
                                     />
                                   )}
-                                  <p className="text-xs text-gray-400">{editingProduct.image}</p>
+                                  <p className="text-xs text-gray-400">{editingProduct.picture}</p>
                                 </div>
                                 <div>
                                   <Label>Price</Label>
@@ -641,16 +679,16 @@ const ProductManagerPage = () => {
                               </div>
                             ) : (
                               <div className="space-y-4">
-                                {product.image && (
+                                {product.picture && (
                                   <img
-                                    src={product.image}
+                                    src={product.picture}
                                     alt={product.name}
                                     className="w-full h-48 object-cover rounded-md"
                                   />
                                 )}
                                 <div>
                                   <h3 className="font-semibold text-lg">{product.name}</h3>
-                                  <p className="text-sm text-gray-500">{product.category}</p>
+                                  <p className="text-sm text-gray-500">{product.name}</p>
                                 </div>
                                 <div className="grid grid-cols-2 gap-2">
                                   <div>
