@@ -13,7 +13,22 @@ export const getOrderInvoice = async (token, orderId) => {
     orderId: String(orderId)
   });
 
-  console.log("🧾 Invoice API response:", response.data); // 🔍 add this
+  console.log("Invoice API response:", response.data);
+
+  if (!response.data || !response.data.invoiceBase64) {
+    throw new Error("Invalid response format from server");
+  }
+
+  return response.data.invoiceBase64;
+};
+
+export const getOrderInvoiceManager = async (token, orderId) => {
+  const response = await axiosInstance.post('/api/orders/getInvoiceM', {
+    token,
+    orderId: String(orderId)
+  });
+
+  console.log("Invoice API response:", response.data);
 
   if (!response.data || !response.data.invoiceBase64) {
     throw new Error("Invalid response format from server");
@@ -60,6 +75,7 @@ export const acceptRefund = async ({ token, orderId }) => {
 };
   
 export const getAllOrders = async (token) => {
+  console.log("here in get all orders", token);
   try {
     const response = await axiosInstance.post('/api/orders/all', {
       token
