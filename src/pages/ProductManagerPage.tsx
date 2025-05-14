@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, Save, X, Download } from "lucide-react";
+import { Plus, Trash2, Save, X, Download, ChevronDown, ChevronRight } from "lucide-react";
 import { getAllCategories, addCategory, deleteCategory } from '@/api/categoryApi';
 import { getAllProducts, addProduct, updateProduct, deleteProduct, setPrice, setStock } from '@/api/productApi';
 import { toast } from 'sonner';
@@ -93,8 +93,10 @@ const ProductManagerPage = () => {
   const [sortOption, setSortOption] = useState('date-desc'); // default: newest first
   const [isLoadingComments, setIsLoadingComments] = useState(false);
   const [deletedCategories, setDeletedCategories] = useState<{id: number, name: string}[]>([]);
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [orders, setOrders] = useState<{ mapped: Order, raw: any }[]>([]);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
+  const [downloadingOrderId, setDownloadingOrderId] = useState<string | null>(null);
+  const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
 
   useEffect(() => {
     // Check user role on component mount
@@ -323,9 +325,25 @@ const ProductManagerPage = () => {
         return;
       }
       const response = await getAllOrders(token);
-      // If response is { orders: [...] }, use response.orders, else assume array
-      const ordersData = Array.isArray(response) ? response : response.orders;
-      setOrders(ordersData || []);
+      const rawOrders = Array.isArray(response) ? response : response.orders;
+      // Map backend fields to Order interface
+      const mappedOrders: { mapped: Order, raw: any }[] = (rawOrders || []).map((order: any) => {
+        const mapped = {
+          id: order.order_id?.toString() ?? order.id?.toString() ?? '-',
+          date: order.date ? new Date(order.date).toISOString() : '',
+          status: mapBackendStatus(order.order_status),
+          total: parseFloat(order.total_price ?? order.total ?? '0'),
+          products: order.product_list || [],
+          userName: order.user_name || order.user_fullname || '',
+          userEmail: order.user_email || '',
+          address: order.address || order.shipping_address || '',
+          invoicePdf: order.invoice_number || order.invoicePdf || '',
+        };
+        console.log('Raw order:', order);
+        console.log('Mapped order:', mapped);
+        return { mapped, raw: order };
+      });
+      setOrders(mappedOrders);
     } catch (error) {
       console.error('Error fetching orders:', error);
       toast.error('Failed to fetch orders');
@@ -340,10 +358,12 @@ const ProductManagerPage = () => {
       toast.error('Authentication required. Please log in.');
       return;
     }
+    setDownloadingOrderId(orderId);
     try {
       const invoiceBase64 = await getOrderInvoice(token, orderId);
       if (!invoiceBase64) {
         toast.error('No invoice data received from server.');
+        setDownloadingOrderId(null);
         return;
       }
       const link = document.createElement('a');
@@ -356,6 +376,8 @@ const ProductManagerPage = () => {
     } catch (error) {
       console.error('Download invoice error:', error);
       toast.error('Failed to download invoice. Please try again.');
+    } finally {
+      setDownloadingOrderId(null);
     }
   };
 
@@ -772,26 +794,73 @@ const ProductManagerPage = () => {
                           <TableHead>Date</TableHead>
                           <TableHead>Status</TableHead>
                           <TableHead>Total</TableHead>
-                          <TableHead>User Name</TableHead>
+                          <TableHead>User Email</TableHead>
                           <TableHead>Address</TableHead>
                           <TableHead>Invoice</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {orders.map((order) => (
-                          <TableRow key={order.id}>
-                            <TableCell>{order.id}</TableCell>
-                            <TableCell>{new Date(order.date).toLocaleDateString()}</TableCell>
-                            <TableCell>{order.status}</TableCell>
-                            <TableCell>${order.total?.toFixed ? order.total.toFixed(2) : order.total}</TableCell>
-                            <TableCell>{order.userName || order.userEmail || '-'}</TableCell>
-                            <TableCell>{order.address || '-'}</TableCell>
-                            <TableCell>
-                              <Button size="icon" variant="outline" onClick={() => handleDownloadInvoice(order.id)}>
-                                <Download className="h-4 w-4" />
-                              </Button>
-                            </TableCell>
-                          </TableRow>
+                        {orders.map(({ mapped, raw }) => (
+                          <React.Fragment key={mapped.id}>
+                            <TableRow>
+                              <TableCell>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={() => setExpandedOrderId(expandedOrderId === mapped.id ? null : mapped.id)}
+                                  aria-label={expandedOrderId === mapped.id ? 'Hide Products' : 'Show Products'}
+                                >
+                                  {expandedOrderId === mapped.id ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                                </Button>
+                                {mapped.id}
+                              </TableCell>
+                              <TableCell>{mapped.date ? new Date(mapped.date).toLocaleDateString() : '-'}</TableCell>
+                              <TableCell>{mapped.status}</TableCell>
+                              <TableCell>${mapped.total?.toFixed ? mapped.total.toFixed(2) : mapped.total}</TableCell>
+                              <TableCell>{mapped.userEmail || '-'}</TableCell>
+                              <TableCell>{mapped.address || '-'}</TableCell>
+                              <TableCell>
+                                <Button size="icon" variant="outline" onClick={() => handleDownloadInvoice(raw.order_id)} disabled={downloadingOrderId === mapped.id}>
+                                  {downloadingOrderId === mapped.id ? (
+                                    <span className="flex items-center"><span className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900 mr-1"></span>...</span>
+                                  ) : (
+                                    <Download className="h-4 w-4" />
+                                  )}
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                            {expandedOrderId === mapped.id && (
+                              <TableRow>
+                                <TableCell colSpan={7} className="bg-gray-50 p-0">
+                                  <div className="p-4">
+                                    <div className="font-semibold mb-2">Products in this order:</div>
+                                    <Table className="mb-0">
+                                      <TableHeader>
+                                        <TableRow>
+                                          <TableHead>Product Name</TableHead>
+                                          <TableHead>Quantity</TableHead>
+                                        </TableRow>
+                                      </TableHeader>
+                                      <TableBody>
+                                        {mapped.products && mapped.products.length > 0 ? (
+                                          mapped.products.map((prod, idx) => (
+                                            <TableRow key={prod.id || idx}>
+                                              <TableCell>{prod.name}</TableCell>
+                                              <TableCell>{prod.quantity}</TableCell>
+                                            </TableRow>
+                                          ))
+                                        ) : (
+                                          <TableRow>
+                                            <TableCell colSpan={2} className="text-center text-gray-400">No products found</TableCell>
+                                          </TableRow>
+                                        )}
+                                      </TableBody>
+                                    </Table>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </React.Fragment>
                         ))}
                       </TableBody>
                     </Table>
