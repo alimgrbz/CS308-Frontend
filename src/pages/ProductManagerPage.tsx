@@ -12,7 +12,7 @@ import { getAllProducts, addProductWithToken, updateProduct, deleteProduct, setP
 import { toast } from 'sonner';
 import { getAllCommentsPM, acceptComment, rejectComment } from '@/api/commentApi';
 import { useNavigate } from 'react-router-dom';
-import { getAllOrders, getOrderInvoice } from '@/api/orderApi';
+import { getAllOrders, getOrderInvoiceManager } from '@/api/orderApi';
 
 interface Category {
   id: number;
@@ -353,7 +353,7 @@ const ProductManagerPage = () => {
           total: parseFloat(order.total_price ?? order.total ?? '0'),
           products: order.product_list || [],
           userName: order.user_name || order.user_fullname || '',
-          userEmail: order.user_email || '',
+          userEmail: order.email || '',
           address: order.address || order.shipping_address || '',
           invoicePdf: order.invoice_number || order.invoicePdf || '',
         };
@@ -378,7 +378,7 @@ const ProductManagerPage = () => {
     }
     setDownloadingOrderId(orderId);
     try {
-      const invoiceBase64 = await getOrderInvoice(token, orderId);
+      const invoiceBase64 = await getOrderInvoiceManager(token, orderId);
       if (!invoiceBase64) {
         toast.error('No invoice data received from server.');
         setDownloadingOrderId(null);

@@ -9,7 +9,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { useNavigate } from 'react-router-dom';
 import { getAllCategories } from '@/api/categoryApi';
 import { getAllProducts, getProductsByCategory, setPrice, setDiscount } from '@/api/productApi';
-import { getAllOrders, getOrdersByUser, getOrderInvoice, getRevenueGraph} from '@/api/orderApi';
+import { getAllOrders, getOrdersByUser, getOrderInvoiceManager, getRevenueGraph} from '@/api/orderApi';
 import { getAllRefunds, refundDecision } from '@/api/refundsApi';
 
 import { Download } from 'lucide-react';
@@ -285,7 +285,7 @@ interface Refund {
     }
   
     try {
-      const invoiceBase64 = await getOrderInvoice(token, orderId);
+      const invoiceBase64 = await getOrderInvoiceManager(token, orderId);
       if (!invoiceBase64) {
         toast.error('No invoice data received from server.');
         return;
