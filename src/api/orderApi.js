@@ -27,17 +27,6 @@ export const createOrder = async (token) => {
   return response.data;
 };
 
-export const getAllOrders = async (token) => {
-  try {
-    const response = await axiosInstance.post('/api/orders/all', {
-      token: token
-    });
-    return response.data.orders;
-  } catch (error) {
-    console.error("Failed to fetch all orders:", error.response?.data || error.message);
-    throw error;
-  }
-};
 
 // orderApi.js
 export const getAll = async (token) => {
@@ -65,18 +54,16 @@ export const getRevenueGraph = async (token, startDate, endDate) => {
 export const acceptRefund = async ({ token, orderId }) => {
   const response = await axiosInstance.post('/api/orders/acceptRefund', { token, orderId });
   return response.data;
-
+};
   
-export const getAll = async (token) => {
+export const getAllOrders = async (token) => {
   try {
     const response = await axiosInstance.post('/api/orders/all', {
-
       token
     });
     return response.data;
   } catch (error) {
     console.error("Fetching all orders failed:", error);
-
     throw error;
   }
 };
