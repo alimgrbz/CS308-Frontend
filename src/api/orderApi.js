@@ -13,12 +13,15 @@ export const getOrderInvoice = async (token, orderId) => {
     orderId: String(orderId)
   });
 
+  console.log("🧾 Invoice API response:", response.data); // 🔍 add this
+
   if (!response.data || !response.data.invoiceBase64) {
     throw new Error("Invalid response format from server");
   }
 
   return response.data.invoiceBase64;
 };
+
 
 export const createOrder = async (token) => {
   const response = await axiosInstance.post('/api/orders/checkout', {
@@ -61,9 +64,10 @@ export const getAllOrders = async (token) => {
     const response = await axiosInstance.post('/api/orders/all', {
       token
     });
-    return response.data;
+    return response.data.orders; 
   } catch (error) {
     console.error("Fetching all orders failed:", error);
     throw error;
   }
 };
+
