@@ -10,9 +10,9 @@ import { Plus, Trash2, Save, X, Download } from "lucide-react";
 import { getAllCategories, addCategory, deleteCategory } from '@/api/categoryApi';
 import { getAllProducts, addProduct, updateProduct, deleteProduct, setPrice, setStock } from '@/api/productApi';
 import { toast } from 'sonner';
-import { getAllOrders, getOrderInvoice } from '@/api/orderApi';
 import { getAllComments, deleteComment, acceptComment, rejectComment } from '@/api/commentApi';
 import { useNavigate } from 'react-router-dom';
+import { getAllOrders, getOrderInvoice } from '@/api/orderApi';
 
 interface Category {
   id: number;
@@ -91,10 +91,10 @@ const ProductManagerPage = () => {
   });
   const [filterName, setFilterName] = useState('');
   const [sortOption, setSortOption] = useState('date-desc'); // default: newest first
-  const [allOrders, setAllOrders] = useState<Order[]>([]);
-  const [isLoadingOrders, setIsLoadingOrders] = useState(false);
   const [isLoadingComments, setIsLoadingComments] = useState(false);
   const [deletedCategories, setDeletedCategories] = useState<{id: number, name: string}[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [isLoadingOrders, setIsLoadingOrders] = useState(false);
 
   useEffect(() => {
     // Check user role on component mount
@@ -121,6 +121,7 @@ const ProductManagerPage = () => {
       fetchCategories();
       fetchProducts();
       fetchComments();
+      fetchOrders();
     } catch (error) {
       console.error('Error decoding token:', error);
       toast.error('Invalid authentication token');
@@ -313,6 +314,51 @@ const ProductManagerPage = () => {
     }
   };
 
+  const fetchOrders = async () => {
+    setIsLoadingOrders(true);
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error('Authentication required. Please log in.');
+        return;
+      }
+      const response = await getAllOrders(token);
+      // If response is { orders: [...] }, use response.orders, else assume array
+      const ordersData = Array.isArray(response) ? response : response.orders;
+      setOrders(ordersData || []);
+    } catch (error) {
+      console.error('Error fetching orders:', error);
+      toast.error('Failed to fetch orders');
+    } finally {
+      setIsLoadingOrders(false);
+    }
+  };
+
+  const handleDownloadInvoice = async (orderId: string) => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      toast.error('Authentication required. Please log in.');
+      return;
+    }
+    try {
+      const invoiceBase64 = await getOrderInvoice(token, orderId);
+      if (!invoiceBase64) {
+        toast.error('No invoice data received from server.');
+        return;
+      }
+      const link = document.createElement('a');
+      link.href = `data:application/pdf;base64,${invoiceBase64}`;
+      link.download = `Order-${orderId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      toast.success('Invoice downloaded successfully!');
+    } catch (error) {
+      console.error('Download invoice error:', error);
+      toast.error('Failed to download invoice. Please try again.');
+    }
+  };
+
   // Filter and sort products
   const getFilteredSortedProducts = () => {
     let filtered = products.filter(p =>
@@ -355,86 +401,6 @@ const ProductManagerPage = () => {
     }
   };
 
-  const fetchAllOrders = async () => {
-    setIsLoadingOrders(true);
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        toast.error('Authentication required. Please log in.');
-        return;
-      }
-      console.log('Fetching all orders...');
-      const rawOrders = await getAllOrders(token);
-      console.log('Raw orders data received:', rawOrders);
-      
-      if (!Array.isArray(rawOrders)) {
-        console.error('Invalid orders data received:', rawOrders);
-        toast.error('Invalid data received from server');
-        return;
-      }
-
-      const mappedOrders: Order[] = rawOrders.map((order: any) => {
-        console.log('Processing order:', order);
-        const mappedOrder: Order = {
-          id: order.order_id?.toString() ?? '',
-          date: new Date(order.date).toISOString(),
-          status: mapBackendStatus(order.order_status),
-          total: parseFloat(order.total_price),
-          products: Array.isArray(order.product_list) ? order.product_list.map((prod: any) => ({
-            id: prod.p_id?.toString() ?? '',
-            name: prod.name,
-            image: prod.image,
-            price: parseFloat(prod.total_price),
-            quantity: prod.quantity,
-            grind: prod.grind,
-          })) : [],
-          userEmail: order.user_email || order.email || '',
-          userName: order.user_name || order.username || order.name || '',
-          address: order.address || '',
-          invoicePdf: order.invoice_pdf || ''
-        };
-        return mappedOrder;
-      });
-      console.log('Mapped orders:', mappedOrders);
-      setAllOrders(mappedOrders);
-    } catch (err) {
-      console.error('Error fetching orders:', err);
-      toast.error(err.response?.data?.message || 'Failed to fetch orders. Please try again.');
-    } finally {
-      setIsLoadingOrders(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchAllOrders();
-  }, []);
-
-  const handleDownloadInvoice = async (orderId: string) => {
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        toast.error('You must be logged in to download invoices.');
-        return;
-      }
-      console.log('Downloading invoice for order:', orderId);
-      const invoiceBase64 = await getOrderInvoice(token, orderId);
-      if (!invoiceBase64) {
-        toast.error('No invoice data received from server.');
-        return;
-      }
-      const link = document.createElement('a');
-      link.href = `data:application/pdf;base64,${invoiceBase64}`;
-      link.download = `DriftMood-Order-${orderId}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      toast.success('Invoice downloaded successfully!');
-    } catch (error) {
-      console.error('Error downloading invoice:', error);
-      toast.error('Failed to download invoice. Please try again.');
-    }
-  };
-
   return (
     <div className="container mx-auto p-6">
       {userRole === 'product_manager' ? (
@@ -443,8 +409,8 @@ const ProductManagerPage = () => {
           <Tabs defaultValue="inventory" className="w-full">
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="inventory">Inventory Management</TabsTrigger>
-              <TabsTrigger value="deliveries">Deliveries & Invoices</TabsTrigger>
               <TabsTrigger value="comments">User Comments</TabsTrigger>
+              <TabsTrigger value="orders">Orders</TabsTrigger>
             </TabsList>
 
             <TabsContent value="inventory">
@@ -704,103 +670,6 @@ const ProductManagerPage = () => {
               </div>
             </TabsContent>
 
-            <TabsContent value="deliveries">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Deliveries & Invoices</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {isLoadingOrders ? (
-                    <div className="flex items-center justify-center py-8">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-                      <span className="ml-2">Loading orders...</span>
-                      
-                    </div>
-                  ) : allOrders.length === 0 ? (
-                    <div className="text-center text-gray-500 py-4">No orders found</div>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Order ID</TableHead>
-                            <TableHead>Date</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead>Total</TableHead>
-                            <TableHead>User</TableHead>
-                            <TableHead>Email</TableHead>
-                            <TableHead>Address</TableHead>
-                            <TableHead>Products</TableHead>
-                            <TableHead>Invoice</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          
-                          {allOrders.map((order) => {
-                            return (
-                            <TableRow key={order.id}>
-                              <TableCell className="font-medium">{order.id}</TableCell>
-                              <TableCell>{new Date(order.date).toLocaleDateString()}</TableCell>
-                              <TableCell>
-                                <Badge
-                                  variant={
-                                    order.status === 'Delivered'
-                                      ? 'default'
-                                      : order.status === 'Cancelled'
-                                      ? 'destructive'
-                                      : 'secondary'
-                                  }
-                                >
-                                  {order.status}
-                                </Badge>
-                              </TableCell>
-                              <TableCell>${order.total.toFixed(2)}</TableCell>
-                              <TableCell>{order.userName || 'N/A'}</TableCell>
-                              <TableCell>{order.userEmail || 'N/A'}</TableCell>
-                              <TableCell className="max-w-xs truncate">{order.address || 'N/A'}</TableCell>
-                              <TableCell>
-                                <div className="max-w-xs">
-                                  {order.products.map((prod) => (
-                                    <div key={prod.id} className="flex items-center gap-2 mb-1">
-                                      {prod.image && (
-                                        <img
-                                          src={prod.image}
-                                          alt={prod.name}
-                                          className="w-8 h-8 object-cover rounded"
-                                        />
-                                      )}
-                                      <div>
-                                        <p className="text-sm font-medium">{prod.name}</p>
-                                        <p className="text-xs text-gray-500">
-                                          {prod.quantity}x ${prod.price.toFixed(2)}
-                                          {prod.grind && ` (${prod.grind})`}
-                                        </p>
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <Button 
-                                  size="sm" 
-                                  onClick={() => handleDownloadInvoice(order.id)}
-                                  className="bg-blue-600 hover:bg-blue-700"
-                                >
-                                  <Download className="h-4 w-4 mr-2" />
-                                  Download
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                            );
-                          })}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-
             <TabsContent value="comments">
               <Card>
                 <CardHeader>
@@ -872,6 +741,55 @@ const ProductManagerPage = () => {
                                   Delete
                                 </Button>
                               </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="orders">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Orders</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {isLoadingOrders ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+                      <span className="ml-2">Loading orders...</span>
+                    </div>
+                  ) : orders.length === 0 ? (
+                    <div className="text-center text-gray-500 py-4">No orders found</div>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Order ID</TableHead>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Total</TableHead>
+                          <TableHead>User Name</TableHead>
+                          <TableHead>Address</TableHead>
+                          <TableHead>Invoice</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {orders.map((order) => (
+                          <TableRow key={order.id}>
+                            <TableCell>{order.id}</TableCell>
+                            <TableCell>{new Date(order.date).toLocaleDateString()}</TableCell>
+                            <TableCell>{order.status}</TableCell>
+                            <TableCell>${order.total?.toFixed ? order.total.toFixed(2) : order.total}</TableCell>
+                            <TableCell>{order.userName || order.userEmail || '-'}</TableCell>
+                            <TableCell>{order.address || '-'}</TableCell>
+                            <TableCell>
+                              <Button size="icon" variant="outline" onClick={() => handleDownloadInvoice(order.id)}>
+                                <Download className="h-4 w-4" />
+                              </Button>
                             </TableCell>
                           </TableRow>
                         ))}
