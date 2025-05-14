@@ -2,10 +2,12 @@ import axiosInstance from './axiosConfig';
 
 // Get all products
 export const getAllProducts = async () => {
-    console.log('Fetching products from backend');
     const response = await axiosInstance.get('/api/products');
-    return response.data.products;
-};
+    return response.data.products; 
+  };
+  
+  
+  
 
 // Get product by ID
 export const getProductById = async (productId) => {
@@ -54,14 +56,20 @@ export const getStock = async (productId) => {
 };
 
 // Set product price (POST)
-export const setPrice = async (token, productId, price) => {
-    const response = await axiosInstance.post('/api/products/setPrice', {
-        token,
-        productId,
-        price
-    });
+export const setPrice = async ({ token, productId, price }) => {
+    const response = await axiosInstance.post(
+      '/api/products/setPrice',
+      { productId, price },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
     return response.data;
-};
+  };
+  
+  
 
 // Add product (POST, with token)
 export const addProductWithToken = async (token, productData) => {
@@ -83,10 +91,16 @@ export const setStock = async (token, productId, stock) => {
 };
 
 export const setDiscount = async (token, productId, discount) => {
-    const response = await axiosInstance.post('/api/products/setDiscount', {
-      token,
-      productId,
-      discount,
-    });
-    return response.data;
+    return await axiosInstance.post(
+      '/api/products/setDiscount',
+      { productId, discount },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      }
+    );
   };
+
+
+  
