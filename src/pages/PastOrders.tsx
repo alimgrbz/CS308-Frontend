@@ -5,15 +5,23 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ButtonCustom } from '@/components/ui/button-custom';
 import { Progress } from '@/components/ui/progress';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Package2, CheckCircle2, Truck, ClipboardList, Star, ChevronLeft, Download, RotateCcw, X } from 'lucide-react';
+import { ChevronLeft, Download, RotateCcw, Star, X } from 'lucide-react';
 import { toast } from 'sonner';
 import OrderReviewModal from '@/components/OrderReviewModal';
 import { getOrdersByUser, getOrderInvoice } from '@/api/orderApi';
 import { addComment } from "@/api/commentApi"; 
 import { addRate, getRatesByUser } from "@/api/rateApi";
 
-// RefundRequestModal inside same file
-const RefundRequestModal = ({ onClose, onConfirm }: { onClose: () => void; onConfirm: () => void; }) => {
+// RefundRequestModal component
+const RefundRequestModal = ({
+  onClose,
+  onConfirm,
+  product,
+}: {
+  onClose: () => void;
+  onConfirm: () => void;
+  product: OrderProduct;
+}) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
       <div className="bg-white rounded-lg shadow-lg w-96 p-6 relative">
@@ -24,7 +32,18 @@ const RefundRequestModal = ({ onClose, onConfirm }: { onClose: () => void; onCon
           <X size={20} />
         </button>
         <h2 className="text-xl font-semibold mb-4 text-coffee-green">Request Refund</h2>
-        <p className="text-coffee-brown mb-6">Are you sure you want to request a refund for this order?</p>
+        <div className="mb-6">
+          <div className="flex items-center gap-3 mb-4">
+            <img src={product.image} alt={product.name} className="w-16 h-16 object-cover rounded-md" />
+            <div>
+              <div className="font-medium text-coffee-green">{product.name}</div>
+              {product.grind && <div className="text-sm text-coffee-brown">Grind: {product.grind}</div>}
+              <div className="text-sm text-coffee-brown">Quantity: {product.quantity}</div>
+              <div className="text-sm text-coffee-brown">Price: ${product.price.toFixed(2)}</div>
+            </div>
+          </div>
+          <p className="text-coffee-brown">Are you sure you want to request a refund for this product?</p>
+        </div>
         <div className="flex justify-end gap-4">
           <ButtonCustom variant="outline" onClick={onClose}>
             Cancel
@@ -41,12 +60,12 @@ const RefundRequestModal = ({ onClose, onConfirm }: { onClose: () => void; onCon
 const PastOrders = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-  const [showReviewModal, setShowReviewModal] = useState(false);
   const [reviewProduct, setReviewProduct] = useState<OrderProduct | null>(null);
+  const [showReviewModal, setShowReviewModal] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
-  const [isProcessingRefund, setIsProcessingRefund] = useState(false);
   const [showRefundModal, setShowRefundModal] = useState(false);
   const [refundOrderId, setRefundOrderId] = useState<string | null>(null);
+  const [refundProduct, setRefundProduct] = useState<OrderProduct | null>(null);
 
   const mapBackendStatus = (backendStatus: string): OrderStatus => {
     switch (backendStatus) {
@@ -55,51 +74,6 @@ const PastOrders = () => {
       case 'delivered': return 'Delivered';
       case 'cancelled': return 'Cancelled';
       default: return 'Ordered';
-    }
-  };
-
-  const handleReviewClick = (order: Order, product: OrderProduct) => {
-    setSelectedOrder(order);
-    setReviewProduct(product);
-    setShowReviewModal(true);
-  };
-
-  const handleSubmitReview = async (rating: number, comment: string) => {
-    if (!reviewProduct) return;
-    const token = localStorage.getItem('token');
-    if (!token) {
-      toast.error("You must be logged in to submit a review.");
-      return;
-    }
-    try {
-      if (comment.trim() !== "") {
-        await addComment(token, Number(reviewProduct.id), comment);
-        toast.success(`Review submitted for ${reviewProduct.name}!`);
-      }
-      await addRate(token, Number(reviewProduct.id), rating);
-
-      setOrders(prev => prev.map(order => {
-        if (order.id !== selectedOrder?.id) return order;
-        return {
-          ...order,
-          products: order.products.map(p =>
-            p.id === reviewProduct.id ? { ...p, reviewed: true, rating } : p
-          ),
-        };
-      }));
-      setShowReviewModal(false);
-    } catch (err) {
-      toast.error("Failed to submit review.");
-    }
-  };
-
-  const getOrderProgress = (status: OrderStatus) => {
-    switch (status) {
-      case 'Ordered': return 25;
-      case 'Getting ready': return 50;
-      case 'On the way': return 75;
-      case 'Delivered': return 100;
-      default: return 0;
     }
   };
 
@@ -121,21 +95,18 @@ const PastOrders = () => {
           id: order.order_id.toString(),
           date: new Date(order.date).toISOString(),
           status: mapBackendStatus(order.order_status),
-          isCancelled: order.order_status === 'cancelled',
           total: parseFloat(order.total_price),
-          products: order.product_list.map((prod: any) => {
-            const pid = prod.p_id;
-            return {
-              id: pid.toString(),
-              name: prod.name,
-              image: prod.image,
-              price: parseFloat(prod.total_price),
-              quantity: prod.quantity,
-              grind: prod.grind,
-              reviewed: pid in ratingMap,
-              rating: ratingMap[pid] ?? undefined,
-            };
-          })
+          products: order.product_list.map((prod: any) => ({
+            id: prod.p_id.toString(),
+            name: prod.name,
+            image: prod.image,
+            price: parseFloat(prod.total_price),
+            quantity: prod.quantity,
+            grind: prod.grind,
+            reviewed: prod.p_id in ratingMap,
+            rating: ratingMap[prod.p_id] ?? undefined,
+            refundStatus: prod.refund_status as RefundStatus | undefined,
+          })),
         }));
 
         setOrders(mappedOrders);
@@ -147,20 +118,50 @@ const PastOrders = () => {
     fetchOrdersAndRatings();
   }, []);
 
+  const handleReviewClick = (order: Order, product: OrderProduct) => {
+    setSelectedOrder(order);
+    setReviewProduct(product);
+    setShowReviewModal(true);
+  };
+
+  const handleSubmitReview = async (rating: number, comment: string) => {
+    if (!reviewProduct) return;
+    const token = localStorage.getItem('token');
+    if (!token) {
+      toast.error("You must be logged in to submit a review.");
+      return;
+    }
+    try {
+      if (comment.trim()) {
+        await addComment(token, Number(reviewProduct.id), comment);
+        toast.success(`Review submitted for ${reviewProduct.name}!`);
+      }
+      await addRate(token, Number(reviewProduct.id), rating);
+
+      setOrders(prev => prev.map(order => {
+        if (order.id !== selectedOrder?.id) return order;
+        return {
+          ...order,
+          products: order.products.map(p =>
+            p.id === reviewProduct.id ? { ...p, reviewed: true, rating } : p
+          ),
+        };
+      }));
+      setShowReviewModal(false);
+    } catch (err) {
+      toast.error("Failed to submit review.");
+    }
+  };
+
   const handleDownloadInvoice = async (orderId: string) => {
     const token = localStorage.getItem('token');
     if (!token) {
       toast.error("You must be logged in to download invoices.");
       return;
     }
-
     setIsDownloading(true);
     try {
       const invoiceBase64 = await getOrderInvoice(token, orderId);
-      if (!invoiceBase64) {
-        toast.error("No invoice data received from server.");
-        return;
-      }
       const link = document.createElement('a');
       link.href = `data:application/pdf;base64,${invoiceBase64}`;
       link.download = `DriftMood-Order-${orderId}.pdf`;
@@ -168,30 +169,43 @@ const PastOrders = () => {
       link.click();
       link.remove();
       toast.success("Invoice downloaded successfully!");
-    } catch (error) {
-      console.error("Download invoice error:", error);
-      toast.error("Failed to download invoice. Please try again.");
+    } catch (err) {
+      toast.error("Failed to download invoice.");
     } finally {
       setIsDownloading(false);
     }
   };
 
-  const handleRefundRequest = async (orderId: string) => {
+  const handleRefundRequest = async (orderId: string, productId: string) => {
     const token = localStorage.getItem('token');
     if (!token) {
       toast.error("You must be logged in to request a refund.");
       return;
     }
 
-    setIsProcessingRefund(true);
     try {
-      // TODO: Implement real API call if needed
       toast.success("Refund request submitted successfully!");
-    } catch (error) {
-      console.error("Refund request error:", error);
-      toast.error("Failed to submit refund request. Please try again.");
-    } finally {
-      setIsProcessingRefund(false);
+      setOrders(prev => prev.map(order => {
+        if (order.id !== orderId) return order;
+        return {
+          ...order,
+          products: order.products.map(product =>
+            product.id === productId ? { ...product, refundStatus: 'pending' } : product
+          ),
+        };
+      }));
+    } catch (err) {
+      toast.error("Failed to submit refund request.");
+    }
+  };
+
+  const getOrderProgress = (status: OrderStatus) => {
+    switch (status) {
+      case 'Ordered': return 25;
+      case 'Getting ready': return 50;
+      case 'On the way': return 75;
+      case 'Delivered': return 100;
+      default: return 0;
     }
   };
 
@@ -211,9 +225,7 @@ const PastOrders = () => {
           <h1 className="text-3xl md:text-4xl font-serif font-bold mb-4 text-coffee-green">
             Past Orders
           </h1>
-          <p className="text-coffee-brown">
-            View and manage your previous orders
-          </p>
+          <p className="text-coffee-brown">View and manage your previous orders</p>
         </motion.div>
 
         {orders.length === 0 ? (
@@ -226,12 +238,7 @@ const PastOrders = () => {
         ) : (
           <div className="space-y-8">
             {orders.map((order) => (
-              <motion.div
-                key={order.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4 }}
-              >
+              <motion.div key={order.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
                 <Card className="bg-white shadow-sm">
                   <CardHeader className="border-b border-coffee-green/10">
                     <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
@@ -242,22 +249,18 @@ const PastOrders = () => {
                         </CardTitle>
                       </div>
                       <div className="flex items-center gap-4">
-                        <span className="text-coffee-brown">Total: <span className="font-medium text-coffee-green">${order.total.toFixed(2)}</span></span>
                         <ButtonCustom
                           variant="outline"
                           size="sm"
-                          className="flex items-center gap-2"
                           onClick={() => handleDownloadInvoice(order.id)}
                           disabled={isDownloading}
                         >
                           <Download size={16} />
                           {isDownloading ? 'Downloading...' : 'Invoice'}
                         </ButtonCustom>
-                        <div className="flex items-center gap-2">
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusColors[order.status]}`}>
-                            {order.status}
-                          </span>
-                        </div>
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusColors[order.status]}`}>
+                          {order.status}
+                        </span>
                       </div>
                     </div>
                   </CardHeader>
@@ -266,7 +269,6 @@ const PastOrders = () => {
                       <h3 className="text-lg font-medium mb-4 text-coffee-green">Order Status</h3>
                       <Progress value={getOrderProgress(order.status)} className="h-2" />
                     </div>
-
                     <div>
                       <h3 className="text-lg font-medium mb-4 text-coffee-green">Order Items</h3>
                       <Table>
@@ -285,10 +287,7 @@ const PastOrders = () => {
                               <TableCell>
                                 <div className="flex items-center gap-3">
                                   <img src={product.image} alt={product.name} className="w-12 h-12 object-cover rounded-md" />
-                                  <div>
-                                    <div className="font-medium text-coffee-green">{product.name}</div>
-                                    {product.grind && <div className="text-sm text-coffee-brown">Grind: {product.grind}</div>}
-                                  </div>
+                                  <div>{product.name}</div>
                                 </div>
                               </TableCell>
                               <TableCell>{product.quantity}</TableCell>
@@ -314,14 +313,14 @@ const PastOrders = () => {
                                   <ButtonCustom
                                     size="sm"
                                     variant="outline"
-                                    className="text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                                    disabled={product.refundStatus === 'pending'}
                                     onClick={() => {
                                       setRefundOrderId(order.id);
+                                      setRefundProduct(product);
                                       setShowRefundModal(true);
                                     }}
                                   >
-                                    <RotateCcw size={16} className="mr-1" />
-                                    Request Refund
+                                    {product.refundStatus === 'pending' ? 'Refund Pending' : 'Request Refund'}
                                   </ButtonCustom>
                                 ) : (
                                   <span className="text-coffee-brown text-sm">Available after delivery</span>
@@ -348,19 +347,20 @@ const PastOrders = () => {
         />
       )}
 
-      {showRefundModal && refundOrderId && (
+      {showRefundModal && refundOrderId && refundProduct && (
         <RefundRequestModal
           onClose={() => {
             setShowRefundModal(false);
             setRefundOrderId(null);
+            setRefundProduct(null);
           }}
           onConfirm={async () => {
-            if (refundOrderId) {
-              await handleRefundRequest(refundOrderId);
-              setShowRefundModal(false);
-              setRefundOrderId(null);
-            }
+            await handleRefundRequest(refundOrderId, refundProduct.id);
+            setShowRefundModal(false);
+            setRefundOrderId(null);
+            setRefundProduct(null);
           }}
+          product={refundProduct}
         />
       )}
     </>
@@ -368,6 +368,7 @@ const PastOrders = () => {
 };
 
 type OrderStatus = 'Ordered' | 'Getting ready' | 'On the way' | 'Delivered' | 'Cancelled';
+type RefundStatus = 'pending' | 'approved' | 'rejected' | 'done';
 
 interface OrderProduct {
   id: string;
@@ -378,6 +379,7 @@ interface OrderProduct {
   grind?: string;
   reviewed?: boolean;
   rating?: number;
+  refundStatus?: RefundStatus;
 }
 
 interface Order {
