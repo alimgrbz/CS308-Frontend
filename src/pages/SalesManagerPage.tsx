@@ -37,6 +37,16 @@ interface Order {
   invoiceNumber: string;
   address: string; 
   items: OrderItem[];
+  total?: number;
+  products?: Array<{
+    id: string;
+    name: string;
+    image: string;
+    price: number;
+    quantity: number;
+    grind?: string;
+    cancelStatus?: 'cancelled';
+  }>;
 }
 
 
@@ -62,17 +72,39 @@ interface Refund {
   createdAt: string;
 }
 
+interface OrderProduct {
+  id: string;
+  name: string;
+  image: string;
+  price: number;
+  quantity: number;
+  grind?: string;
+  cancelStatus?: 'cancelled';
+}
+
+interface OrderDetails {
+  id: string;
+  date: string;
+  status: string;
+  total: number;
+  address: string;
+  userEmail: string;
+  userName: string;
+  products: OrderProduct[];
+  invoicePdf: string;
+}
+
 
   const SalesManagerPage = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [filterCategory, setFilterCategory] = useState<string>('');
+  const [filterCategory, setFilterCategory] = useState<string>('All Categories');
   const [orders, setOrders] = useState<Order[]>([]);
   const [revenueData, setRevenueData] = useState<RevenueData[]>([]);
   const [refunds, setRefunds] = useState<Refund[]>([]);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [allOrders, setAllOrders] = useState<Order[]>([]);
+  const [allOrders, setAllOrders] = useState<OrderDetails[]>([]);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
   const navigate = useNavigate();
 
@@ -202,6 +234,7 @@ interface Refund {
           price: parseFloat(prod.total_price),
           quantity: prod.quantity,
           grind: prod.grind,
+          cancelStatus: prod.cancel_status === 'cancelled' ? 'cancelled' : undefined,
         })) || [],
         invoicePdf: order.invoice_number || order.invoicePdf || '',
       }));
@@ -574,9 +607,8 @@ interface Refund {
             <TableRow>
               <TableHead>Order ID</TableHead>
               <TableHead>Date</TableHead>
-              <TableHead>Status</TableHead>
               <TableHead>Total</TableHead>
-             <TableHead>Products</TableHead>
+              <TableHead>Products Details</TableHead>
               <TableHead>Invoice</TableHead>
             </TableRow>
           </TableHeader>
@@ -585,14 +617,35 @@ interface Refund {
               <TableRow key={order.id}>
                 <TableCell>{order.id}</TableCell>
                 <TableCell>{new Date(order.date).toLocaleDateString()}</TableCell>
-                <TableCell>{order.status}</TableCell>
                 <TableCell>${order.total.toFixed(2)}</TableCell>
                 <TableCell>
-                  <ul className="list-disc pl-4">
-                    {order.products.map((prod) => (
-                      <li key={prod.id}>{prod.name} x{prod.quantity}</li>
-                    ))}
-                  </ul>
+                  <div className="p-2 border rounded-md">
+                    <h4 className="font-medium mb-2">Products:</h4>
+                    <Table className="mb-0">
+                      <TableHeader className="bg-gray-50">
+                        <TableRow>
+                          <TableHead className="py-2">Name</TableHead>
+                          <TableHead className="py-2">Quantity</TableHead>
+                          <TableHead className="py-2">Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {order.products.map((prod) => (
+                          <TableRow key={prod.id} className={prod.cancelStatus === 'cancelled' ? 'bg-red-50' : ''}>
+                            <TableCell className="py-2">{prod.name}</TableCell>
+                            <TableCell className="py-2">{prod.quantity}</TableCell>
+                            <TableCell className="py-2">
+                              {prod.cancelStatus === 'cancelled' ? (
+                                <Badge variant="destructive">Cancelled</Badge>
+                              ) : (
+                                <Badge variant="outline">{order.status}</Badge>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </TableCell>
                 <TableCell>
                   <Button size="sm" onClick={() => handleDownloadInvoice(order.id)}>

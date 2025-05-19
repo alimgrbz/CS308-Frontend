@@ -5,14 +5,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ButtonCustom } from '@/components/ui/button-custom';
 import { Progress } from '@/components/ui/progress';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ChevronLeft, Download, RotateCcw, Star, X } from 'lucide-react';
+import { ChevronLeft, Download, Star, X } from 'lucide-react';
 import { toast } from 'sonner';
 import OrderReviewModal from '@/components/OrderReviewModal';
-import { getOrdersByUser, getOrderInvoice } from '@/api/orderApi';
+import { getOrdersByUser, getOrderInvoice, cancelOrder } from '@/api/orderApi';
 import { addComment } from "@/api/commentApi"; 
 import { addRate, getRatesByUser } from "@/api/rateApi";
 
-// RefundRequestModal component
+// Refund modal
 const RefundRequestModal = ({
   onClose,
   onConfirm,
@@ -20,6 +20,44 @@ const RefundRequestModal = ({
 }: {
   onClose: () => void;
   onConfirm: () => void;
+  product: OrderProduct;
+}) => (
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+    <div className="bg-white rounded-lg shadow-lg w-96 p-6 relative">
+      <button className="absolute top-3 right-3 text-gray-400 hover:text-gray-600" onClick={onClose}>
+        <X size={20} />
+      </button>
+      <h2 className="text-xl font-semibold mb-4 text-coffee-green">Request Refund</h2>
+      <div className="mb-6">
+        <div className="flex items-center gap-3 mb-4">
+          <img src={product.image} alt={product.name} className="w-16 h-16 object-cover rounded-md" />
+          <div>
+            <div className="font-medium text-coffee-green">{product.name}</div>
+            {product.grind && <div className="text-sm text-coffee-brown">Grind: {product.grind}</div>}
+            <div className="text-sm text-coffee-brown">Quantity: {product.quantity}</div>
+            <div className="text-sm text-coffee-brown">Price: ${product.price.toFixed(2)}</div>
+          </div>
+        </div>
+        <p className="text-coffee-brown">Are you sure you want to request a refund for this product?</p>
+      </div>
+      <div className="flex justify-end gap-4">
+        <ButtonCustom variant="outline" onClick={onClose}>Cancel</ButtonCustom>
+        <ButtonCustom onClick={onConfirm}>Confirm Refund</ButtonCustom>
+      </div>
+    </div>
+  </div>
+);
+
+// CancelRequestModal component
+const CancelRequestModal = ({
+  onClose,
+  onConfirm,
+  orderId,
+  product,
+}: {
+  onClose: () => void;
+  onConfirm: () => void;
+  orderId: string;
   product: OrderProduct;
 }) => {
   return (
@@ -31,7 +69,7 @@ const RefundRequestModal = ({
         >
           <X size={20} />
         </button>
-        <h2 className="text-xl font-semibold mb-4 text-coffee-green">Request Refund</h2>
+        <h2 className="text-xl font-semibold mb-4 text-coffee-green">Cancel Product</h2>
         <div className="mb-6">
           <div className="flex items-center gap-3 mb-4">
             <img src={product.image} alt={product.name} className="w-16 h-16 object-cover rounded-md" />
@@ -42,14 +80,14 @@ const RefundRequestModal = ({
               <div className="text-sm text-coffee-brown">Price: ${product.price.toFixed(2)}</div>
             </div>
           </div>
-          <p className="text-coffee-brown">Are you sure you want to request a refund for this product?</p>
+          <p className="text-coffee-brown">Are you sure you want to cancel this product from your order? This action cannot be undone.</p>
         </div>
         <div className="flex justify-end gap-4">
           <ButtonCustom variant="outline" onClick={onClose}>
-            Cancel
+            No, Keep Product
           </ButtonCustom>
           <ButtonCustom onClick={onConfirm}>
-            Confirm Refund
+            Yes, Cancel Product
           </ButtonCustom>
         </div>
       </div>
@@ -66,6 +104,9 @@ const PastOrders = () => {
   const [showRefundModal, setShowRefundModal] = useState(false);
   const [refundOrderId, setRefundOrderId] = useState<string | null>(null);
   const [refundProduct, setRefundProduct] = useState<OrderProduct | null>(null);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelOrderId, setCancelOrderId] = useState<string | null>(null);
+  const [cancelProduct, setCancelProduct] = useState<OrderProduct | null>(null);
 
   const mapBackendStatus = (backendStatus: string): OrderStatus => {
     switch (backendStatus) {
@@ -106,6 +147,7 @@ const PastOrders = () => {
             reviewed: prod.p_id in ratingMap,
             rating: ratingMap[prod.p_id] ?? undefined,
             refundStatus: prod.refund_status as RefundStatus | undefined,
+            cancelStatus: prod.cancel_status === 'cancelled' ? 'cancelled' : undefined,
           })),
         }));
 
@@ -117,6 +159,34 @@ const PastOrders = () => {
 
     fetchOrdersAndRatings();
   }, []);
+
+  const handleCancelOrder = async (orderId: string, productId: string) => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      toast.error("You must be logged in to cancel an order.");
+      return;
+    }
+
+    try {
+      const response = await cancelOrder(token, orderId, productId);
+      toast.success("Product cancelled successfully!");
+      
+      // Update the product status in the UI
+      setOrders(prev => prev.map(order => {
+        if (order.id !== orderId) return order;
+        return {
+          ...order,
+          products: order.products.map(product => 
+            product.id === productId 
+              ? { ...product, cancelStatus: 'cancelled' } 
+              : product
+          )
+        };
+      }));
+    } catch (err) {
+      toast.error("Failed to cancel product.");
+    }
+  };
 
   const handleReviewClick = (order: Order, product: OrderProduct) => {
     setSelectedOrder(order);
@@ -278,7 +348,9 @@ const PastOrders = () => {
                             <TableHead>Quantity</TableHead>
                             <TableHead>Price</TableHead>
                             <TableHead className="text-right">Review</TableHead>
-                            <TableHead className="text-right">Refund</TableHead>
+                            <TableHead className="text-right">
+                              {order.status === 'Getting ready' ? 'Cancel' : 'Refund'}
+                            </TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -287,29 +359,53 @@ const PastOrders = () => {
                               <TableCell>
                                 <div className="flex items-center gap-3">
                                   <img src={product.image} alt={product.name} className="w-12 h-12 object-cover rounded-md" />
-                                  <div>{product.name}</div>
+                                  <div>
+                                    <div className="font-medium">{product.name}</div>
+                                    {product.grind && <div className="text-sm text-coffee-brown">Grind: {product.grind}</div>}
+                                  </div>
                                 </div>
                               </TableCell>
                               <TableCell>{product.quantity}</TableCell>
                               <TableCell>${product.price.toFixed(2)}</TableCell>
                               <TableCell className="text-right">
-                                {order.status === 'Delivered' ? (
-                                  product.reviewed ? (
-                                    <div className="inline-flex items-center text-coffee-green">
-                                      <Star size={16} className="fill-coffee-green mr-1" />
-                                      <span>{product.rating}/5</span>
+                                {product.reviewed ? (
+                                  <div className="flex items-center justify-end gap-1 text-coffee-brown">
+                                    <span>Rated </span>
+                                    <div className="flex">
+                                      {[...Array(5)].map((_, i) => (
+                                        <Star
+                                          key={i}
+                                          size={16}
+                                          className={i < (product.rating || 0) ? "fill-yellow-500 text-yellow-500" : "text-gray-300"}
+                                        />
+                                      ))}
                                     </div>
-                                  ) : (
-                                    <ButtonCustom size="sm" variant="outline" onClick={() => handleReviewClick(order, product)}>
-                                      Add Review
-                                    </ButtonCustom>
-                                  )
+                                  </div>
                                 ) : (
-                                  <span className="text-coffee-brown text-sm">Available after delivery</span>
+                                  <ButtonCustom
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleReviewClick(order, product)}
+                                    disabled={order.status !== 'Delivered'}
+                                  >
+                                    {order.status === 'Delivered' ? 'Review Product' : 'Available after delivery'}
+                                  </ButtonCustom>
                                 )}
                               </TableCell>
                               <TableCell className="text-right">
-                                {order.status === 'Delivered' ? (
+                                {order.status === 'Getting ready' ? (
+                                  <ButtonCustom
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                      setCancelOrderId(order.id);
+                                      setCancelProduct(product);
+                                      setShowCancelModal(true);
+                                    }}
+                                  >
+                                    Cancel Product
+                                  </ButtonCustom>
+                                ) : order.status === 'Delivered' ? (
                                   <ButtonCustom
                                     size="sm"
                                     variant="outline"
@@ -323,7 +419,9 @@ const PastOrders = () => {
                                     {product.refundStatus === 'pending' ? 'Refund Pending' : 'Request Refund'}
                                   </ButtonCustom>
                                 ) : (
-                                  <span className="text-coffee-brown text-sm">Available after delivery</span>
+                                  <span className="text-coffee-brown text-sm">
+                                    {order.status === 'Cancelled' ? 'Order Cancelled' : 'Available after delivery'}
+                                  </span>
                                 )}
                               </TableCell>
                             </TableRow>
@@ -347,7 +445,7 @@ const PastOrders = () => {
         />
       )}
 
-      {showRefundModal && refundOrderId && refundProduct && (
+      {showRefundModal && refundProduct && refundOrderId && (
         <RefundRequestModal
           onClose={() => {
             setShowRefundModal(false);
@@ -361,6 +459,24 @@ const PastOrders = () => {
             setRefundProduct(null);
           }}
           product={refundProduct}
+        />
+      )}
+
+      {showCancelModal && cancelOrderId && cancelProduct && (
+        <CancelRequestModal
+          onClose={() => {
+            setShowCancelModal(false);
+            setCancelOrderId(null);
+            setCancelProduct(null);
+          }}
+          onConfirm={async () => {
+            await handleCancelOrder(cancelOrderId, cancelProduct.id);
+            setShowCancelModal(false);
+            setCancelOrderId(null);
+            setCancelProduct(null);
+          }}
+          orderId={cancelOrderId}
+          product={cancelProduct}
         />
       )}
     </>
@@ -380,6 +496,7 @@ interface OrderProduct {
   reviewed?: boolean;
   rating?: number;
   refundStatus?: RefundStatus;
+  cancelStatus?: 'cancelled';
 }
 
 interface Order {
@@ -391,11 +508,11 @@ interface Order {
 }
 
 const statusColors = {
-  'Ordered': 'bg-amber-100 text-amber-800',
-  'Getting ready': 'bg-blue-100 text-blue-800',
+  'Ordered': 'bg-blue-100 text-blue-800',
+  'Getting ready': 'bg-yellow-100 text-yellow-800',
   'On the way': 'bg-purple-100 text-purple-800',
   'Delivered': 'bg-green-100 text-green-800',
-  'Cancelled': 'bg-gray-300 text-gray-700',
+  'Cancelled': 'bg-red-100 text-red-800'
 };
 
 export default PastOrders;

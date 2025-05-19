@@ -59,6 +59,7 @@ interface OrderProduct {
   price: number;
   quantity: number;
   grind?: string;
+  cancelStatus?: 'cancelled';
 }
 
 interface Order {
@@ -104,6 +105,7 @@ const ProductManagerPage = () => {
   const [downloadingOrderId, setDownloadingOrderId] = useState<string | null>(null);
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [commentFilter, setCommentFilter] = useState<'all' | 'pending'>('all');
+  const [cancelingProduct, setCancelingProduct] = useState<{orderId: string, productId: string} | null>(null);
 
   useEffect(() => {
     // Check user role on component mount
@@ -346,12 +348,22 @@ const ProductManagerPage = () => {
       const rawOrders = Array.isArray(response) ? response : response.orders;
       // Map backend fields to Order interface
       const mappedOrders: { mapped: Order, raw: any }[] = (rawOrders || []).map((order: any) => {
+        const mappedProducts = (order.product_list || []).map((prod: any) => ({
+          id: prod.p_id?.toString() ?? '',
+          name: prod.name,
+          image: prod.image,
+          price: parseFloat(prod.total_price),
+          quantity: prod.quantity,
+          grind: prod.grind,
+          cancelStatus: prod.cancel_status === 'cancelled' ? 'cancelled' : undefined,
+        }));
+        
         const mapped = {
           id: order.order_id?.toString() ?? order.id?.toString() ?? '-',
           date: order.date ? new Date(order.date).toISOString() : '',
           status: mapBackendStatus(order.order_status),
           total: parseFloat(order.total_price ?? order.total ?? '0'),
-          products: order.product_list || [],
+          products: mappedProducts,
           userName: order.user_name || order.user_fullname || '',
           userEmail: order.email || '',
           address: order.address || order.shipping_address || '',
@@ -839,30 +851,19 @@ const ProductManagerPage = () => {
                         <TableRow>
                           <TableHead>Order ID</TableHead>
                           <TableHead>Date</TableHead>
-                          <TableHead>Status</TableHead>
                           <TableHead>Total</TableHead>
                           <TableHead>User Email</TableHead>
                           <TableHead>Address</TableHead>
                           <TableHead>Invoice</TableHead>
+                          <TableHead>Details</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {orders.map(({ mapped, raw }) => (
                           <React.Fragment key={mapped.id}>
                             <TableRow>
-                              <TableCell>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={() => setExpandedOrderId(expandedOrderId === mapped.id ? null : mapped.id)}
-                                  aria-label={expandedOrderId === mapped.id ? 'Hide Products' : 'Show Products'}
-                                >
-                                  {expandedOrderId === mapped.id ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                                </Button>
-                                {mapped.id}
-                              </TableCell>
+                              <TableCell>{mapped.id}</TableCell>
                               <TableCell>{mapped.date ? new Date(mapped.date).toLocaleDateString() : '-'}</TableCell>
-                              <TableCell>{mapped.status}</TableCell>
                               <TableCell>${mapped.total?.toFixed ? mapped.total.toFixed(2) : mapped.total}</TableCell>
                               <TableCell>{mapped.userEmail || '-'}</TableCell>
                               <TableCell>{mapped.address || '-'}</TableCell>
@@ -872,6 +873,20 @@ const ProductManagerPage = () => {
                                     <span className="flex items-center"><span className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900 mr-1"></span>...</span>
                                   ) : (
                                     <Download className="h-4 w-4" />
+                                  )}
+                                </Button>
+                              </TableCell>
+                              <TableCell>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => setExpandedOrderId(expandedOrderId === mapped.id ? null : mapped.id)}
+                                  className="flex items-center gap-1"
+                                >
+                                  {expandedOrderId === mapped.id ? (
+                                    <>Hide Products <ChevronDown className="h-4 w-4" /></>
+                                  ) : (
+                                    <>View Products <ChevronRight className="h-4 w-4" /></>
                                   )}
                                 </Button>
                               </TableCell>
@@ -886,19 +901,29 @@ const ProductManagerPage = () => {
                                         <TableRow>
                                           <TableHead>Product Name</TableHead>
                                           <TableHead>Quantity</TableHead>
+                                          <TableHead>Price</TableHead>
+                                          <TableHead>Status</TableHead>
                                         </TableRow>
                                       </TableHeader>
                                       <TableBody>
                                         {mapped.products && mapped.products.length > 0 ? (
                                           mapped.products.map((prod, idx) => (
-                                            <TableRow key={prod.id || idx}>
+                                            <TableRow key={prod.id || idx} className={prod.cancelStatus === 'cancelled' ? 'bg-red-50' : ''}>
                                               <TableCell>{prod.name}</TableCell>
                                               <TableCell>{prod.quantity}</TableCell>
+                                              <TableCell>${prod.price.toFixed(2)}</TableCell>
+                                              <TableCell>
+                                                {prod.cancelStatus === 'cancelled' ? (
+                                                  <Badge variant="destructive">Cancelled</Badge>
+                                                ) : (
+                                                  <Badge variant="outline">{mapped.status}</Badge>
+                                                )}
+                                              </TableCell>
                                             </TableRow>
                                           ))
                                         ) : (
                                           <TableRow>
-                                            <TableCell colSpan={2} className="text-center text-gray-400">No products found</TableCell>
+                                            <TableCell colSpan={4} className="text-center text-gray-400">No products found</TableCell>
                                           </TableRow>
                                         )}
                                       </TableBody>
