@@ -37,11 +37,21 @@ const fetchWishlist = async () => {
     const productIds = await getWishlist(token); // This is already the array [1, 2, 3, ...]
 
     const allProducts = await getAllProducts();
-    const enriched = productIds
-      .map((id) => allProducts.find((p) => p.id === id || p.productId === id))
-      .filter((p) => p); // remove undefined in case product is missing
+const enriched = productIds
+  .map((id) => {
+    const product = allProducts.find((p) => p.id === id);
+    if (!product) return null;
 
-    setWishlist(enriched);
+    return {
+      ...product,
+      productId: product.id, // ✅ Fixes the undefined bug
+    };
+  })
+  .filter(Boolean);
+
+setWishlist(enriched);
+console.log("Wishlist IDs:", productIds);
+console.log("Enriched Products:", enriched);
   } catch (err) {
     console.error('Failed to fetch wishlist:', err);
     toast({ title: 'Error', description: 'Could not load wishlist.', variant: 'destructive' });
@@ -54,6 +64,7 @@ const fetchWishlist = async () => {
   }, [token]);
 
   const handleRemove = async (productId: number) => {
+    console.log("Removing from wishlist:", productId);
     if (!token) return;
 
     try {

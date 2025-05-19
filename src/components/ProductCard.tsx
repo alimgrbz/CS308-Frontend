@@ -169,7 +169,7 @@ if (isInWishlist) {
   toast({ title: 'Added to Wishlist', description: `${name} added.` });
 }
 
-      await fetchWishlistIds(token); // 🔁 Sync wishlist immediately
+      
       window.dispatchEvent(new Event('wishlist-updated'));
     } catch (err) {
       console.error('Wishlist toggle error:', err);
