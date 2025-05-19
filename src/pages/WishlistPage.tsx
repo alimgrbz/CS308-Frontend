@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getWishlist, removeProductFromWishlist } from '@/api/wishlistApi';
 import { getAllProducts } from '@/api/productApi';
+import { getAllCategories } from '@/api/categoryApi';
 import ProductCard from '@/components/ProductCard';
 import { motion } from 'framer-motion';
 import { ButtonCustom } from '@/components/ui/button-custom';
@@ -26,37 +27,53 @@ interface Product {
 const WishlistPage: React.FC = () => {
   const [wishlist, setWishlist] = useState<Product[]>([]);
   const [editMode, setEditMode] = useState(false);
+  const [categories, setCategories] = useState<{ id: number; name: string }[]>([]);
   const token = localStorage.getItem('token');
   const navigate = useNavigate();
 
   useEffect(() => {
-const fetchWishlist = async () => {
-  if (!token) return;
+    const fetchWishlist = async () => {
+      if (!token) return;
 
-  try {
-    const productIds = await getWishlist(token); // This is already the array [1, 2, 3, ...]
+      try {
+        const [wishlistIds, allProducts, allCategories] = await Promise.all([
+          getWishlist(token),
+          getAllProducts(),
+          getAllCategories()
+        ]);
 
-    const allProducts = await getAllProducts();
-const enriched = productIds
-  .map((id) => {
-    const product = allProducts.find((p) => p.id === id);
-    if (!product) return null;
+        setCategories(allCategories);
 
-    return {
-      ...product,
-      productId: product.id, // ✅ Fixes the undefined bug
+        const enriched = wishlistIds
+          .map((id: number) => {
+            const product = allProducts.find((p: any) => p.id === id || p.productId === id);
+            if (!product) return null;
+
+            const categoryId = product.category_id || product.categoryId;
+            const categoryName = allCategories.find(c => c.id === categoryId)?.name || 'Unknown Category';
+
+            return {
+              ...product,
+              productId: product.id || product.productId,
+              picture: product.imageUrl || product.picture,
+              stock: product.inStock ?? product.stock,
+              categoryId,
+              price: Number(product.price) || 0,
+              rating: Number(product.rating) || 0,
+              numReviews: Number(product.numReviews) || 0,
+              popularity: Number(product.popularity) || 0,
+              categoryType: categoryName,
+            };
+          })
+          .filter(Boolean);
+
+        setWishlist(enriched);
+        console.log("Wishlist Enriched Products:", enriched);
+      } catch (err) {
+        console.error('Failed to fetch wishlist:', err);
+        toast({ title: 'Error', description: 'Could not load wishlist.', variant: 'destructive' });
+      }
     };
-  })
-  .filter(Boolean);
-
-setWishlist(enriched);
-console.log("Wishlist IDs:", productIds);
-console.log("Enriched Products:", enriched);
-  } catch (err) {
-    console.error('Failed to fetch wishlist:', err);
-    toast({ title: 'Error', description: 'Could not load wishlist.', variant: 'destructive' });
-  }
-};
 
     fetchWishlist();
     window.addEventListener('wishlist-updated', fetchWishlist);
@@ -64,7 +81,6 @@ console.log("Enriched Products:", enriched);
   }, [token]);
 
   const handleRemove = async (productId: number) => {
-    console.log("Removing from wishlist:", productId);
     if (!token) return;
 
     try {
