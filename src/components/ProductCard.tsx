@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { ShoppingCart, Star, Heart } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -37,7 +37,6 @@ interface ProductCardProps {
 }
 
 const ProductCard: React.FC<ProductCardProps> = ({ product, isTopThree }) => {
-  const { toast } = useToast();
   const navigate = useNavigate();
 
   const [actualStock, setActualStock] = useState<number | null>(null);
@@ -114,14 +113,19 @@ useEffect(() => {
         addToLocalCart({ productId, name, price, picture });
       }
       window.dispatchEvent(new Event('cart-updated'));
-      toast({ title: 'Added to cart', description: `${name} added to your cart.` });
+      toast(`${name} added to your cart.`);
 
       const newStock = await getStockById(productId);
       setActualStock(newStock);
     } catch (err) {
       console.error(err);
-      toast({ title: 'Error', description: 'Could not add to cart.', variant: 'destructive' });
-    }
+      toast(
+        <div>
+          <strong className="font-medium">Error</strong>
+          <div className="text-sm text-muted-foreground">Could not add to cart.</div>
+        </div>
+      );
+          }
   };
 
 const handleToggleWishlist = async (e: React.MouseEvent) => {
@@ -130,11 +134,14 @@ const handleToggleWishlist = async (e: React.MouseEvent) => {
 
   const token = localStorage.getItem('token');
   if (!token) {
-    toast({
-      title: 'Login Required',
-      description: 'Please sign in to add items to your wishlist.',
-      variant: 'destructive',
-    });
+    toast(
+      <div>
+        <strong className="font-medium">Login Required</strong>
+        <div className="text-sm text-muted-foreground">
+          Please sign in to add items to your wishlist.
+        </div>
+      </div>
+    );    
     return;
   }
 
@@ -142,18 +149,23 @@ const handleToggleWishlist = async (e: React.MouseEvent) => {
     if (isInWishlist) {
       await removeProductFromWishlist(token, productId);
       setWishlistIds(prev => prev.filter(id => id !== productId));
-      toast({ title: 'Removed from Wishlist', description: `${name} removed.` });
+      toast(`${name} removed from your wishlist.`);
     } else {
       await addProductToWishlist(token, productId);
       setWishlistIds(prev => [...prev, productId]); 
-      toast({ title: 'Added to Wishlist', description: `${name} added.` });
+      toast(`${name} added to your wishlist.`);
     }
 
     window.dispatchEvent(new Event('wishlist-updated')); 
   } catch (err) {
     console.error('Wishlist toggle error:', err);
-    toast({ title: 'Error', description: 'Wishlist action failed.', variant: 'destructive' });
-  }
+    toast(
+      <div>
+        <strong className="font-medium">Error</strong>
+        <div className="text-sm text-muted-foreground">Wishlist action failed.</div>
+      </div>
+    );
+      }
 };
 
 return (

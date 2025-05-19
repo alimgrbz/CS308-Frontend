@@ -102,7 +102,7 @@ const WishlistPage: React.FC = () => {
       <p className="text-coffee-brown mb-6 max-w-md mx-auto">
         {token ? 'You haven’t added any items yet.' : 'Please sign in to view your wishlist.'}
       </p>
-      <Link to={token ? '/products' : '/signin'}>
+      <Link to={token ? '/products' : '/login'}>
         <ButtonCustom>{token ? 'Browse Products' : 'Sign In'}</ButtonCustom>
       </Link>
     </motion.div>

@@ -2,7 +2,7 @@ import React from 'react';
 import { useParams } from 'react-router-dom';
 import { Star, ShoppingCart, Heart } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import '../ProductDetailPage.css';
 import { getAllProducts, getStockById } from '@/api/productApi';
 import { getAllCategories } from '@/api/categoryApi';
@@ -15,7 +15,6 @@ import { addProductToWishlist, removeProductFromWishlist, getWishlist } from '@/
 
 const ProductDetailPage = () => {
   const { id } = useParams();
-  const { toast } = useToast();
   const [products, setProducts] = React.useState([]);
   const [categories, setCategories] = React.useState([]);
   const [activeTab, setActiveTab] = React.useState('description');
@@ -65,12 +64,17 @@ const ProductDetailPage = () => {
         if (token && id) {
           const wishlist = await getWishlist(token);
           const parsedId = Number(id);
-          setIsInWishlist(wishlist.some(item => item.productId === parsedId));
+          setIsInWishlist(wishlist.includes(parsedId));
         }
       } catch (err) {
         console.error(err);
-        toast({ title: 'Error', description: 'Failed to load product data', variant: 'destructive' });
-      }
+        toast(
+          <div>
+            <strong className="font-medium">Error</strong>
+            <div className="text-sm text-muted-foreground">Failed to load product data</div>
+          </div>
+        );
+              }
     };
     fetchData();
   }, [id]);
@@ -106,44 +110,53 @@ const ProductDetailPage = () => {
       const newStock = await getStockById(Number(id));
       setActualStock(newStock);
       window.dispatchEvent(new Event('cart-updated'));
-      toast({ title: 'Added to cart', description: `${product.name} (x${quantity}) added to your cart.` });
+      toast(`${product.name} (x${quantity}) added to your cart.`);
     } catch (err) {
       console.error(err);
-      toast({ title: 'Error', description: 'Could not add to cart.', variant: 'destructive' });
-    }
+      toast(
+        <div>
+          <strong className="font-medium">Error</strong>
+          <div className="text-sm text-muted-foreground">Could not add to cart.</div>
+        </div>
+      );
+          }
   };
 
 const handleToggleWishlist = async () => {
   const token = localStorage.getItem('token');
 
   if (!token) {
-    toast({
-      title: "Sign in required",
-      description: (
-        <span>
-          Please <a href="/signin" className="underline text-blue-600 hover:text-blue-800">sign in</a> or <a href="/register" className="underline text-blue-600 hover:text-blue-800">register</a> to add items to your wishlist.
-        </span>
-      ),
-      variant: "destructive",
-    });
+    toast(
+      <div>
+        <strong className="font-medium">Sign in required</strong>
+        <div className="text-sm text-muted-foreground">
+          Please <a href="/login" className="underline text-blue-600 hover:text-blue-800">sign in</a> to add items to your wishlist.
+        </div>
+      </div>
+    );    
     return;
   }
 
   try {
     if (isInWishlist) {
       await removeProductFromWishlist(token, product.productId);
-      toast({ title: 'Removed from Wishlist', description: `${product.name} removed.` });
+      toast(`${product.name} removed from your wishlist.`);
     } else {
       await addProductToWishlist(token, product.productId);
-      toast({ title: 'Added to Wishlist', description: `${product.name} added.` });
+      toast(`${product.name} added to your wishlist.`);
     }
 
     setIsInWishlist(!isInWishlist);
     window.dispatchEvent(new Event('wishlist-updated'));
   } catch (err) {
     console.error("Wishlist update failed:", err);
-    toast({ title: 'Error', description: 'Failed to update wishlist.', variant: 'destructive' });
-  }
+    toast(
+      <div>
+        <strong className="font-medium">Error</strong>
+        <div className="text-sm text-muted-foreground">Failed to update wishlist.</div>
+      </div>
+    );
+      }
 };
 
   const categoryName = categories.find(cat => cat.id === product.categoryId)?.name || 'Unknown';
