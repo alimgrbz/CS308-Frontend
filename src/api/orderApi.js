@@ -87,12 +87,11 @@ export const getAllOrders = async (token) => {
   }
 };
 
-export const cancelOrder = async (token, orderId, productId) => {
+export const cancelOrder = async (token, orderId) => {
   try {
     const response = await axiosInstance.post('/api/orders/cancelOrder', {
       token,
-      orderId,
-      productId
+      orderId
     });
     return response.data;
   } catch (error) {

@@ -53,12 +53,12 @@ const CancelRequestModal = ({
   onClose,
   onConfirm,
   orderId,
-  product,
+  order,
 }: {
   onClose: () => void;
   onConfirm: () => void;
   orderId: string;
-  product: OrderProduct;
+  order: Order;
 }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
@@ -69,25 +69,24 @@ const CancelRequestModal = ({
         >
           <X size={20} />
         </button>
-        <h2 className="text-xl font-semibold mb-4 text-coffee-green">Cancel Product</h2>
+        <h2 className="text-xl font-semibold mb-4 text-coffee-green">Cancel Order</h2>
         <div className="mb-6">
           <div className="flex items-center gap-3 mb-4">
-            <img src={product.image} alt={product.name} className="w-16 h-16 object-cover rounded-md" />
             <div>
-              <div className="font-medium text-coffee-green">{product.name}</div>
-              {product.grind && <div className="text-sm text-coffee-brown">Grind: {product.grind}</div>}
-              <div className="text-sm text-coffee-brown">Quantity: {product.quantity}</div>
-              <div className="text-sm text-coffee-brown">Price: ${product.price.toFixed(2)}</div>
+              <div className="font-medium text-coffee-green">Order #{orderId}</div>
+              <div className="text-sm text-coffee-brown">Date: {new Date(order.date).toLocaleDateString()}</div>
+              <div className="text-sm text-coffee-brown">Total Items: {order.products.length}</div>
+              <div className="text-sm text-coffee-brown">Total: ${order.total.toFixed(2)}</div>
             </div>
           </div>
-          <p className="text-coffee-brown">Are you sure you want to cancel this product from your order? This action cannot be undone.</p>
+          <p className="text-coffee-brown">Are you sure you want to cancel this entire order? This action cannot be undone.</p>
         </div>
         <div className="flex justify-end gap-4">
           <ButtonCustom variant="outline" onClick={onClose}>
-            No, Keep Product
+            No, Keep Order
           </ButtonCustom>
           <ButtonCustom onClick={onConfirm}>
-            Yes, Cancel Product
+            Yes, Cancel Order
           </ButtonCustom>
         </div>
       </div>
@@ -106,7 +105,6 @@ const PastOrders = () => {
   const [refundProduct, setRefundProduct] = useState<OrderProduct | null>(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelOrderId, setCancelOrderId] = useState<string | null>(null);
-  const [cancelProduct, setCancelProduct] = useState<OrderProduct | null>(null);
 
   const mapBackendStatus = (backendStatus: string): OrderStatus => {
     switch (backendStatus) {
@@ -160,7 +158,7 @@ const PastOrders = () => {
     fetchOrdersAndRatings();
   }, []);
 
-  const handleCancelOrder = async (orderId: string, productId: string) => {
+  const handleCancelOrder = async (orderId: string) => {
     const token = localStorage.getItem('token');
     if (!token) {
       toast.error("You must be logged in to cancel an order.");
@@ -168,23 +166,19 @@ const PastOrders = () => {
     }
 
     try {
-      const response = await cancelOrder(token, orderId, productId);
-      toast.success("Product cancelled successfully!");
+      const response = await cancelOrder(token, orderId);
+      toast.success("Order cancelled successfully!");
       
-      // Update the product status in the UI
+      // Update the order status in the UI
       setOrders(prev => prev.map(order => {
         if (order.id !== orderId) return order;
         return {
           ...order,
-          products: order.products.map(product => 
-            product.id === productId 
-              ? { ...product, cancelStatus: 'cancelled' } 
-              : product
-          )
+          status: 'Cancelled'
         };
       }));
     } catch (err) {
-      toast.error("Failed to cancel product.");
+      toast.error("Failed to cancel order.");
     }
   };
 
@@ -279,6 +273,21 @@ const PastOrders = () => {
     }
   };
 
+  // Function to check if order delivery was more than 30 days ago
+  const isRefundPeriodExpired = (orderDate: string, status: OrderStatus): boolean => {
+    if (status !== 'Delivered') return false;
+    
+    const deliveryDate = new Date(orderDate);
+    const today = new Date();
+    
+    // Calculate difference in days
+    const diffTime = today.getTime() - deliveryDate.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    
+    // Return true if more than 30 days have passed since delivery
+    return diffDays > 30;
+  };
+
   return (
     <>
       <div className="container mx-auto py-16 px-4">
@@ -309,12 +318,12 @@ const PastOrders = () => {
           <div className="space-y-8">
             {orders.map((order) => (
               <motion.div key={order.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
-                <Card className="bg-white shadow-sm">
-                  <CardHeader className="border-b border-coffee-green/10">
+                <Card className={`bg-white shadow-sm ${order.status === 'Cancelled' ? 'opacity-75 bg-gray-50' : ''}`}>
+                  <CardHeader className={`border-b ${order.status === 'Cancelled' ? 'border-gray-200' : 'border-coffee-green/10'}`}>
                     <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
                       <div>
                         <p className="text-sm text-coffee-brown">Order #{order.id}</p>
-                        <CardTitle className="text-xl font-serif text-coffee-green">
+                        <CardTitle className={`text-xl font-serif ${order.status === 'Cancelled' ? 'text-gray-500' : 'text-coffee-green'}`}>
                           {new Date(order.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
                         </CardTitle>
                       </div>
@@ -328,19 +337,31 @@ const PastOrders = () => {
                           <Download size={16} />
                           {isDownloading ? 'Downloading...' : 'Invoice'}
                         </ButtonCustom>
+                        {order.status === 'Getting ready' && (
+                          <ButtonCustom
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setCancelOrderId(order.id);
+                              setShowCancelModal(true);
+                            }}
+                          >
+                            Cancel Order
+                          </ButtonCustom>
+                        )}
                         <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusColors[order.status]}`}>
                           {order.status}
                         </span>
                       </div>
                     </div>
                   </CardHeader>
-                  <CardContent className="p-6">
+                  <CardContent className={`p-6 ${order.status === 'Cancelled' ? 'opacity-75' : ''}`}>
                     <div className="mb-8">
-                      <h3 className="text-lg font-medium mb-4 text-coffee-green">Order Status</h3>
+                      <h3 className={`text-lg font-medium mb-4 ${order.status === 'Cancelled' ? 'text-gray-500' : 'text-coffee-green'}`}>Order Status</h3>
                       <Progress value={getOrderProgress(order.status)} className="h-2" />
                     </div>
                     <div>
-                      <h3 className="text-lg font-medium mb-4 text-coffee-green">Order Items</h3>
+                      <h3 className={`text-lg font-medium mb-4 ${order.status === 'Cancelled' ? 'text-gray-500' : 'text-coffee-green'}`}>Order Items</h3>
                       <Table>
                         <TableHeader>
                           <TableRow>
@@ -349,7 +370,7 @@ const PastOrders = () => {
                             <TableHead>Price</TableHead>
                             <TableHead className="text-right">Review</TableHead>
                             <TableHead className="text-right">
-                              {order.status === 'Getting ready' ? 'Cancel' : 'Refund'}
+                              {order.status === 'Delivered' ? 'Refund' : ''}
                             </TableHead>
                           </TableRow>
                         </TableHeader>
@@ -381,6 +402,8 @@ const PastOrders = () => {
                                       ))}
                                     </div>
                                   </div>
+                                ) : order.status === 'Cancelled' ? (
+                                  <span></span>
                                 ) : (
                                   <ButtonCustom
                                     size="sm"
@@ -393,35 +416,28 @@ const PastOrders = () => {
                                 )}
                               </TableCell>
                               <TableCell className="text-right">
-                                {order.status === 'Getting ready' ? (
-                                  <ButtonCustom
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => {
-                                      setCancelOrderId(order.id);
-                                      setCancelProduct(product);
-                                      setShowCancelModal(true);
-                                    }}
-                                  >
-                                    Cancel Product
-                                  </ButtonCustom>
-                                ) : order.status === 'Delivered' ? (
-                                  <ButtonCustom
-                                    size="sm"
-                                    variant="outline"
-                                    disabled={product.refundStatus === 'pending'}
-                                    onClick={() => {
-                                      setRefundOrderId(order.id);
-                                      setRefundProduct(product);
-                                      setShowRefundModal(true);
-                                    }}
-                                  >
-                                    {product.refundStatus === 'pending' ? 'Refund Pending' : 'Request Refund'}
-                                  </ButtonCustom>
+                                {order.status === 'Delivered' ? (
+                                  isRefundPeriodExpired(order.date, order.status) ? (
+                                    <span className="text-gray-500 text-sm">Refund period expired (30 days)</span>
+                                  ) : product.refundStatus === 'pending' ? (
+                                    <span className="text-amber-600 text-sm">Refund Pending</span>
+                                  ) : (
+                                    <ButtonCustom
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => {
+                                        setRefundOrderId(order.id);
+                                        setRefundProduct(product);
+                                        setShowRefundModal(true);
+                                      }}
+                                    >
+                                      Request Refund
+                                    </ButtonCustom>
+                                  )
+                                ) : order.status === 'Cancelled' ? (
+                                  <span className="text-coffee-brown text-sm">Order Cancelled</span>
                                 ) : (
-                                  <span className="text-coffee-brown text-sm">
-                                    {order.status === 'Cancelled' ? 'Order Cancelled' : 'Available after delivery'}
-                                  </span>
+                                  <span></span>
                                 )}
                               </TableCell>
                             </TableRow>
@@ -462,21 +478,25 @@ const PastOrders = () => {
         />
       )}
 
-      {showCancelModal && cancelOrderId && cancelProduct && (
+      {showCancelModal && cancelOrderId && (
         <CancelRequestModal
           onClose={() => {
             setShowCancelModal(false);
             setCancelOrderId(null);
-            setCancelProduct(null);
           }}
           onConfirm={async () => {
-            await handleCancelOrder(cancelOrderId, cancelProduct.id);
+            await handleCancelOrder(cancelOrderId);
             setShowCancelModal(false);
             setCancelOrderId(null);
-            setCancelProduct(null);
           }}
           orderId={cancelOrderId}
-          product={cancelProduct}
+          order={orders.find(o => o.id === cancelOrderId) || {
+            id: '',
+            date: '',
+            status: 'Ordered',
+            total: 0,
+            products: []
+          }}
         />
       )}
     </>
