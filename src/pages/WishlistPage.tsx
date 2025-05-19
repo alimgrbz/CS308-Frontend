@@ -30,23 +30,22 @@ const WishlistPage: React.FC = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-const fetchWishlist = async () => {
-  if (!token) return;
+    const fetchWishlist = async () => {
+      if (!token) return;
 
-  try {
-    const productIds = await getWishlist(token); // This is already the array [1, 2, 3, ...]
+      try {
+        const productIds = await getWishlist(token);
+        const allProducts = await getAllProducts();
+        const enriched = productIds
+          .map((id) => allProducts.find((p) => p.id === id || p.productId === id))
+          .filter((p): p is Product => !!p);
 
-    const allProducts = await getAllProducts();
-    const enriched = productIds
-      .map((id) => allProducts.find((p) => p.id === id || p.productId === id))
-      .filter((p) => p); // remove undefined in case product is missing
-
-    setWishlist(enriched);
-  } catch (err) {
-    console.error('Failed to fetch wishlist:', err);
-    toast({ title: 'Error', description: 'Could not load wishlist.', variant: 'destructive' });
-  }
-};
+        setWishlist(enriched);
+      } catch (err) {
+        console.error('Failed to fetch wishlist:', err);
+        toast({ title: 'Error', description: 'Could not load wishlist.', variant: 'destructive' });
+      }
+    };
 
     fetchWishlist();
     window.addEventListener('wishlist-updated', fetchWishlist);
@@ -111,7 +110,7 @@ const fetchWishlist = async () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {wishlist.map((product) => (
               <div key={product.productId} className="relative">
-                <ProductCard product={product} isTopThree={false} />
+                <ProductCard product={product} isTopThree={false} isInWishlist={true} />
                 {editMode && (
                   <button
                     onClick={() => handleRemove(product.productId)}
