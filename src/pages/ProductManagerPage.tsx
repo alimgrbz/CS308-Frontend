@@ -243,19 +243,17 @@ const ProductManagerPage = () => {
       try {
         const token = localStorage.getItem('token');
         if (!token) throw new Error('No token found');
-        // Update price
-        await setPrice(token, editingProduct.id, editingProduct.price);
-        // Update stock
+        // Update stock only, not price
         await setStock(token, editingProduct.id, editingProduct.stock);
         // Update local state
         setProducts(products.map(p =>
-          p.id === editingProduct.id ? { ...p, price: editingProduct.price, stock: editingProduct.stock } : p
+          p.id === editingProduct.id ? { ...p, stock: editingProduct.stock } : p
         ));
         setEditingProduct(null);
-        toast.success('Product updated successfully');
+        toast.success('Product stock updated successfully');
       } catch (error) {
         console.error('Error updating product:', error);
-        toast.error('Failed to update product');
+        toast.error('Failed to update product stock');
       }
     }
   };
@@ -627,6 +625,16 @@ const ProductManagerPage = () => {
                                   required
                                 />
                               </div>
+                              <div>
+                                <Label>Stock *</Label>
+                                <Input
+                                  type="number"
+                                  value={newProduct.stock === -1 ? '' : newProduct.stock}
+                                  onChange={(e) => setNewProduct({ ...newProduct, stock: e.target.value ? Number(e.target.value) : -1 })}
+                                  placeholder="Initial stock quantity"
+                                  required
+                                />
+                              </div>
                               <div className="flex gap-2">
                                 <Button onClick={handleAddProduct}>Save</Button>
                                 <Button variant="outline" onClick={() => setIsAddingProduct(false)}>Cancel</Button>
@@ -664,14 +672,6 @@ const ProductManagerPage = () => {
                                     />
                                   )}
                                   <p className="text-xs text-gray-400">{editingProduct.picture}</p>
-                                </div>
-                                <div>
-                                  <Label>Price</Label>
-                                  <Input
-                                    type="number"
-                                    value={editingProduct.price}
-                                    onChange={(e) => setEditingProduct({ ...editingProduct, price: Number(e.target.value) })}
-                                  />
                                 </div>
                                 <div>
                                   <Label>Stock</Label>
