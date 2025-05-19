@@ -58,46 +58,27 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, isTopThree }) => {
 
   const isInWishlist = wishlistIds.includes(productId);
 
-  const fetchWishlistIds = async (token: string) => {
-    try {
-      const res = await getWishlist(token);
-      const ids = Array.isArray(res.products) ? res.products.map((p: any) => p.productId) : [];
-      setWishlistIds(ids);
-    } catch (err) {
-      console.error("Failed to fetch wishlist:", err);
-    }
+const fetchWishlistIds = async (token: string) => {
+  try {
+    const res = await getWishlist(token); // returns array like [1, 2, 3]
+    setWishlistIds(res);
+  } catch (err) {
+    console.error("Failed to fetch wishlist:", err);
+  }
+};
+
+useEffect(() => {
+  const token = localStorage.getItem("token");
+  if (token) fetchWishlistIds(token);
+
+  const handleUpdate = () => {
+    const token = localStorage.getItem("token");
+    if (token) fetchWishlistIds(token);
   };
 
-  useEffect(() => {
-    const fetchInitialData = async () => {
-      try {
-        const stock = await getStockById(productId);
-        setActualStock(stock);
-
-        const ratings = await getRatingsByProduct(productId);
-        const values = Array.isArray(ratings.ratings) ? ratings.ratings.map((r) => Number(r.rate)) : [];
-        if (values.length > 0) {
-          const avg = values.reduce((sum, val) => sum + val, 0) / values.length;
-          setAverageRating(avg);
-        }
-
-        const token = localStorage.getItem('token');
-        if (token) await fetchWishlistIds(token);
-      } catch (err) {
-        console.error('Error fetching data:', err);
-      }
-    };
-
-    fetchInitialData();
-    window.addEventListener('wishlist-updated', () => {
-      const token = localStorage.getItem('token');
-      if (token) fetchWishlistIds(token);
-    });
-
-    return () => {
-      window.removeEventListener('wishlist-updated', () => {});
-    };
-  }, [productId]);
+  window.addEventListener("wishlist-updated", handleUpdate);
+  return () => window.removeEventListener("wishlist-updated", handleUpdate);
+}, []);
 
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -143,39 +124,37 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, isTopThree }) => {
     }
   };
 
-  const handleToggleWishlist = async (e: React.MouseEvent) => {
-    console.log("❤️ Heart button clicked");
-    e.preventDefault();
-    e.stopPropagation();
+const handleToggleWishlist = async (e: React.MouseEvent) => {
+  e.preventDefault();
+  e.stopPropagation();
 
-    const token = localStorage.getItem('token');
-    if (!token) {
-      toast({
-        title: 'Login Required',
-        description: 'Please sign in to add items to your wishlist.',
-        variant: 'destructive',
-      });
-      return;
+  const token = localStorage.getItem('token');
+  if (!token) {
+    toast({
+      title: 'Login Required',
+      description: 'Please sign in to add items to your wishlist.',
+      variant: 'destructive',
+    });
+    return;
+  }
+
+  try {
+    if (isInWishlist) {
+      await removeProductFromWishlist(token, productId);
+      setWishlistIds(prev => prev.filter(id => id !== productId));
+      toast({ title: 'Removed from Wishlist', description: `${name} removed.` });
+    } else {
+      await addProductToWishlist(token, productId);
+      setWishlistIds(prev => [...prev, productId]); 
+      toast({ title: 'Added to Wishlist', description: `${name} added.` });
     }
 
-    try {
-if (isInWishlist) {
-  await removeProductFromWishlist(token, productId);
-  setWishlistIds((prev) => prev.filter((id) => id !== productId));
-  toast({ title: 'Removed from Wishlist', description: `${name} removed.` });
-} else {
-  await addProductToWishlist(token, productId);
-  setWishlistIds((prev) => [...prev, productId]);
-  toast({ title: 'Added to Wishlist', description: `${name} added.` });
-}
-
-      
-      window.dispatchEvent(new Event('wishlist-updated'));
-    } catch (err) {
-      console.error('Wishlist toggle error:', err);
-      toast({ title: 'Error', description: 'Wishlist action failed.', variant: 'destructive' });
-    }
-  };
+    window.dispatchEvent(new Event('wishlist-updated')); 
+  } catch (err) {
+    console.error('Wishlist toggle error:', err);
+    toast({ title: 'Error', description: 'Wishlist action failed.', variant: 'destructive' });
+  }
+};
 
 return (
   <>
