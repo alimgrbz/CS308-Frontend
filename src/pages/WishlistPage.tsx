@@ -1,72 +1,89 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { getLocalWishlist, removeFromLocalWishlist } from '@/utils/wishlistUtils';
+import { Link, useNavigate } from 'react-router-dom';
+import { getWishlist, removeProductFromWishlist } from '@/api/wishlistApi';
 import { getAllProducts } from '@/api/productApi';
 import ProductCard from '@/components/ProductCard';
 import { motion } from 'framer-motion';
 import { ButtonCustom } from '@/components/ui/button-custom';
 import { Heart, ChevronLeft } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
+
+interface Product {
+  productId: number;
+  name: string;
+  description: string;
+  price: number;
+  picture: string;
+  rating: number;
+  numReviews: number;
+  stock: boolean;
+  categoryId: number;
+  categoryType: string;
+  popularity?: number;
+  [key: string]: any;
+}
 
 const WishlistPage: React.FC = () => {
-  const [wishlist, setWishlist] = useState([]);
+  const [wishlist, setWishlist] = useState<Product[]>([]);
   const [editMode, setEditMode] = useState(false);
+  const token = localStorage.getItem('token');
+  const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchWishlistData = async () => {
-      const savedWishlist = getLocalWishlist();
-      try {
-        const allProducts = await getAllProducts();
-        const enrichedWishlist = savedWishlist.map(wishItem => {
-          const fullData = allProducts.find(
-            p => p.id === wishItem.productId || p.productId === wishItem.productId
-          );
-          return fullData ? { ...wishItem, ...fullData } : wishItem;
-        });
-        setWishlist(enrichedWishlist);
-      } catch (error) {
-        console.error('Failed to fetch full product list:', error);
-        setWishlist(savedWishlist);
-      }
-    };
+const fetchWishlist = async () => {
+  if (!token) return;
 
-    fetchWishlistData();
-    window.addEventListener('wishlist-updated', fetchWishlistData);
-    return () => window.removeEventListener('wishlist-updated', fetchWishlistData);
-  }, []);
+  try {
+    const productIds = await getWishlist(token); // This is already the array [1, 2, 3, ...]
 
-  const handleRemove = (productId: number) => {
-    removeFromLocalWishlist(productId);
-    setWishlist(prev => prev.filter(item => item.productId !== productId));
+    const allProducts = await getAllProducts();
+    const enriched = productIds
+      .map((id) => allProducts.find((p) => p.id === id || p.productId === id))
+      .filter((p) => p); // remove undefined in case product is missing
+
+    setWishlist(enriched);
+  } catch (err) {
+    console.error('Failed to fetch wishlist:', err);
+    toast({ title: 'Error', description: 'Could not load wishlist.', variant: 'destructive' });
+  }
+};
+
+    fetchWishlist();
+    window.addEventListener('wishlist-updated', fetchWishlist);
+    return () => window.removeEventListener('wishlist-updated', fetchWishlist);
+  }, [token]);
+
+  const handleRemove = async (productId: number) => {
+    if (!token) return;
+
+    try {
+      await removeProductFromWishlist(token, productId);
+      setWishlist(prev => prev.filter(p => p.productId !== productId));
+      toast({ title: 'Removed', description: 'Item removed from wishlist.' });
+    } catch (err) {
+      console.error('Remove failed:', err);
+      toast({ title: 'Error', description: 'Could not remove item.', variant: 'destructive' });
+    }
   };
 
-  const EmptyWishlist = () => (
-    <motion.div 
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="text-center py-10"
-    >
+  const EmptyState = () => (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-10">
       <div className="mx-auto w-24 h-24 rounded-full bg-coffee-green-light/30 flex items-center justify-center mb-6">
         <Heart size={36} className="text-coffee-green/70" />
       </div>
       <h2 className="text-2xl font-medium text-coffee-green mb-2">Your wishlist is empty</h2>
       <p className="text-coffee-brown mb-6 max-w-md mx-auto">
-        You haven’t added any items to your wishlist yet. Browse our selection and mark your favorites.
+        {token ? 'You haven’t added any items yet.' : 'Please sign in to view your wishlist.'}
       </p>
-      <Link to="/products">
-        <ButtonCustom>
-          Browse Coffee
-        </ButtonCustom>
+      <Link to={token ? '/products' : '/signin'}>
+        <ButtonCustom>{token ? 'Browse Products' : 'Sign In'}</ButtonCustom>
       </Link>
     </motion.div>
   );
 
   return (
     <div className="container mx-auto px-4 md:px-6 py-8">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center">
             <Link to="/" className="mr-2">
@@ -89,7 +106,7 @@ const WishlistPage: React.FC = () => {
         </div>
 
         {wishlist.length === 0 ? (
-          <EmptyWishlist />
+          <EmptyState />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {wishlist.map((product) => (

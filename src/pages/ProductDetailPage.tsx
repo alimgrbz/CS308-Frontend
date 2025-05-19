@@ -113,34 +113,38 @@ const ProductDetailPage = () => {
     }
   };
 
-  const handleToggleWishlist = async () => {
-    const token = localStorage.getItem('token');
-    console.log("Token:", token);
-    console.log("Product ID:", product.productId);
-  
-    if (!token) {
-      toast({ title: 'Login required', description: 'Please log in to use wishlist.', variant: 'destructive' });
-      return;
+const handleToggleWishlist = async () => {
+  const token = localStorage.getItem('token');
+
+  if (!token) {
+    toast({
+      title: "Sign in required",
+      description: (
+        <span>
+          Please <a href="/signin" className="underline text-blue-600 hover:text-blue-800">sign in</a> or <a href="/register" className="underline text-blue-600 hover:text-blue-800">register</a> to add items to your wishlist.
+        </span>
+      ),
+      variant: "destructive",
+    });
+    return;
+  }
+
+  try {
+    if (isInWishlist) {
+      await removeProductFromWishlist(token, product.productId);
+      toast({ title: 'Removed from Wishlist', description: `${product.name} removed.` });
+    } else {
+      await addProductToWishlist(token, product.productId);
+      toast({ title: 'Added to Wishlist', description: `${product.name} added.` });
     }
-  
-    try {
-      if (isInWishlist) {
-        console.log("Trying to REMOVE from wishlist...");
-        await removeProductFromWishlist(token, product.productId);
-        toast({ title: 'Removed from Wishlist', description: `${product.name} removed.` });
-      } else {
-        console.log("Trying to ADD to wishlist...");
-        await addProductToWishlist(token, product.productId);
-        toast({ title: 'Added to Wishlist', description: `${product.name} added.` });
-      }
-  
-      setIsInWishlist(!isInWishlist);
-      window.dispatchEvent(new Event('wishlist-updated'));
-    } catch (err) {
-      console.error("Wishlist update failed:", err);
-      toast({ title: 'Error', description: 'Failed to update wishlist.', variant: 'destructive' });
-    }
-  };
+
+    setIsInWishlist(!isInWishlist);
+    window.dispatchEvent(new Event('wishlist-updated'));
+  } catch (err) {
+    console.error("Wishlist update failed:", err);
+    toast({ title: 'Error', description: 'Failed to update wishlist.', variant: 'destructive' });
+  }
+};
 
   const categoryName = categories.find(cat => cat.id === product.categoryId)?.name || 'Unknown';
 
