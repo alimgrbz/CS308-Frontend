@@ -34,40 +34,36 @@ const ProductDetailPage = () => {
   React.useEffect(() => {
     const fetchData = async () => {
       try {
-
         const productsResponse = await getAllProducts();
         let productsData = Array.isArray(productsResponse) ? productsResponse : productsResponse.products || productsResponse.data || [];
-
+        /*
         // Fetch products - using getCustomerProducts to only get products with prices set
         const productsResponse = await getCustomerProducts();
         console.log('API Response:', productsResponse);
-        
+        */
         if (!productsResponse) {
           console.error('No response from API');
           return;
         }
 
-        // Handle different response formats
-        let productsData = productsResponse || [];
-
-        if (id){
+        if (id) {
           try {
             const ratingsResponse = await getRatingsByProduct(Number(id));
             const ratingValues = Array.isArray(ratingsResponse.ratings)
               ? ratingsResponse.ratings.map((r) => Number(r.rate))
               : [];
+            
+            setRatings(ratingValues);
+            setAverageRating(ratingValues.length > 0 ? ratingValues.reduce((a, b) => a + b, 0) / ratingValues.length : null);
 
-        if (id) {
-          const ratingsResponse = await getRatingsByProduct(Number(id));
-          const ratingValues = ratingsResponse.ratings?.map((r) => Number(r.rate)) || [];
-          setRatings(ratingValues);
-          setAverageRating(ratingValues.length > 0 ? ratingValues.reduce((a, b) => a + b, 0) / ratingValues.length : null);
+            const commentData = await getCommentsByProduct(Number(id));
+            setComments(commentData);
 
-          const commentData = await getCommentsByProduct(Number(id));
-          setComments(commentData);
-
-          const stockAmount = await getStockById(Number(id));
-          setActualStock(stockAmount);
+            const stockAmount = await getStockById(Number(id));
+            setActualStock(stockAmount);
+          } catch (err) {
+            console.error("Error fetching product details:", err);
+          }
         }
 
         const transformed = productsData.map(p => ({
@@ -98,7 +94,7 @@ const ProductDetailPage = () => {
             <div className="text-sm text-muted-foreground">Failed to load product data</div>
           </div>
         );
-              }
+      }
     };
     fetchData();
   }, [id]);
@@ -143,45 +139,45 @@ const ProductDetailPage = () => {
           <div className="text-sm text-muted-foreground">Could not add to cart.</div>
         </div>
       );
-          }
+    }
   };
 
-const handleToggleWishlist = async () => {
-  const token = localStorage.getItem('token');
+  const handleToggleWishlist = async () => {
+    const token = localStorage.getItem('token');
 
-  if (!token) {
-    toast(
-      <div>
-        <strong className="font-medium">Sign in required</strong>
-        <div className="text-sm text-muted-foreground">
-          Please <a href="/login" className="underline text-blue-600 hover:text-blue-800">sign in</a> to add items to your wishlist.
+    if (!token) {
+      toast(
+        <div>
+          <strong className="font-medium">Sign in required</strong>
+          <div className="text-sm text-muted-foreground">
+            Please <a href="/login" className="underline text-blue-600 hover:text-blue-800">sign in</a> to add items to your wishlist.
+          </div>
         </div>
-      </div>
-    );    
-    return;
-  }
-
-  try {
-    if (isInWishlist) {
-      await removeProductFromWishlist(token, product.productId);
-      toast(`${product.name} removed from your wishlist.`);
-    } else {
-      await addProductToWishlist(token, product.productId);
-      toast(`${product.name} added to your wishlist.`);
+      );    
+      return;
     }
 
-    setIsInWishlist(!isInWishlist);
-    window.dispatchEvent(new Event('wishlist-updated'));
-  } catch (err) {
-    console.error("Wishlist update failed:", err);
-    toast(
-      <div>
-        <strong className="font-medium">Error</strong>
-        <div className="text-sm text-muted-foreground">Failed to update wishlist.</div>
-      </div>
-    );
+    try {
+      if (isInWishlist) {
+        await removeProductFromWishlist(token, product.productId);
+        toast(`${product.name} removed from your wishlist.`);
+      } else {
+        await addProductToWishlist(token, product.productId);
+        toast(`${product.name} added to your wishlist.`);
       }
-};
+
+      setIsInWishlist(!isInWishlist);
+      window.dispatchEvent(new Event('wishlist-updated'));
+    } catch (err) {
+      console.error("Wishlist update failed:", err);
+      toast(
+        <div>
+          <strong className="font-medium">Error</strong>
+          <div className="text-sm text-muted-foreground">Failed to update wishlist.</div>
+        </div>
+      );
+    }
+  };
 
   const categoryName = categories.find(cat => cat.id === product.categoryId)?.name || 'Unknown';
 
