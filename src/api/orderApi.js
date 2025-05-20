@@ -66,7 +66,7 @@ export const getRevenueGraph = async (token, startDate, endDate) => {
     startDate,
     endDate,
   });
-  return response.data.data; // or .data if the shape is different
+  return response.data; 
 };
 
 export const acceptRefund = async ({ token, orderId }) => {
