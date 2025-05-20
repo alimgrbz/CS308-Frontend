@@ -20,7 +20,10 @@ import "./styles/global.css";
 import ProductDetailPage from "./pages/ProductDetailPage";
 import AccountSettings from './pages/AccountSettings'; 
 import MyReviews from './pages/MyReviews';
+
 import WishlistPage from './pages/WishlistPage';
+import ProductManagerPage from './pages/ProductManagerPage';
+import SalesManagerPage from "./pages/SalesManagerPage";
 
 
 const queryClient = new QueryClient();
@@ -47,6 +50,9 @@ const App = () => (
             <Route path="/profile" element={<Profile />}/>
             <Route path="/account" element={<AccountSettings />} />
             <Route path="/my-reviews" element={<MyReviews />} />
+            <Route path="/product-manager" element={<ProductManagerPage />} />
+            <Route path="/sales-manager" element={<SalesManagerPage />} />
+
             <Route path="*" element={<NotFound />} />
           </Routes>
         </main>

@@ -34,3 +34,11 @@ export const changeName = async (token, name) => {
   console.log('Name updated:', response.data);
   return response.data;
 };
+
+export const changeUserRole = async (token, role) => {
+  const response = await axiosInstance.post('/api/users/changeUserRole', {
+    token,
+    role
+  });
+  return response.data;
+};

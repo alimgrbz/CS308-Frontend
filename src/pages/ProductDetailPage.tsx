@@ -4,7 +4,11 @@ import { Star, ShoppingCart, Heart } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import '../ProductDetailPage.css';
+
 import { getAllProducts, getStockById } from '@/api/productApi';
+
+import { getCustomerProducts } from '@/api/productApi';
+
 import { getAllCategories } from '@/api/categoryApi';
 import { addToCart, getCart } from '@/api/cartApi';
 import { addToLocalCart } from '@/utils/cartUtils';
@@ -30,8 +34,28 @@ const ProductDetailPage = () => {
   React.useEffect(() => {
     const fetchData = async () => {
       try {
+
         const productsResponse = await getAllProducts();
         let productsData = Array.isArray(productsResponse) ? productsResponse : productsResponse.products || productsResponse.data || [];
+
+        // Fetch products - using getCustomerProducts to only get products with prices set
+        const productsResponse = await getCustomerProducts();
+        console.log('API Response:', productsResponse);
+        
+        if (!productsResponse) {
+          console.error('No response from API');
+          return;
+        }
+
+        // Handle different response formats
+        let productsData = productsResponse || [];
+
+        if (id){
+          try {
+            const ratingsResponse = await getRatingsByProduct(Number(id));
+            const ratingValues = Array.isArray(ratingsResponse.ratings)
+              ? ratingsResponse.ratings.map((r) => Number(r.rate))
+              : [];
 
         if (id) {
           const ratingsResponse = await getRatingsByProduct(Number(id));

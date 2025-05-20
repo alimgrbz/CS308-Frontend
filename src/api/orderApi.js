@@ -4,39 +4,99 @@ export const getOrdersByUser = async (token) => {
   const response = await axiosInstance.post('/api/orders/getOrdersByUser', {
     token
   });
-
-  return response.data.orders; // returns the array of orders
+  return response.data.orders;
 };
 
 export const getOrderInvoice = async (token, orderId) => {
-  try {
-    console.log("Requesting invoice for order:", orderId);
-    const response = await axiosInstance.post('/api/orders/getInvoice', {
-      token,
-      orderId: String(orderId)
-    });
+  const response = await axiosInstance.post('/api/orders/getInvoice', {
+    token,
+    orderId: String(orderId)
+  });
 
-    if (!response.data || !response.data.invoiceBase64) {
-      console.error("Invalid response format from server:", response.data);
-      throw new Error("Invalid response format from server");
-    }
+  console.log("Invoice API response:", response.data);
 
-    console.log("Invoice received successfully");
-    return response.data.invoiceBase64;
-  } catch (error) {
-    console.error("Failed to get invoice:", error.response?.data || error.message);
-    throw error;
+  if (!response.data || !response.data.invoiceBase64) {
+    throw new Error("Invalid response format from server");
   }
+
+  return response.data.invoiceBase64;
 };
 
+export const getOrderInvoiceManager = async (token, orderId) => {
+  const response = await axiosInstance.post('/api/orders/getInvoiceM', {
+    token,
+    orderId: String(orderId)
+  });
+
+  console.log("Invoice API response:", response.data);
+
+  if (!response.data || !response.data.invoiceBase64) {
+    throw new Error("Invalid response format from server");
+  }
+
+  return response.data.invoiceBase64;
+};
+
+
 export const createOrder = async (token) => {
+  const response = await axiosInstance.post('/api/orders/checkout', {
+    token
+  });
+  return response.data;
+};
+
+
+// orderApi.js
+export const getAll = async (token) => {
   try {
-    const response = await axiosInstance.post('/api/orders/checkout', {
+    const response = await axiosInstance.post('/api/items/getAll', {
       token
     });
     return response.data;
   } catch (error) {
-    console.error("Checkout failed:", error);
+    console.error("Fetching all items failed:", error);
     throw error;
   }
 };
+
+
+export const getRevenueGraph = async (token, startDate, endDate) => {
+  const response = await axiosInstance.post('/api/orders/revenueGraph', {
+    token,
+    startDate,
+    endDate,
+  });
+  return response.data.data; // or .data if the shape is different
+};
+
+export const acceptRefund = async ({ token, orderId }) => {
+  const response = await axiosInstance.post('/api/orders/acceptRefund', { token, orderId });
+  return response.data;
+};
+  
+export const getAllOrders = async (token) => {
+  console.log("here in get all orders", token);
+  try {
+    const response = await axiosInstance.post('/api/orders/all', {
+      token
+    });
+    return response.data.orders; 
+  } catch (error) {
+    console.error("Fetching all orders failed:", error);
+    throw error;
+  }
+};
+
+export const cancelOrder = async (token, orderId) => {
+  try {
+    const response = await axiosInstance.post('/api/orders/cancelOrder', {
+      token,
+      orderId
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error cancelling order:', error);
+    throw error;
+  }
+};
+

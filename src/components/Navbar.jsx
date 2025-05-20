@@ -32,22 +32,28 @@ const Navbar = () => {
   };
 
   const [cartItemCount, setCartItemCount] = useState(0);
+  const [userRole, setUserRole] = useState(localStorage.getItem('role'));
 
   useEffect(() => {
     const fetchCartCount = async () => {
-    const items = await getCartItems();
-    const total = items.reduce((sum, item) => {
-      // Supports both guest and user cart formats
-      return sum + (item.count || item.quantity || 0);
-    }, 0);
-    setCartItemCount(total);
-  };
+      const items = await getCartItems();
+      const total = items.reduce((sum, item) => {
+        // Supports both guest and user cart formats
+        return sum + (item.count || item.quantity || 0);
+      }, 0);
+      setCartItemCount(total);
+    };
   
     const handleCartUpdate = () => fetchCartCount();
-    const handleStorageChange = () => fetchCartCount();
+    const handleStorageChange = () => {
+      fetchCartCount();
+      setIsLoggedIn(!!localStorage.getItem('token'));
+      setUserRole(localStorage.getItem('role'));
+    };
   
     const token = localStorage.getItem('token');
     setIsLoggedIn(!!token);
+    setUserRole(localStorage.getItem('role'));
   
     fetchCartCount();
   
@@ -60,8 +66,6 @@ const Navbar = () => {
     };
   }, [location.pathname]);
   
-  
-
   return (
     <nav className="navbar">
       <div className="navbar-container">
@@ -83,10 +87,18 @@ const Navbar = () => {
           </div>
 
           <ul className={`nav-menu ${isOpen ? 'active' : ''}`}>
-            <li className="nav-item"><Link to="/" className="nav-link">Home</Link></li>
-            <li className="nav-item"><Link to="/products" className="nav-link">Shop</Link></li>
-            <li className="nav-item"><Link to="/about" className="nav-link">About</Link></li>
-            <li className="nav-item"><Link to="/contact" className="nav-link">Contact</Link></li>
+            {userRole === 'product_manager' ? (
+              <li className="nav-item"><Link to="/product-manager" className="nav-link">Product Manager</Link></li>
+            ) : userRole === 'sales_manager' ? (
+              <li className="nav-item"><Link to="/sales-manager" className="nav-link">Sales Manager</Link></li>
+            ) : (
+              <>
+                <li className="nav-item"><Link to="/" className="nav-link">Home</Link></li>
+                <li className="nav-item"><Link to="/products" className="nav-link">Shop</Link></li>
+                <li className="nav-item"><Link to="/about" className="nav-link">About</Link></li>
+                <li className="nav-item"><Link to="/contact" className="nav-link">Contact</Link></li>
+              </>
+            )}
           </ul>
 
           <SearchBar />
@@ -114,6 +126,7 @@ const Navbar = () => {
                 </button>
               </Link>
             )}
+
             
             <Link to="/wishlist" className="nav-icon wishlist-icon relative mr-2" title="Wishlist">
               <Heart size={24} className="text-coffee-brown hover:text-rose-500 transition-colors" />
@@ -133,6 +146,24 @@ const Navbar = () => {
                 </span>
               )}
             </Link>
+
+            {userRole !== 'product_manager' && userRole !== 'sales_manager' && (
+              <Link to="/cart" className="nav-icon cart-icon relative">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                  viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="9" cy="21" r="1"></circle>
+                  <circle cx="20" cy="21" r="1"></circle>
+                  <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+                </svg>
+                {cartItemCount > 0 && (
+                  <span className="cart-count absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                    {cartItemCount}
+                  </span>
+                )}
+              </Link>
+            )}
+
           </div>
         </div>
       </div>

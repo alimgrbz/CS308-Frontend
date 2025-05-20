@@ -53,6 +53,9 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, isTopThree }) => {
     picture,
     categoryType,
     popularity = 0,
+    rating,
+    discount = 0
+
   } = product;
 
   const isInWishlist = wishlistIds.includes(productId);
@@ -75,9 +78,18 @@ useEffect(() => {
     if (token) fetchWishlistIds(token);
   };
 
+
   window.addEventListener("wishlist-updated", handleUpdate);
   return () => window.removeEventListener("wishlist-updated", handleUpdate);
 }, []);
+
+  
+  
+  const starRating = getStarRatingFromPopularity(popularity);
+  const hasDiscount = discount > 0;
+  const discountedPrice = hasDiscount ? price * (1 - discount / 100) : price;
+
+
 
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -174,10 +186,11 @@ return (
       <div className="product-content">
         <div className="relative overflow-hidden">
           <Link to={`/product/${productId}`}>
+
             <img src={picture} alt={name} className="w-full h-64 object-cover" loading="lazy" />
           </Link>
 
-          {/* ✅ Moved OUTSIDE the Link */}
+          {/* Moved OUTSIDE the Link */}
           <button
             onClick={handleToggleWishlist}
             className="absolute bottom-3 right-3 z-20 bg-white/90 hover:bg-white text-driftmood-dark p-1 rounded-full shadow transition"
@@ -207,6 +220,57 @@ return (
             <div className="absolute top-3 -left-8 transform -rotate-45 bg-yellow-400 text-white text-[10px] font-extrabold px-8 py-1 shadow-xl overflow-hidden">
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer-slow" />
               <span className="relative z-10">Best Seller</span>
+
+            <div className="relative overflow-hidden">
+              <img 
+                src={picture} 
+                alt={name}
+                className="w-full h-64 object-cover"
+                loading="lazy"
+              />
+              {actualStock !== null && actualStock === 0 && (
+                <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                  <span className="bg-driftmood-dark text-white px-4 py-2 rounded-md font-medium">
+                    Out of Stock
+                  </span>
+                </div>
+              )}
+              {actualStock !== null && actualStock <= 10 && actualStock > 0 && (
+                <div className="absolute top-12 right-3">
+                  <Badge 
+                    variant="outline" 
+                    className="bg-yellow-100 border-yellow-300 text-yellow-800 px-2 py-1 text-[10px] font-bold rounded-full"
+                  >
+                    Only {actualStock} left!
+                  </Badge>
+                </div>
+              )}
+              {isTopThree && (
+                <div className="absolute top-3 -left-8 transform -rotate-45 bg-gradient-to-r from-yellow-400 to-yellow-500 text-white text-[10px] font-extrabold px-8 py-1 shadow-xl overflow-hidden flex justify-center items-center">
+                  <span className="relative z-10">Best Seller</span>
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-shimmer-slow"></div>
+                </div>
+              )}
+              {hasDiscount && (
+              <div className="absolute bottom-3 left-3 z-10">
+              <Badge
+                variant="outline"
+                className="bg-red-600 border-red-700 text-white px-2 py-1 text-[10px] font-bold rounded-full shadow"
+              >
+              {discount}% OFF
+              </Badge>
+            </div>
+            )}
+
+              <div className="absolute top-3 right-3">
+                <Badge 
+                  variant="outline" 
+                  className="bg-driftmood-lightlime border-driftmood-lime text-driftmood-dark px-2 py-1 text-[10px] font-bold rounded-full"
+                >
+                  {categoryType || "Unknown Category"}
+                </Badge>
+              </div>
+
             </div>
           )}
           <div className="absolute top-3 right-3">
@@ -219,7 +283,7 @@ return (
           </div>
         </div>
 
-        {/* ✅ This Link wraps only product info */}
+        {/* This Link wraps only product info */}
         <Link to={`/product/${productId}`}>
           <div className="product-info">
             <h3 className="product-name">{name}</h3>

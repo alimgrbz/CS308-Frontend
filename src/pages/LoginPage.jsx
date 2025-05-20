@@ -71,8 +71,10 @@ const LoginPage = () => {
         try {
           const userResponse = await signin(user);
           localStorage.setItem('token', userResponse.token); // Save token to localStorage
+          localStorage.setItem('role', userResponse.role); // Save role to localStorage
 
           console.log("User token:", localStorage.getItem('token'));
+          console.log("User role:", userResponse.role);
 
           const token = userResponse.token;
 
@@ -92,8 +94,14 @@ const LoginPage = () => {
             }
             localStorage.removeItem('guest_cart');
           }
-          navigate('/'); // Redirect to home
-
+          // Redirect based on role
+          if (userResponse.role === 'product_manager') {
+            navigate('/product-manager');
+          } else if (userResponse.role === 'sales_manager') {
+            navigate('/sales-manager');
+          } else {
+            navigate('/'); // Default: customer
+          }
         } catch (error) {
           setServerError(error.response?.data?.message || 'Sign-in failed. Please try again.');
         }

@@ -27,11 +27,17 @@ const Profile = () => {
         setUserName(user.name);
         setEmail(user.email);
 
+        console.log('Fetching orders with token:', token);
         const fetchedOrders = await getOrdersByUser(token);
-        const inTransit = fetchedOrders.filter(order => order.order_status === "in-transit");
-        console.log("orders", fetchedOrders);
-        console.log("in t", inTransit);
-        setOrders(inTransit);
+        console.log('Fetched orders:', fetchedOrders);
+        
+        if (!Array.isArray(fetchedOrders)) {
+          console.error('Fetched orders is not an array:', fetchedOrders);
+          return;
+        }
+        
+        setOrders(fetchedOrders);
+        console.log('Orders state after setting:', fetchedOrders);
       } catch (error) {
         console.error('Failed to fetch user info or orders:', error);
       } finally {
@@ -143,29 +149,53 @@ const Profile = () => {
           transition={{ duration: 0.4, delay: 0.4 }}
         >
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-            <h2 className="text-2xl font-semibold text-coffee-green mb-4">Orders In Transit</h2>
-            
+            <h2 className="text-2xl font-semibold text-coffee-green mb-4">My Orders</h2>
             
             {isLoading ? (
-  <p className="text-coffee-brown">Loading orders...</p>
-) : orders.length === 0 ? (
-  <p className="text-coffee-brown">You have no ongoing orders.</p>
-) : (
-  <div className="space-y-4">
-    {orders.map((order) => (
-      <div
-        key={order.id}
-        className="border border-gray-200 p-4 rounded-lg shadow-sm bg-white"
-      >
-        <p><strong>Order ID:</strong> {order.order_id}</p>
-        <p><strong>Total:</strong> ${order.total_price}</p>
-        <p><strong>Date:</strong> {new Date(order.date).toLocaleDateString()}</p>
-      </div>
-    ))}
-  </div>
-)}
-
-
+              <p className="text-coffee-brown">Loading orders...</p>
+            ) : orders.length === 0 ? (
+              <p className="text-coffee-brown">You have no orders yet.</p>
+            ) : (
+              <div className="space-y-4">
+                {orders.map((order) => (
+                  <div
+                    key={order.order_id}
+                    className="border border-gray-200 p-4 rounded-lg shadow-sm bg-white"
+                  >
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <p className="font-medium text-coffee-green">Order #{order.order_id}</p>
+                        <p className="text-sm text-coffee-brown">{new Date(order.date).toLocaleDateString()}</p>
+                      </div>
+                      <div className={`px-3 py-1 rounded-full text-sm ${
+                        order.order_status === 'delivered' ? 'bg-green-100 text-green-800' :
+                        order.order_status === 'cancelled' ? 'bg-red-100 text-red-800' :
+                        order.order_status === 'in-transit' ? 'bg-blue-100 text-blue-800' :
+                        'bg-amber-100 text-amber-800'
+                      }`}>
+                        {order.order_status.charAt(0).toUpperCase() + order.order_status.slice(1)}
+                      </div>
+                    </div>
+                    <div className="mt-2">
+                      <p className="text-coffee-brown"><strong>Total:</strong> ${parseFloat(order.total_price).toFixed(2)}</p>
+                      {order.product_list && order.product_list.length > 0 && (
+                        <div className="mt-2">
+                          <p className="text-sm font-medium text-coffee-brown mb-1">Products:</p>
+                          <ul className="text-sm text-coffee-brown">
+                            {order.product_list.map((product, index) => (
+                              <li key={index} className="flex justify-between">
+                                <span>{product.name} x {product.quantity}</span>
+                                <span>${parseFloat(product.total_price).toFixed(2)}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </motion.div>
       </div>
