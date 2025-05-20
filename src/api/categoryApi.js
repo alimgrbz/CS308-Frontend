@@ -12,3 +12,16 @@ export const addCategory = async (categoryName) => {
     });
     return response.data;
 };
+
+export const addCategoryByProductManager = async (categoryName) => {
+    const token = localStorage.getItem('token');
+    const response = await axiosInstance.post('/api/categories/add',
+        { name: categoryName },
+        {
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
+        }
+    );
+    return response.data;
+};

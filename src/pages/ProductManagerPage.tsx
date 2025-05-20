@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Trash2, Save, X, Download, ChevronDown, ChevronRight } from "lucide-react";
-import { getAllCategories, addCategory } from '@/api/categoryApi';
+import { getAllCategories, addCategoryByProductManager as addCategory } from '@/api/categoryApi';
 import { getAllProducts, addProductWithToken, updateProduct, deleteProduct, setPrice, setStock } from '@/api/productApi';
 import { toast } from 'sonner';
 import { getAllCommentsPM, acceptComment, rejectComment } from '@/api/commentApi';
@@ -169,8 +169,8 @@ const ProductManagerPage = () => {
   const handleAddCategory = async () => {
     if (newCategory.trim()) {
       try {
-        const response = await addCategory(newCategory.trim());
-        setCategories([...categories, response]);
+        await addCategory(newCategory.trim());
+        await fetchCategories(); // Refresh categories after adding
         setNewCategory('');
         toast.success('Category added successfully');
       } catch (error) {
