@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Plus, Trash2, Save, X, Download, ChevronDown, ChevronRight } from "lucide-react";
 import { getAllCategories, addCategoryByProductManager as addCategory } from '@/api/categoryApi';
-import { getAllProducts, addProductWithToken, updateProduct, deleteProduct, setPrice, setStock } from '@/api/productApi';
+import { getAllProducts, addProductWithToken, updateProduct, deleteProduct, setPrice, setStock, activateProduct } from '@/api/productApi';
 import { toast } from 'sonner';
 import { getAllCommentsPM, acceptComment, rejectComment } from '@/api/commentApi';
 import { useNavigate } from 'react-router-dom';
@@ -32,6 +32,7 @@ interface Product {
   category_id: number;
   picture: string;
   status?: number; // 1 = active, 0 = inactive (when category is deleted)
+  visible: number;
 }
 
 interface Delivery {
@@ -273,8 +274,11 @@ const ProductManagerPage = () => {
 
   const handleDeleteProduct = async (id: number) => {
     try {
-      await deleteProduct(id);
-      setProducts(products.filter(prod => prod.id !== id));
+      const token = localStorage.getItem('token');
+      if (!token) throw new Error('Token not found');
+      await deleteProduct(token, id);
+      fetchProducts();
+      
       toast.success('Product deleted successfully');
     } catch (error) {
       console.error('Error deleting product:', error);
@@ -501,6 +505,21 @@ const ProductManagerPage = () => {
     }
   };
 
+
+  const handleActivateProduct = async (productId: number) => {
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) throw new Error('Token not found');
+
+    await activateProduct(token, productId);
+    fetchProducts();
+    toast.success('Product restored successfully');
+  } catch (error) {
+    toast.error('Failed to restore product');
+  }
+};
+
+
   return (
     <div className="container mx-auto p-6">
       {userRole === 'product_manager' ? (
@@ -697,7 +716,7 @@ const ProductManagerPage = () => {
 
                       {/* Display Active Products */}
                       {getFilteredSortedProducts().map((product) => (
-                        <Card key={product.id} className="overflow-hidden">
+                        <Card key={product.id} className={`overflow-hidden ${product.visible === 0 ? 'border-red-500 border-2' : ''}`}>
                           <CardContent className="p-0">
                             {editingProduct?.id === product.id ? (
                               <div className="space-y-4 p-6">
@@ -722,13 +741,25 @@ const ProductManagerPage = () => {
                               </div>
                             ) : (
                               <div className="space-y-4 p-6">
-                                {product.picture && (
-                                  <img
-                                    src={product.picture}
-                                    alt={product.name}
-                                    className="w-full h-48 object-cover rounded-md"
-                                  />
-                                )}
+                                
+
+                  {product.picture && (
+                    <div className="relative">
+                      <img
+                        src={product.picture}
+                        alt={product.name}
+                        className={`w-full h-48 object-cover rounded-md ${product.visible === 0 ? 'opacity-60 grayscale' : ''}`}
+                      />
+                      {product.visible === 0 && (
+                        <div className="absolute top-2 right-2">
+                          <Badge variant="destructive">Deleted</Badge>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+
+
                                 <div>
                                   <h3 className="font-semibold text-lg">{product.name}</h3>
                                   <p className="text-sm text-gray-500">{product.model}</p>
@@ -753,19 +784,40 @@ const ProductManagerPage = () => {
                                     <p className="font-medium">{product.warrantyStatus}</p>
                                   </div>
                                 </div>
+
+
                                 <div className="flex justify-end gap-2 pt-2">
-                                  <Button variant="outline" size="sm" onClick={() => handleEditProduct(product)}>
-                                    Edit Stock
-                                  </Button>
-                                  <Button variant="destructive" size="sm" onClick={() => handleDeleteProduct(product.id)}>
-                                    Delete
-                                  </Button>
-                                </div>
+  {product.visible === 1 ? (
+    <>
+      <Button variant="outline" size="sm" onClick={() => handleEditProduct(product)}>
+        Edit Stock
+      </Button>
+      <Button variant="destructive" size="sm" onClick={() => handleDeleteProduct(product.id)}>
+        Delete
+      </Button>
+    </>
+  ) : (
+    <Button
+      size="sm"
+      className="bg-green-600 text-white hover:bg-green-700"
+      onClick={() => handleActivateProduct(product.id)}
+    >
+      Restore
+    </Button>
+  )}
+</div>
+
+
+
+
                               </div>
                             )}
                           </CardContent>
                         </Card>
                       ))}
+
+
+                      
                     </div>
                     
                     {/* Inactive Products Section */}
