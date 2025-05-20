@@ -1,8 +1,8 @@
 import axiosInstance from './axiosConfig';
 
 // Get all products (for admin/managers)
-export const getAllProducts = async () => {
-    const response = await axiosInstance.get('/api/products');
+export const getAllProducts = async (token) => {
+    const response = await axiosInstance.post('/api/products/get-all',{token});
     return response.data.products; 
 };
 
