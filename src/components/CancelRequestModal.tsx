@@ -62,7 +62,7 @@ const CancelRequestModal = ({ onClose, onConfirm, product }) => (
       </div>
       <div className="flex justify-end gap-4">
         <ButtonCustom variant="outline" onClick={onClose}>No</ButtonCustom>
-        <ButtonCustom variant="destructive" onClick={onConfirm}>Yes, Cancel</ButtonCustom>
+        <ButtonCustom variant="primary" onClick={onConfirm}>Yes, Cancel</ButtonCustom>
       </div>
     </div>
   </div>

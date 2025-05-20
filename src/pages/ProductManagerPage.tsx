@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Trash2, Save, X, Download, ChevronDown, ChevronRight } from "lucide-react";
-import { getAllCategories, addCategory, deleteCategory } from '@/api/categoryApi';
+import { getAllCategories, addCategory } from '@/api/categoryApi';
 import { getAllProducts, addProductWithToken, updateProduct, deleteProduct, setPrice, setStock } from '@/api/productApi';
 import { toast } from 'sonner';
 import { getAllCommentsPM, acceptComment, rejectComment } from '@/api/commentApi';
@@ -31,6 +31,7 @@ interface Product {
   distributor: string;
   category_id: number;
   picture: string;
+  status?: number; // 1 = active, 0 = inactive (when category is deleted)
 }
 
 interface Delivery {
@@ -153,7 +154,12 @@ const ProductManagerPage = () => {
   const fetchProducts = async () => {
     try {
       const productsData = await getAllProducts();
-      setProducts(productsData);
+      // Set default status = 1 (active) for all products
+      const productsWithStatus = productsData.map(product => ({
+        ...product,
+        status: product.status === undefined ? 1 : product.status
+      }));
+      setProducts(productsWithStatus);
     } catch (error) {
       console.error('Error fetching products:', error);
       toast.error('Failed to fetch products');
@@ -178,7 +184,15 @@ const ProductManagerPage = () => {
     const deletedCat = categories.find(cat => cat.id === id);
     setCategories(categories.filter(cat => cat.id !== id));
     if (deletedCat) setDeletedCategories([...deletedCategories, deletedCat]);
-    setProducts(products.map(prod => prod.category_id === id ? { ...prod, category_id: 0 } : prod));
+    
+    // Update products with this category_id - set category_id to 0 and status to 0
+    setProducts(products.map(prod => 
+      prod.category_id === id 
+        ? { ...prod, category_id: 0, status: 0 } 
+        : prod
+    ));
+    
+    toast.success(`Category "${deletedCat?.name}" removed`);
   };
 
   const handleRecoverCategory = (id: number) => {
@@ -186,8 +200,16 @@ const ProductManagerPage = () => {
     if (recoveredCategory) {
       setCategories([...categories, recoveredCategory]);
       setDeletedCategories(deletedCategories.filter(cat => cat.id !== id));
-      setProducts(products.map(prod => prod.category_id === 0 && prod.name === recoveredCategory.name ? { ...prod, category_id: id } : prod));
-      toast.success('Category recovered successfully');
+      
+      // Update products belonging to this category - set status back to 1
+      setProducts(products.map(prod => 
+        // If category_id is 0 and name matches, it's likely from this category
+        prod.category_id === 0 && prod.name.toLowerCase().includes(recoveredCategory.name.toLowerCase()) 
+          ? { ...prod, category_id: id, status: 1 } 
+          : prod
+      ));
+      
+      toast.success(`Category "${recoveredCategory.name}" recovered successfully`);
     }
   };
 
@@ -409,28 +431,30 @@ const ProductManagerPage = () => {
     }
   };
 
-  // Filter and sort products
-  const getFilteredSortedProducts = () => {
+  // Filter and sort products based on status
+  const getFilteredSortedProducts = (showInactive = false) => {
     let filtered = products.filter(p =>
-      p.category_id !== 0 &&
-      p.name.toLowerCase().includes(filterName.toLowerCase())
+      (showInactive ? p.status === 0 : p.status !== 0) && 
+      (p.name ? p.name.toLowerCase().includes(filterName.toLowerCase()) : false)
     );
+    
+    // Sort products based on selected option
     switch (sortOption) {
-      case 'date-asc':
-        filtered = filtered.slice().sort((a, b) => a.id - b.id); // assuming id increments with date
-        break;
-      case 'date-desc':
-        filtered = filtered.slice().sort((a, b) => b.id - a.id);
-        break;
       case 'alpha-asc':
-        filtered = filtered.slice().sort((a, b) => a.name.localeCompare(b.name));
+        filtered.sort((a, b) => a.name.localeCompare(b.name));
         break;
       case 'alpha-desc':
-        filtered = filtered.slice().sort((a, b) => b.name.localeCompare(a.name));
+        filtered.sort((a, b) => b.name.localeCompare(a.name));
         break;
+      case 'date-asc':
+        filtered.sort((a, b) => a.id - b.id);
+        break;
+      case 'date-desc':
       default:
+        filtered.sort((a, b) => b.id - a.id);
         break;
     }
+    
     return filtered;
   };
 
@@ -644,35 +668,12 @@ const ProductManagerPage = () => {
                         </Card>
                       )}
 
-                      {/* Product Cards */}
+                      {/* Display Active Products */}
                       {getFilteredSortedProducts().map((product) => (
-                        <Card key={product.id}>
-                          <CardContent className="pt-6">
+                        <Card key={product.id} className="overflow-hidden">
+                          <CardContent className="p-0">
                             {editingProduct?.id === product.id ? (
-                              <div className="space-y-4">
-                                <div>
-                                  <Label>Name</Label>
-                                  <p className="font-semibold text-lg">{editingProduct.name}</p>
-                                </div>
-                                <div>
-                                  <Label>Category</Label>
-                                  <p className="text-sm text-gray-500">{editingProduct.name}</p>
-                                </div>
-                                <div>
-                                  <Label>Description</Label>
-                                  <p className="text-sm text-gray-600">{editingProduct.description}</p>
-                                </div>
-                                <div>
-                                  <Label>Image URL</Label>
-                                  {editingProduct.picture && (
-                                    <img
-                                      src={editingProduct.picture}
-                                      alt={editingProduct.name}
-                                      className="w-full h-32 object-cover rounded-md mb-2"
-                                    />
-                                  )}
-                                  <p className="text-xs text-gray-400">{editingProduct.picture}</p>
-                                </div>
+                              <div className="space-y-4 p-6">
                                 <div>
                                   <Label>Stock</Label>
                                   <Input
@@ -693,7 +694,7 @@ const ProductManagerPage = () => {
                                 </div>
                               </div>
                             ) : (
-                              <div className="space-y-4">
+                              <div className="space-y-4 p-6">
                                 {product.picture && (
                                   <img
                                     src={product.picture}
@@ -703,7 +704,7 @@ const ProductManagerPage = () => {
                                 )}
                                 <div>
                                   <h3 className="font-semibold text-lg">{product.name}</h3>
-                                  <p className="text-sm text-gray-500">{product.name}</p>
+                                  <p className="text-sm text-gray-500">{product.model}</p>
                                 </div>
                                 <div className="grid grid-cols-2 gap-2">
                                   <div>
@@ -714,24 +715,23 @@ const ProductManagerPage = () => {
                                     <Label>Stock</Label>
                                     <p className="font-medium">{product.stock}</p>
                                   </div>
+                                  <div>
+                                    <Label>Category</Label>
+                                    <p className="font-medium">
+                                      {categories.find(c => c.id === product.category_id)?.name || 'Uncategorized'}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <Label>Warranty</Label>
+                                    <p className="font-medium">{product.warrantyStatus}</p>
+                                  </div>
                                 </div>
-                                {product.description && (
-                                  <p className="text-sm text-gray-600">{product.description}</p>
-                                )}
-                                <div className="flex gap-2">
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handleEditProduct(product)}
-                                  >
-                                    Edit
+                                <div className="flex justify-end gap-2 pt-2">
+                                  <Button variant="outline" size="sm" onClick={() => handleEditProduct(product)}>
+                                    Edit Stock
                                   </Button>
-                                  <Button
-                                    variant="destructive"
-                                    size="sm"
-                                    onClick={() => handleDeleteProduct(product.id)}
-                                  >
-                                    <Trash2 className="h-4 w-4" />
+                                  <Button variant="destructive" size="sm" onClick={() => handleDeleteProduct(product.id)}>
+                                    Delete
                                   </Button>
                                 </div>
                               </div>
@@ -740,6 +740,56 @@ const ProductManagerPage = () => {
                         </Card>
                       ))}
                     </div>
+                    
+                    {/* Inactive Products Section */}
+                    {getFilteredSortedProducts(true).length > 0 && (
+                      <div className="mt-8">
+                        <h3 className="text-lg font-semibold mb-4">Inactive Products</h3>
+                        <p className="text-sm text-gray-500 mb-4">
+                          These products are not visible to customers because their categories have been deleted.
+                          They will become active again when their respective categories are restored.
+                        </p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                          {getFilteredSortedProducts(true).map((product) => (
+                            <Card key={product.id} className="overflow-hidden border-dashed border-gray-300">
+                              <CardContent className="p-0">
+                                <div className="space-y-4 p-6">
+                                  {product.picture && (
+                                    <div className="relative">
+                                      <img
+                                        src={product.picture}
+                                        alt={product.name}
+                                        className="w-full h-48 object-cover rounded-md opacity-60"
+                                      />
+                                      <div className="absolute top-2 right-2">
+                                        <Badge variant="destructive">Inactive</Badge>
+                                      </div>
+                                    </div>
+                                  )}
+                                  <div>
+                                    <h3 className="font-semibold text-lg">{product.name}</h3>
+                                    <p className="text-sm text-gray-500">{product.model}</p>
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                      <Label>Price</Label>
+                                      <p className="font-medium">${product.price}</p>
+                                    </div>
+                                    <div>
+                                      <Label>Stock</Label>
+                                      <p className="font-medium">{product.stock}</p>
+                                    </div>
+                                  </div>
+                                  <div className="text-sm text-red-600">
+                                    Category deleted - restore the category to activate this product.
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </div>

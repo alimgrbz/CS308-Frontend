@@ -12,8 +12,3 @@ export const addCategory = async (categoryName) => {
     });
     return response.data;
 };
-
-export const deleteCategory = async (categoryId) => {
-    const response = await axiosInstance.delete(`/api/categories/${categoryId}`);
-    return response.data;
-};
