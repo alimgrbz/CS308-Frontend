@@ -90,8 +90,8 @@ const ProductManagerPage = () => {
     model: '',
     serialNumber: '',
     description: '',
-    stock: -1,
-    price: -1,
+    stock: 0,
+    price: 0,
     warrantyStatus: 'No',
     distributor: '',
     category_id: 0,
@@ -223,25 +223,36 @@ const ProductManagerPage = () => {
     }
 
     try {
-        const response = await addProductWithToken(newProduct);
+        // Ensure all fields have proper values and types
+        const productToAdd = {
+          ...newProduct,
+          price: 0,
+          stock: newProduct.stock >= 0 ? newProduct.stock : 0, // Ensure stock is not negative
+          warrantyStatus: newProduct.warrantyStatus || 'No',
+          category_id: Number(newProduct.category_id) // Ensure category_id is a number
+        };
+        
+        console.log('Sending product data:', productToAdd);
+        
+        const response = await addProductWithToken(productToAdd);
         setProducts([...products, response]);
         setNewProduct({
             name: '',
             model: '',
             serialNumber: '',
             description: '',
-            stock: -1,
-            price: -1,
+            stock: 0, // Set default to 0 instead of -1
+            price: 0,
             warrantyStatus: 'No',
             distributor: '',
             category_id: 0,
             picture: ''
         });
         setIsAddingProduct(false);
-        toast.success('Product added successfully');
+        toast.success('Product added successfully. It will be visible to customers after Sales Manager sets a price.');
     } catch (error) {
         console.error('Error adding product:', error);
-        toast.error('Failed to add product');
+        toast.error('Failed to add product. Please check the product details and try again.');
     }
   };
 
@@ -653,8 +664,9 @@ const ProductManagerPage = () => {
                                 <Label>Stock *</Label>
                                 <Input
                                   type="number"
-                                  value={newProduct.stock === -1 ? '' : newProduct.stock}
-                                  onChange={(e) => setNewProduct({ ...newProduct, stock: e.target.value ? Number(e.target.value) : -1 })}
+                                  min="0"
+                                  value={newProduct.stock}
+                                  onChange={(e) => setNewProduct({ ...newProduct, stock: e.target.value ? Number(e.target.value) : 0 })}
                                   placeholder="Initial stock quantity"
                                   required
                                 />

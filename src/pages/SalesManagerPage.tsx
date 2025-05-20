@@ -12,7 +12,7 @@ import { getAllProducts, getProductsByCategory, setPrice, setDiscount } from '@/
 import { getAllOrders, getOrdersByUser, getOrderInvoiceManager, getRevenueGraph} from '@/api/orderApi';
 import { getAllRefunds, refundDecision } from '@/api/refundsApi';
 
-import { Download } from 'lucide-react';
+import { Download, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Product {
@@ -21,6 +21,7 @@ interface Product {
   price: number;
   discountRate: number;
   category: string;
+  status?: number; // 1 = active, 0 = inactive (when category is deleted)
 }
 
 interface Category {
@@ -106,6 +107,7 @@ interface OrderDetails {
   const [endDate, setEndDate] = useState('');
   const [allOrders, setAllOrders] = useState<OrderDetails[]>([]);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
+  const [isRefreshingProducts, setIsRefreshingProducts] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -118,6 +120,16 @@ interface OrderDetails {
     if (startDate && endDate) {
       fetchRevenueData(startDate, endDate);
     }
+
+    // Set up polling for products (check every 30 seconds)
+    const productPollingInterval = setInterval(() => {
+      fetchProducts(true);
+    }, 30000);
+
+    // Clean up interval on component unmount
+    return () => {
+      clearInterval(productPollingInterval);
+    };
   }, [startDate, endDate]);
   
   const fetchRefunds = async () => {
@@ -144,15 +156,27 @@ interface OrderDetails {
     }
   };
 
-  const fetchProducts = async () => {
+  const fetchProducts = async (isPolling = false) => {
     try {
+      if (!isPolling) {
+        setIsRefreshingProducts(true);
+      }
       console.log('🔁 fetchProducts started');
       const data = await getAllProducts();
       console.log('📦 Received products:', data);
       setProducts(data);
+      if (!isPolling) {
+        toast.success('Products refreshed successfully');
+      }
     } catch (error) {
       console.error('🚨 Error fetching products:', error);
-      toast.error('Failed to fetch products');
+      if (!isPolling) {
+        toast.error('Failed to fetch products');
+      }
+    } finally {
+      if (!isPolling) {
+        setIsRefreshingProducts(false);
+      }
     }
   };
 
@@ -256,15 +280,30 @@ interface OrderDetails {
   
   
 
-  const fetchProductsByCategoryName = async (name: string) => {
+  const fetchProductsByCategoryName = async (name: string, isPolling = false) => {
     try {
+      if (!isPolling) {
+        setIsRefreshingProducts(true);
+      }
+      
       const matched = categories.find(c => c.name === name);
       if (!matched) return;
+      
       const data = await getProductsByCategory(matched.id);
       setProducts(data);
+      
+      if (!isPolling) {
+        toast.success(`Products in category "${name}" refreshed successfully`);
+      }
     } catch (error) {
       console.error('Error fetching category products:', error);
-      toast.error('Failed to fetch category products');
+      if (!isPolling) {
+        toast.error('Failed to fetch category products');
+      }
+    } finally {
+      if (!isPolling) {
+        setIsRefreshingProducts(false);
+      }
     }
   };
   const handlePriceChange = async (productId: string, newPrice: number) => {
@@ -276,12 +315,31 @@ interface OrderDetails {
         return;
       }
   
+      // Check if we're setting a price for a product that previously had no price
+      const isFirstPriceSet = target.price === 0 && newPrice > 0;
+      // Check if we need to activate the product (status from 0 to 1)
+      const shouldActivate = (target.status === 0 || target.status === undefined) && newPrice > 0;
+  
       await setPrice({ token, productId, price: newPrice });
   
       setProducts(products.map(product =>
-        product.id === productId ? { ...product, price: newPrice } : product
+        product.id === productId 
+          ? { 
+              ...product, 
+              price: newPrice,
+              // Set status to 1 (active) if price > 0
+              status: newPrice > 0 ? 1 : product.status
+            } 
+          : product
       ));
-      toast.success("Price updated successfully.");
+      
+      if (isFirstPriceSet) {
+        toast.success("Price set successfully! Product is now visible to customers.");
+      } else if (shouldActivate && newPrice > 0) {
+        toast.success("Product activated and price updated successfully!");
+      } else {
+        toast.success("Price updated successfully.");
+      }
     } catch (error) {
       console.error("❌ Error in handlePriceChange:", error.response || error.message || error);
 
@@ -367,10 +425,40 @@ interface OrderDetails {
 
         <TabsContent value="pricing">
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Product Pricing & Discounts</CardTitle>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => fetchProducts(false)}
+                className="flex items-center gap-1"
+                disabled={isRefreshingProducts}
+              >
+                <RefreshCw size={16} className={isRefreshingProducts ? "animate-spin" : ""} />
+                {isRefreshingProducts ? "Refreshing..." : "Refresh Products"}
+              </Button>
             </CardHeader>
             <CardContent>
+              <div className="mb-4">
+                <div className="space-y-2">
+                  <p className="text-amber-600 font-medium flex items-center">
+                    <span className="mr-2">⚠️</span>
+                    Products with $0.00 price need to be priced before they become visible to customers.
+                  </p>
+                  <p className="text-red-600 font-medium flex items-center">
+                    <span className="mr-2">⚠️</span>
+                    Inactive products (highlighted in red) need to be priced to activate them.
+                  </p>
+                </div>
+              </div>
+              {isRefreshingProducts ? (
+                <div className="flex justify-center items-center py-12">
+                  <div className="flex flex-col items-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500 mb-3"></div>
+                    <p className="text-gray-500">Loading products...</p>
+                  </div>
+                </div>
+              ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -383,9 +471,9 @@ interface OrderDetails {
                           const selected = e.target.value;
                           setFilterCategory(selected);
                           if (selected === '') {
-                            fetchProducts();
+                            fetchProducts(false);
                           } else {
-                            fetchProductsByCategoryName(selected);
+                            fetchProductsByCategoryName(selected, false);
                           }
                         }}
                       >
@@ -397,12 +485,21 @@ interface OrderDetails {
                     </TableHead>
                     <TableHead>Current Price</TableHead>
                     <TableHead>Discount Rate</TableHead>
-                    
+                    <TableHead>Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {products.map((product) => (
-                    <TableRow key={product.id}>
+                    <TableRow 
+                      key={product.id} 
+                      className={
+                        product.price === 0 
+                          ? "bg-amber-50" 
+                          : product.status === 0 
+                            ? "bg-red-50" 
+                            : ""
+                      }
+                    >
                       <TableCell>{product.name}</TableCell>
                       <TableCell>{product.category}</TableCell>
                       <TableCell>
@@ -412,7 +509,7 @@ interface OrderDetails {
                             type="number"
                             value={product.price}
                             onChange={(e) => handlePriceChange(product.id, Number(e.target.value))}
-                            className="w-24"
+                            className={`w-24 ${product.price === 0 || product.status === 0 ? "border-amber-500" : ""}`}
                           />
                         </div>
                       </TableCell>
@@ -423,15 +520,31 @@ interface OrderDetails {
                             value={product.discountRate}
                             onChange={(e) => handleDiscountChange(product.id, Number(e.target.value))}
                             className="w-24"
+                            disabled={product.price === 0 || product.status === 0}
                           />
                           <span>%</span>
                         </div>
                       </TableCell>
-                     
+                      <TableCell>
+                        {product.price === 0 ? (
+                          <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300">
+                            Needs Price
+                          </Badge>
+                        ) : product.status === 0 ? (
+                          <Badge variant="outline" className="bg-red-100 text-red-800 border-red-300">
+                            Inactive
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300">
+                            Active
+                          </Badge>
+                        )}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

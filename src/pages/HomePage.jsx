@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import ProductCard from '../components/ProductCard';
 import '../styles/HomePage.css';
-import { getAllProducts } from '../api/productApi';
+import { getCustomerProducts } from '../api/productApi';
 import { getAllCategories } from '../api/categoryApi';
 
 const HomePage = () => {
@@ -13,11 +13,11 @@ const HomePage = () => {
     const fetchAndSetRandomProducts = async () => {
       try {
         const [productResponse, categoryResponse] = await Promise.all([
-          getAllProducts(),
+          getCustomerProducts(),
           getAllCategories()
         ]);
 
-        const products = productResponse.products || productResponse.data || productResponse;
+        const products = productResponse || [];
         const categoriesMap = new Map(categoryResponse.map(cat => [cat.id, cat.name]));
 
         const getRandomProducts = (products, count) => {

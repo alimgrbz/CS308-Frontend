@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 import ProductCard from '@/components/ProductCard';
 import ProductFilters from '@/components/ProductFilters';
 import FilterSidebar from '@/components/FilterSidebar';
-import { getAllProducts } from '@/api/productApi';
+import { getCustomerProducts } from '@/api/productApi';
 import { getAllCategories } from '@/api/categoryApi';
 import { getRatingsByProduct } from '@/api/rateApi';
 import Logo from '@/components/Logo';
@@ -46,19 +46,12 @@ const ProductIndex = () => {
         const categoriesResponse = await getAllCategories();
         setCategories(categoriesResponse);
 
-        // Fetch products
-        const productsResponse = await getAllProducts();
+        // Fetch products - using getCustomerProducts to only get products with prices set
+        const productsResponse = await getCustomerProducts();
         console.log('Raw products data from backend:', productsResponse);
         
         // Handle different response formats
-        let productsData = [];
-        if (Array.isArray(productsResponse)) {
-          productsData = productsResponse;
-        } else if (productsResponse.products) {
-          productsData = productsResponse.products;
-        } else if (productsResponse.data) {
-          productsData = productsResponse.data;
-        }
+        let productsData = productsResponse || [];
 
         // Transform the data to match the expected structure
         const transformedProducts = productsData.map(product => ({

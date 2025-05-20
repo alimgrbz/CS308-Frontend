@@ -1,13 +1,18 @@
 import axiosInstance from './axiosConfig';
 
-// Get all products
+// Get all products (for admin/managers)
 export const getAllProducts = async () => {
     const response = await axiosInstance.get('/api/products');
     return response.data.products; 
-  };
-  
-  
-  
+};
+
+// Get all products for customers (filters out products with price = 0)
+export const getCustomerProducts = async () => {
+    const response = await axiosInstance.get('/api/products');
+    // Filter out products with price = 0 (not yet priced by sales manager)
+    const products = response.data.products.filter(product => product.price > 0);
+    return products;
+};
 
 // Get product by ID
 export const getProductById = async (productId) => {
@@ -19,6 +24,14 @@ export const getProductById = async (productId) => {
 export const getProductsByCategory = async (categoryId) => {
     const response = await axiosInstance.get(`/api/products/category/${categoryId}`);
     return response.data.products;
+};
+
+// Get products by category for customers (filters out products with price = 0)
+export const getCustomerProductsByCategory = async (categoryId) => {
+    const response = await axiosInstance.get(`/api/products/category/${categoryId}`);
+    // Filter out products with price = 0 (not yet priced by sales manager)
+    const products = response.data.products.filter(product => product.price > 0);
+    return products;
 };
 
 // Add new product
@@ -57,9 +70,12 @@ export const getStock = async (productId) => {
 
 // Set product price (POST)
 export const setPrice = async ({ token, productId, price }) => {
+    // If price is greater than 0, also set status to 1 (active)
+    const status = price > 0 ? 1 : 0;
+    
     const response = await axiosInstance.post(
       '/api/products/setPrice',
-      { productId, price },
+      { productId, price, status },
       {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -73,13 +89,33 @@ export const setPrice = async ({ token, productId, price }) => {
 
 // Add new product (with token)
 export const addProductWithToken = async (productData) => {
-    const token = localStorage.getItem('token');
-    const response = await axiosInstance.post('/api/products/add', productData, {
-        headers: {
-            Authorization: `Bearer ${token}`
+    try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            throw new Error('No authentication token found');
         }
-    });
-    return response.data;
+        
+        // Ensure all numeric fields are properly formatted
+        const formattedData = {
+            ...productData,
+            price: Number(productData.price || 0),
+            stock: Number(productData.stock || 0),
+            category_id: Number(productData.category_id || 0)
+        };
+        
+        console.log('Sending formatted product data:', formattedData);
+        
+        const response = await axiosInstance.post('/api/products/add', formattedData, {
+            headers: {
+                Authorization: `Bearer ${token}`
+            }
+        });
+        
+        return response.data;
+    } catch (error) {
+        console.error('Error in addProductWithToken:', error.response?.data || error.message);
+        throw error;
+    }
 };
 
 // Set product stock (POST)

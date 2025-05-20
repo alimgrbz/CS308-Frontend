@@ -4,7 +4,7 @@ import { Star, ShoppingCart, BarChart3 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import '../ProductDetailPage.css';
-import { getAllProducts } from '@/api/productApi';
+import { getCustomerProducts } from '@/api/productApi';
 import { getAllCategories } from '@/api/categoryApi';
 import { useEffect, useState } from 'react';
 import { addToCart, getCart } from '@/api/cartApi';
@@ -42,8 +42,8 @@ const ProductDetailPage = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch products
-        const productsResponse = await getAllProducts();
+        // Fetch products - using getCustomerProducts to only get products with prices set
+        const productsResponse = await getCustomerProducts();
         console.log('API Response:', productsResponse);
         
         if (!productsResponse) {
@@ -52,14 +52,7 @@ const ProductDetailPage = () => {
         }
 
         // Handle different response formats
-        let productsData = [];
-        if (Array.isArray(productsResponse)) {
-          productsData = productsResponse;
-        } else if (productsResponse.products) {
-          productsData = productsResponse.products;
-        } else if (productsResponse.data) {
-          productsData = productsResponse.data;
-        }
+        let productsData = productsResponse || [];
 
         if (id){
           try {
