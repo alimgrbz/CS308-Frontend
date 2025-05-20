@@ -123,6 +123,12 @@ const ProductManagerPage = () => {
       const role = tokenPayload.role;
       setUserRole(role);
 
+      // Restore deleted categories from localStorage
+      const storedDeleted = localStorage.getItem('deletedCategories');
+      if (storedDeleted) {
+        setDeletedCategories(JSON.parse(storedDeleted));
+      }
+
       if (role !== 'product_manager') {
         toast.error('Access denied. Product manager role required.');
         navigate('/');
@@ -144,7 +150,11 @@ const ProductManagerPage = () => {
   const fetchCategories = async () => {
     try {
       const categoriesData = await getAllCategories();
-      setCategories(categoriesData);
+      const storedDeleted = localStorage.getItem('deletedCategories');
+      const deleted = storedDeleted ? JSON.parse(storedDeleted) : [];
+      const deletedIds = deleted.map((cat: Category) => cat.id);
+      const filteredCategories = categoriesData.filter((cat: Category) => !deletedIds.includes(cat.id));
+      setCategories(filteredCategories);
     } catch (error) {
       console.error('Error fetching categories:', error);
       toast.error('Failed to fetch categories');
@@ -183,7 +193,10 @@ const ProductManagerPage = () => {
   const handleDeleteCategory = (id: number) => {
     const deletedCat = categories.find(cat => cat.id === id);
     setCategories(categories.filter(cat => cat.id !== id));
-    if (deletedCat) setDeletedCategories([...deletedCategories, deletedCat]);
+    if (deletedCat) {
+      setDeletedCategories([...deletedCategories, deletedCat]);
+      localStorage.setItem('deletedCategories', JSON.stringify([...deletedCategories, deletedCat]));
+    }
     
     // Update products with this category_id - set category_id to 0 and status to 0
     setProducts(products.map(prod => 
@@ -199,7 +212,9 @@ const ProductManagerPage = () => {
     const recoveredCategory = deletedCategories.find(cat => cat.id === id);
     if (recoveredCategory) {
       setCategories([...categories, recoveredCategory]);
-      setDeletedCategories(deletedCategories.filter(cat => cat.id !== id));
+      const updatedDeleted = deletedCategories.filter(cat => cat.id !== id);
+      setDeletedCategories(updatedDeleted);
+      localStorage.setItem('deletedCategories', JSON.stringify(updatedDeleted));
       
       // Update products belonging to this category - set status back to 1
       setProducts(products.map(prod => 
