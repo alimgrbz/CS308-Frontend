@@ -20,8 +20,11 @@ import "./styles/global.css";
 import ProductDetailPage from "./pages/ProductDetailPage";
 import AccountSettings from './pages/AccountSettings'; 
 import MyReviews from './pages/MyReviews';
+
+import WishlistPage from './pages/WishlistPage';
 import ProductManagerPage from './pages/ProductManagerPage';
 import SalesManagerPage from "./pages/SalesManagerPage";
+
 
 const queryClient = new QueryClient();
 
@@ -36,6 +39,7 @@ const App = () => (
             <Route path="/" element={<HomePage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/cart" element={<Cart />} />
+            <Route path="/wishlist" element={<WishlistPage />} />
             <Route path="/products" element={<ProductIndex />} />
             <Route path="/product/:id" element={<ProductDetailPage />} />
             <Route path="/order-success" element={<OrderSuccess />} />
@@ -48,6 +52,7 @@ const App = () => (
             <Route path="/my-reviews" element={<MyReviews />} />
             <Route path="/product-manager" element={<ProductManagerPage />} />
             <Route path="/sales-manager" element={<SalesManagerPage />} />
+
             <Route path="*" element={<NotFound />} />
           </Routes>
         </main>
