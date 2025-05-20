@@ -30,6 +30,7 @@ const WishlistPage: React.FC = () => {
   const [categories, setCategories] = useState<{ id: number; name: string }[]>([]);
   const token = localStorage.getItem('token');
   const navigate = useNavigate();
+  const [topThreeProductIds, setTopThreeProductIds] = useState<number[]>([]);
 
   useEffect(() => {
     const fetchWishlist = async () => {
@@ -41,6 +42,11 @@ const WishlistPage: React.FC = () => {
           getAllProducts(),
           getAllCategories()
         ]);
+
+        const sortedByPopularity = [...allProducts]
+          .sort((a, b) => (b.popularity || 0) - (a.popularity || 0))
+        const topThree = sortedByPopularity.slice(0, 3).map(p => p.productId || p.id);
+        setTopThreeProductIds(topThree);
 
         setCategories(allCategories);
 
@@ -138,7 +144,7 @@ const WishlistPage: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {wishlist.map((product) => (
               <div key={product.productId} className="relative">
-                <ProductCard product={product} isTopThree={false} />
+                <ProductCard product={product} isTopThree={topThreeProductIds.includes(product.productId)} />
                 {editMode && (
                   <button
                     onClick={() => handleRemove(product.productId)}

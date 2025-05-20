@@ -205,6 +205,7 @@ return (
           )}
           {isTopThree && (
             <div className="absolute top-3 -left-8 transform -rotate-45 bg-yellow-400 text-white text-[10px] font-extrabold px-8 py-1 shadow-xl overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer-slow" />
               <span className="relative z-10">Best Seller</span>
             </div>
           )}
