@@ -103,8 +103,17 @@ interface OrderDetails {
   const [orders, setOrders] = useState<Order[]>([]);
   const [revenueData, setRevenueData] = useState<RevenueData[]>([]);
   const [refunds, setRefunds] = useState<Refund[]>([]);
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [startDate, setStartDate] = useState(() => {
+    const today = new Date();
+    const weekAgo = new Date(today);
+    weekAgo.setDate(today.getDate() - 7);
+    return weekAgo.toISOString().split("T")[0];
+  });
+  
+  const [endDate, setEndDate] = useState(() => {
+    return new Date().toISOString().split("T")[0];
+  });
+  
   const [allOrders, setAllOrders] = useState<OrderDetails[]>([]);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
   const [isRefreshingProducts, setIsRefreshingProducts] = useState(false);
@@ -219,7 +228,7 @@ interface OrderDetails {
       }
   
       const data = await getRevenueGraph(token, start, end);
-      setRevenueData(data);
+      setRevenueData(data.data);
       console.log("📊 Revenue API Response:", data);
       toast.success("Revenue data loaded.");
     } catch (error) {
@@ -318,10 +327,10 @@ interface OrderDetails {
   
       if (mappedOrders.length > 0) {
         const dates = mappedOrders.map(o => new Date(o.date));
-        const minDate = new Date(Math.min(...dates));
-        const maxDate = new Date(Math.max(...dates));
-        setStartDate(minDate.toISOString().split("T")[0]);
-        setEndDate(maxDate.toISOString().split("T")[0]);
+        const today = new Date();
+        const weekAgo = new Date();
+        weekAgo.setDate(today.getDate() - 7);
+        
       }
     } catch (err) {
       toast.error('Failed to fetch orders');
@@ -611,22 +620,21 @@ interface OrderDetails {
       <div className="flex flex-col sm:flex-row sm:items-end gap-4 mb-4">
       <div>
       <label className="block text-sm font-medium mb-1">Start Date</label>
-            <Input
-              type="date"
-              value={startDate}
-              max={new Date().toISOString().split("T")[0]} 
-              onChange={(e) => setStartDate(e.target.value)}
-            />
-            </div>
+      <Input
+  type="date"
+  value={startDate}
+  max={endDate}
+  onChange={(e) => setStartDate(e.target.value)}
+/>
+<label className="block text-sm font-medium mb-1">End Date</label>
+<Input
+  type="date"
+  value={endDate}
+  min={startDate}
+  max={new Date().toISOString().split("T")[0]}
+  onChange={(e) => setEndDate(e.target.value)}
+/>
 
-            <div>
-            <label className="block text-sm font-medium mb-1">End Date</label>
-            <Input
-               type="date"
-              value={endDate}
-              max={new Date().toISOString().split("T")[0]} 
-              onChange={(e) => setEndDate(e.target.value)}
-            />
            </div>
            <Button onClick={() => fetchRevenueData(startDate, endDate)}>
             Update Chart

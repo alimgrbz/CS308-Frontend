@@ -25,3 +25,43 @@ export const addCategoryByProductManager = async (categoryName) => {
     );
     return response.data;
 };
+
+// Get all categories for product managers
+export const getAllCategoriesManager = async () => {
+    const token = localStorage.getItem('token');
+    const response = await axiosInstance.get('/api/categories/all', {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return response.data.categories;
+  };
+  
+  // Deactivate a category (visible = 0)
+  export const deactivateCategory = async (categoryId) => {
+    const token = localStorage.getItem('token');
+    await axiosInstance.post(
+      '/api/categories/deactivate',
+      { categoryId },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+  };
+  
+  // Activate a category (visible = 1)
+  export const activateCategory = async (categoryId) => {
+    const token = localStorage.getItem('token');
+    await axiosInstance.post(
+      '/api/categories/activate',
+      { categoryId },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+  };
+  

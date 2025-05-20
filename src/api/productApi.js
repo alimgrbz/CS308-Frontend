@@ -47,10 +47,28 @@ export const updateProduct = async (productId, productData) => {
 };
 
 // Delete product
-export const deleteProduct = async (productId) => {
-    const response = await axiosInstance.delete(`/api/products/${productId}`);
+export const deleteProduct = async (token, productId) => {
+    console.log("on delete", token, productId);
+    const response = await axiosInstance.post(`/api/products/delete`, 
+        {
+            token,
+            productId
+        }
+    );
     return response.data;
 };
+
+// Reverse deletion of a product
+export const activateProduct = async (token, productId) => {
+    const response = await axiosInstance.post(`/api/products/activate`, 
+        {
+            token,
+            productId
+        }
+    );
+    return response.data;
+};
+
 
 export const getStockById = async (productId) => {
     try {

@@ -7,8 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Trash2, Save, X, Download, ChevronDown, ChevronRight } from "lucide-react";
-import { getAllCategories, addCategoryByProductManager as addCategory } from '@/api/categoryApi';
-import { getAllProducts, addProductWithToken, updateProduct, deleteProduct, setPrice, setStock } from '@/api/productApi';
+import { getAllCategories, addCategoryByProductManager as addCategory, deactivateCategory, activateCategory, getAllCategoriesManager } from '@/api/categoryApi';
+import { getAllProducts, addProductWithToken, updateProduct, deleteProduct, setPrice, setStock, activateProduct } from '@/api/productApi';
 import { toast } from 'sonner';
 import { getAllCommentsPM, acceptComment, rejectComment } from '@/api/commentApi';
 import { useNavigate } from 'react-router-dom';
@@ -17,6 +17,7 @@ import { getAllOrders, getOrderInvoiceManager, changeOrderStatus } from '@/api/o
 interface Category {
   id: number;
   name: string;
+  visible: number; 
 }
 
 interface Product {
@@ -32,6 +33,7 @@ interface Product {
   category_id: number;
   picture: string;
   status?: number; // 1 = active, 0 = inactive (when category is deleted)
+  visible: number;
 }
 
 interface Delivery {
@@ -100,7 +102,6 @@ const ProductManagerPage = () => {
   const [filterName, setFilterName] = useState('');
   const [sortOption, setSortOption] = useState('date-desc'); // default: newest first
   const [isLoadingComments, setIsLoadingComments] = useState(false);
-  const [deletedCategories, setDeletedCategories] = useState<{id: number, name: string}[]>([]);
   const [orders, setOrders] = useState<{ mapped: Order, raw: any }[]>([]);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
   const [downloadingOrderId, setDownloadingOrderId] = useState<string | null>(null);
@@ -123,12 +124,6 @@ const ProductManagerPage = () => {
       const role = tokenPayload.role;
       setUserRole(role);
 
-      // Restore deleted categories from localStorage
-      const storedDeleted = localStorage.getItem('deletedCategories');
-      if (storedDeleted) {
-        setDeletedCategories(JSON.parse(storedDeleted));
-      }
-
       if (role !== 'product_manager') {
         toast.error('Access denied. Product manager role required.');
         navigate('/');
@@ -147,19 +142,16 @@ const ProductManagerPage = () => {
     }
   }, [navigate]);
 
-  const fetchCategories = async () => {
-    try {
-      const categoriesData = await getAllCategories();
-      const storedDeleted = localStorage.getItem('deletedCategories');
-      const deleted = storedDeleted ? JSON.parse(storedDeleted) : [];
-      const deletedIds = deleted.map((cat: Category) => cat.id);
-      const filteredCategories = categoriesData.filter((cat: Category) => !deletedIds.includes(cat.id));
-      setCategories(filteredCategories);
-    } catch (error) {
-      console.error('Error fetching categories:', error);
-      toast.error('Failed to fetch categories');
-    }
-  };
+const fetchCategories = async () => {
+  try {
+    const categoriesData = await getAllCategoriesManager();
+    setCategories(categoriesData);
+  } catch (error) {
+    console.error('Error fetching categories:', error);
+    toast.error('Failed to fetch categories');
+  }
+};
+
 
   const fetchProducts = async () => {
     try {
@@ -190,43 +182,31 @@ const ProductManagerPage = () => {
     }
   };
 
-  const handleDeleteCategory = (id: number) => {
-    const deletedCat = categories.find(cat => cat.id === id);
-    setCategories(categories.filter(cat => cat.id !== id));
-    if (deletedCat) {
-      setDeletedCategories([...deletedCategories, deletedCat]);
-      localStorage.setItem('deletedCategories', JSON.stringify([...deletedCategories, deletedCat]));
+  const handleDeleteCategory = async (id: number) => {
+    try {
+      await deactivateCategory(id);
+      await fetchCategories();
+      await fetchProducts();
+      toast.success('Category deactivated and related products hidden');
+    } catch (error) {
+      console.error('Error deactivating category:', error);
+      toast.error('Failed to deactivate category');
     }
-    
-    // Update products with this category_id - set category_id to 0 and status to 0
-    setProducts(products.map(prod => 
-      prod.category_id === id 
-        ? { ...prod, category_id: 0, status: 0 } 
-        : prod
-    ));
-    
-    toast.success(`Category "${deletedCat?.name}" removed`);
   };
+  
 
-  const handleRecoverCategory = (id: number) => {
-    const recoveredCategory = deletedCategories.find(cat => cat.id === id);
-    if (recoveredCategory) {
-      setCategories([...categories, recoveredCategory]);
-      const updatedDeleted = deletedCategories.filter(cat => cat.id !== id);
-      setDeletedCategories(updatedDeleted);
-      localStorage.setItem('deletedCategories', JSON.stringify(updatedDeleted));
-      
-      // Update products belonging to this category - set status back to 1
-      setProducts(products.map(prod => 
-        // If category_id is 0 and name matches, it's likely from this category
-        prod.category_id === 0 && prod.name.toLowerCase().includes(recoveredCategory.name.toLowerCase()) 
-          ? { ...prod, category_id: id, status: 1 } 
-          : prod
-      ));
-      
-      toast.success(`Category "${recoveredCategory.name}" recovered successfully`);
+  const handleRecoverCategory = async (id: number) => {
+    try {
+      await activateCategory(id);
+      await fetchCategories();
+      await fetchProducts();
+      toast.success('Category and its products reactivated');
+    } catch (error) {
+      console.error('Error reactivating category:', error);
+      toast.error('Failed to reactivate category');
     }
   };
+  
 
   const handleAddProduct = async () => {
     // Validate all required fields
@@ -273,8 +253,11 @@ const ProductManagerPage = () => {
 
   const handleDeleteProduct = async (id: number) => {
     try {
-      await deleteProduct(id);
-      setProducts(products.filter(prod => prod.id !== id));
+      const token = localStorage.getItem('token');
+      if (!token) throw new Error('Token not found');
+      await deleteProduct(token, id);
+      fetchProducts();
+      
       toast.success('Product deleted successfully');
     } catch (error) {
       console.error('Error deleting product:', error);
@@ -501,6 +484,21 @@ const ProductManagerPage = () => {
     }
   };
 
+
+  const handleActivateProduct = async (productId: number) => {
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) throw new Error('Token not found');
+
+    await activateProduct(token, productId);
+    fetchProducts();
+    toast.success('Product restored successfully');
+  } catch (error) {
+    toast.error('Failed to restore product');
+  }
+};
+
+
   return (
     <div className="container mx-auto p-6">
       {userRole === 'product_manager' ? (
@@ -530,7 +528,7 @@ const ProductManagerPage = () => {
                       <Button onClick={handleAddCategory}>Add</Button>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      {categories.filter(category => !deletedCategories.some(dc => dc.id === category.id)).map((category) => (
+                      {categories.filter(category => category.visible === 1).map((category) => (
                         <Badge key={category.id} variant="secondary" className="flex items-center gap-2">
                           {category.name}
                           <Button size="icon" variant="ghost" onClick={() => handleDeleteCategory(category.id)} className="p-0 h-4 w-4 text-red-500 hover:bg-red-100">
@@ -539,21 +537,26 @@ const ProductManagerPage = () => {
                         </Badge>
                       ))}
                     </div>
-                    {deletedCategories.length > 0 && (
-                      <div className="mt-4">
-                        <h4 className="font-semibold text-sm mb-2">Deleted Categories</h4>
-                        <div className="flex flex-wrap gap-2">
-                          {deletedCategories.map((cat) => (
-                            <Badge key={cat.id.toString()} variant="outline" className="flex items-center gap-2">
-                              {cat.name}
-                              <Button size="icon" variant="ghost" onClick={() => handleRecoverCategory(cat.id)} className="p-0 h-4 w-4 text-green-600 hover:bg-green-100">
-                                <Plus className="h-3 w-3" />
-                              </Button>
-                            </Badge>
-                          ))}
-                        </div>
+                    {categories.filter(cat => cat.visible === 0).length > 0 && (
+                    <div className="mt-4">
+                      <h4 className="font-semibold text-sm mb-2">Inactive Categories</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {categories.filter(cat => cat.visible === 0).map((cat) => (
+                          <Badge key={cat.id} variant="outline" className="flex items-center gap-2">
+                            {cat.name}
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => handleRecoverCategory(cat.id)}
+                              className="p-0 h-4 w-4 text-green-600 hover:bg-green-100"
+                            >
+                              <Plus className="h-3 w-3" />
+                            </Button>
+                          </Badge>
+                        ))}
                       </div>
-                    )}
+                    </div>
+                  )}
                   </CardContent>
                 </Card>
 
@@ -697,7 +700,7 @@ const ProductManagerPage = () => {
 
                       {/* Display Active Products */}
                       {getFilteredSortedProducts().map((product) => (
-                        <Card key={product.id} className="overflow-hidden">
+                        <Card key={product.id} className={`overflow-hidden ${product.visible === 0 ? 'border-red-500 border-2' : ''}`}>
                           <CardContent className="p-0">
                             {editingProduct?.id === product.id ? (
                               <div className="space-y-4 p-6">
@@ -722,13 +725,25 @@ const ProductManagerPage = () => {
                               </div>
                             ) : (
                               <div className="space-y-4 p-6">
-                                {product.picture && (
-                                  <img
-                                    src={product.picture}
-                                    alt={product.name}
-                                    className="w-full h-48 object-cover rounded-md"
-                                  />
-                                )}
+                                
+
+                  {product.picture && (
+                    <div className="relative">
+                      <img
+                        src={product.picture}
+                        alt={product.name}
+                        className={`w-full h-48 object-cover rounded-md ${product.visible === 0 ? 'opacity-60 grayscale' : ''}`}
+                      />
+                      {product.visible === 0 && (
+                        <div className="absolute top-2 right-2">
+                          <Badge variant="destructive">Deleted</Badge>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+
+
                                 <div>
                                   <h3 className="font-semibold text-lg">{product.name}</h3>
                                   <p className="text-sm text-gray-500">{product.model}</p>
@@ -753,19 +768,40 @@ const ProductManagerPage = () => {
                                     <p className="font-medium">{product.warrantyStatus}</p>
                                   </div>
                                 </div>
+
+
                                 <div className="flex justify-end gap-2 pt-2">
-                                  <Button variant="outline" size="sm" onClick={() => handleEditProduct(product)}>
-                                    Edit Stock
-                                  </Button>
-                                  <Button variant="destructive" size="sm" onClick={() => handleDeleteProduct(product.id)}>
-                                    Delete
-                                  </Button>
-                                </div>
+  {product.visible === 1 ? (
+    <>
+      <Button variant="outline" size="sm" onClick={() => handleEditProduct(product)}>
+        Edit Stock
+      </Button>
+      <Button variant="destructive" size="sm" onClick={() => handleDeleteProduct(product.id)}>
+        Delete
+      </Button>
+    </>
+  ) : (
+    <Button
+      size="sm"
+      className="bg-green-600 text-white hover:bg-green-700"
+      onClick={() => handleActivateProduct(product.id)}
+    >
+      Restore
+    </Button>
+  )}
+</div>
+
+
+
+
                               </div>
                             )}
                           </CardContent>
                         </Card>
                       ))}
+
+
+                      
                     </div>
                     
                     {/* Inactive Products Section */}
