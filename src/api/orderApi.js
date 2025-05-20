@@ -100,3 +100,17 @@ export const cancelOrder = async (token, orderId) => {
   }
 };
 
+
+
+export const changeOrderStatus = async (orderId, newStatus) => {
+  try {
+    const response = await axiosInstance.post('/api/orders/changeOrderStatus', {
+      orderId,
+      newStatus
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Changing order status failed:", error);
+    throw error;
+  }
+};

@@ -12,7 +12,7 @@ import { getAllProducts, addProductWithToken, updateProduct, deleteProduct, setP
 import { toast } from 'sonner';
 import { getAllCommentsPM, acceptComment, rejectComment } from '@/api/commentApi';
 import { useNavigate } from 'react-router-dom';
-import { getAllOrders, getOrderInvoiceManager } from '@/api/orderApi';
+import { getAllOrders, getOrderInvoiceManager, changeOrderStatus } from '@/api/orderApi';
 
 interface Category {
   id: number;
@@ -931,6 +931,7 @@ const ProductManagerPage = () => {
                           <TableHead>Total</TableHead>
                           <TableHead>User Email</TableHead>
                           <TableHead>Address</TableHead>
+                          <TableHead>Status</TableHead>
                           <TableHead>Invoice</TableHead>
                           <TableHead>Details</TableHead>
                         </TableRow>
@@ -944,6 +945,27 @@ const ProductManagerPage = () => {
                               <TableCell>${mapped.total?.toFixed ? mapped.total.toFixed(2) : mapped.total}</TableCell>
                               <TableCell>{mapped.userEmail || '-'}</TableCell>
                               <TableCell>{mapped.address || '-'}</TableCell>
+                              <TableCell>
+                                <select
+                                  className="p-1 border rounded text-sm"
+                                  value={raw.order_status}
+                                  onChange={async (e) => {
+                                    const newStatus = e.target.value;
+                                    try {
+                                      await changeOrderStatus(raw.order_id, newStatus);
+                                      toast.success(`Order status changed to ${newStatus}`);
+                                      fetchOrders();
+                                    } catch (err) {
+                                      toast.error('Failed to update order status');
+                                    }
+                                  }}
+                                >
+                                  <option value="processing">Processing</option>
+                                  <option value="in-transit">In-Transit</option>
+                                  <option value="delivered">Delivered</option>
+                                  <option value="cancelled">Cancelled</option>
+                                </select>
+                              </TableCell>
                               <TableCell>
                                 <Button size="icon" variant="outline" onClick={() => handleDownloadInvoice(raw.order_id)} disabled={downloadingOrderId === mapped.id}>
                                   {downloadingOrderId === mapped.id ? (
@@ -970,7 +992,7 @@ const ProductManagerPage = () => {
                             </TableRow>
                             {expandedOrderId === mapped.id && (
                               <TableRow>
-                                <TableCell colSpan={7} className="bg-gray-50 p-0">
+                                <TableCell colSpan={8} className="bg-gray-50 p-0">
                                   <div className="p-4">
                                     <div className="font-semibold mb-2">Products in this order:</div>
                                     <Table className="mb-0">
