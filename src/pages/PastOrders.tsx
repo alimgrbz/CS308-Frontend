@@ -11,6 +11,7 @@ import OrderReviewModal from '@/components/OrderReviewModal';
 import { getOrdersByUser, getOrderInvoice, cancelOrder } from '@/api/orderApi';
 import { addComment } from "@/api/commentApi"; 
 import { addRate, getRatesByUser } from "@/api/rateApi";
+import { requestRefund, getRefundsByUser } from "@/api/refundsApi";
 
 // Refund modal
 const RefundRequestModal = ({
@@ -105,6 +106,7 @@ const PastOrders = () => {
   const [refundProduct, setRefundProduct] = useState<OrderProduct | null>(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelOrderId, setCancelOrderId] = useState<string | null>(null);
+  const [isRefreshingRefunds, setIsRefreshingRefunds] = useState(false);
 
   const mapBackendStatus = (backendStatus: string): OrderStatus => {
     switch (backendStatus) {
@@ -113,6 +115,48 @@ const PastOrders = () => {
       case 'delivered': return 'Delivered';
       case 'cancelled': return 'Cancelled';
       default: return 'Ordered';
+    }
+  };
+
+  const fetchRefundStatuses = async (token: string) => {
+    try {
+      const refundsData = await getRefundsByUser(token);
+      
+      // Ensure refundsData is an array
+      const refunds = Array.isArray(refundsData) ? refundsData : 
+                     (refundsData.refunds ? refundsData.refunds : []);
+      
+      if (refunds.length === 0) {
+        return; // No refunds to process
+      }
+      
+      // Update orders with refund statuses
+      setOrders(prevOrders => {
+        return prevOrders.map(order => {
+          const updatedProducts = order.products.map(product => {
+            // Find if there's a refund for this product
+            const refund = refunds.find((r: any) => 
+              r.order_id?.toString() === order.id && 
+              r.product_id?.toString() === product.id
+            );
+            
+            if (refund) {
+              // Map backend status to our RefundStatus type
+              let status: RefundStatus = 'pending';
+              if (refund.status === 'approved') status = 'approved';
+              else if (refund.status === 'rejected') status = 'rejected';
+              else if (refund.status === 'done') status = 'done';
+              
+              return { ...product, refundStatus: status };
+            }
+            return product;
+          });
+          
+          return { ...order, products: updatedProducts };
+        });
+      });
+    } catch (error) {
+      console.error("Error fetching refund statuses:", error);
     }
   };
 
@@ -150,12 +194,27 @@ const PastOrders = () => {
         }));
 
         setOrders(mappedOrders);
+        
+        // After loading orders, fetch the latest refund statuses
+        await fetchRefundStatuses(token);
       } catch (err) {
         console.error("Error fetching orders or ratings:", err);
       }
     };
 
     fetchOrdersAndRatings();
+    
+    // Set up an interval to refresh refund statuses every 30 seconds
+    const intervalId = setInterval(() => {
+      if (token) {
+        setIsRefreshingRefunds(true);
+        fetchRefundStatuses(token).finally(() => {
+          setIsRefreshingRefunds(false);
+        });
+      }
+    }, 30000);
+    
+    return () => clearInterval(intervalId);
   }, []);
 
   const handleCancelOrder = async (orderId: string) => {
@@ -247,19 +306,46 @@ const PastOrders = () => {
       return;
     }
 
+    // Find the product to get the quantity
+    const order = orders.find(o => o.id === orderId);
+    if (!order) {
+      toast.error("Order not found.");
+      return;
+    }
+    
+    const product = order.products.find(p => p.id === productId);
+    if (!product) {
+      toast.error("Product not found in order.");
+      return;
+    }
+
     try {
+      // Call the requestRefund API
+      await requestRefund(
+        token, 
+        orderId, 
+        productId, 
+        product.quantity
+      );
+      
       toast.success("Refund request submitted successfully!");
       setOrders(prev => prev.map(order => {
         if (order.id !== orderId) return order;
         return {
           ...order,
-          products: order.products.map(product =>
-            product.id === productId ? { ...product, refundStatus: 'pending' } : product
+          products: order.products.map(p =>
+            p.id === productId ? { ...p, refundStatus: 'pending' } : p
           ),
         };
       }));
+      
+      // Refresh refund statuses to get the latest data
+      setTimeout(() => {
+        fetchRefundStatuses(token);
+      }, 1000);
     } catch (err) {
-      toast.error("Failed to submit refund request.");
+      console.error("Refund request error:", err);
+      toast.error("Failed to submit refund request. Please try again.");
     }
   };
 
@@ -286,6 +372,22 @@ const PastOrders = () => {
     
     // Return true if more than 30 days have passed since delivery
     return diffDays > 30;
+  };
+
+  // Helper function to display refund status text
+  const renderRefundStatusText = (status: RefundStatus) => {
+    switch (status) {
+      case 'pending':
+        return <span className="text-amber-600 text-sm">Refund Pending</span>;
+      case 'approved':
+        return <span className="text-green-600 text-sm">Refund Approved</span>;
+      case 'rejected':
+        return <span className="text-red-600 text-sm">Refund Rejected</span>;
+      case 'done':
+        return <span className="text-green-600 text-sm">Refund Completed</span>;
+      default:
+        return null;
+    }
   };
 
   return (
@@ -419,8 +521,8 @@ const PastOrders = () => {
                                 {order.status === 'Delivered' ? (
                                   isRefundPeriodExpired(order.date, order.status) ? (
                                     <span className="text-gray-500 text-sm">Refund period expired (30 days)</span>
-                                  ) : product.refundStatus === 'pending' ? (
-                                    <span className="text-amber-600 text-sm">Refund Pending</span>
+                                  ) : product.refundStatus ? (
+                                    renderRefundStatusText(product.refundStatus)
                                   ) : (
                                     <ButtonCustom
                                       size="sm"

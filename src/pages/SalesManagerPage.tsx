@@ -108,6 +108,8 @@ interface OrderDetails {
   const [allOrders, setAllOrders] = useState<OrderDetails[]>([]);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
   const [isRefreshingProducts, setIsRefreshingProducts] = useState(false);
+  const [refundFilter, setRefundFilter] = useState<'all' | 'pending'>('all');
+  const [isLoadingRefunds, setIsLoadingRefunds] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -133,17 +135,45 @@ interface OrderDetails {
   }, [startDate, endDate]);
   
   const fetchRefunds = async () => {
+    setIsLoadingRefunds(true);
     try {
       const token = localStorage.getItem('token');
       if (!token) {
         toast.error("No token found. Please log in again.");
         return;
       }
-      const data = await getAllRefunds(token);
-      setRefunds(data || []);
+      
+      console.log('Fetching refunds with token:', token);
+      const response = await getAllRefunds(token);
+      
+      // Handle the response which could be either direct array or nested in a property
+      const refundsData = Array.isArray(response) ? response : 
+                         (response.refunds ? response.refunds : []);
+      
+      console.log('Refund data received:', refundsData);
+      
+      // Map the refund data to match our interface
+      const mappedRefunds = refundsData.map((refund: any) => ({
+        id: refund.refund_id || refund.id,
+        userName: refund.user_name || refund.userName || '',
+        userEmail: refund.user_email || refund.userEmail || '',
+        orderId: refund.order_id?.toString() || refund.orderId || '',
+        reason: refund.reason || 'No reason provided',
+        // Map backend status values to our numeric status
+        status: refund.status === 'pending' ? 0 : 
+                refund.status === 'approved' ? 1 : 
+                refund.status === 'rejected' ? 2 : 0,
+        createdAt: refund.created_at || refund.createdAt || new Date().toISOString(),
+        productId: refund.product_id?.toString() || refund.productId || '',
+        quantity: refund.quantity || 1
+      }));
+      
+      setRefunds(mappedRefunds);
     } catch (error) {
       console.error("Error fetching refunds:", error);
       toast.error("Failed to fetch refund requests.");
+    } finally {
+      setIsLoadingRefunds(false);
     }
   };
   
@@ -205,12 +235,34 @@ interface OrderDetails {
         toast.error("Token missing");
         return;
       }
+      
+      // Show loading toast
+      const loadingToast = toast.loading(`Processing ${decision} decision...`);
+      
       await refundDecision(token, refundId, decision);
+      
+      // Dismiss loading toast and show success
+      toast.dismiss(loadingToast);
       toast.success(`Refund ${decision} successfully.`);
-      fetchRefunds(); // Refresh list
+      
+      // Update local state to avoid a full refresh
+      setRefunds(prev => prev.map(refund => {
+        if (refund.id === refundId) {
+          return {
+            ...refund,
+            status: decision === 'approved' ? 1 : 2
+          };
+        }
+        return refund;
+      }));
+      
+      // Refresh list after a short delay to ensure backend is updated
+      setTimeout(() => {
+        fetchRefunds();
+      }, 1000);
     } catch (error) {
       console.error("Error processing refund:", error);
-      toast.error("Failed to update refund decision.");
+      toast.error(`Failed to ${decision} refund. Please try again.`);
     }
   };
   
@@ -646,59 +698,109 @@ interface OrderDetails {
         <TabsContent value="refunds">
   <Card>
     <CardHeader>
-      <CardTitle>User Refund Requests</CardTitle>
+      <div className="flex justify-between items-center w-full">
+        <CardTitle>User Refund Requests</CardTitle>
+        <div className="flex items-center gap-4">
+          {isLoadingRefunds ? (
+            <div className="flex items-center">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900 mr-2"></div>
+              <span className="text-sm">Loading...</span>
+            </div>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={fetchRefunds}
+              className="flex items-center gap-1"
+            >
+              <RefreshCw size={16} />
+              Refresh
+            </Button>
+          )}
+          <select
+            id="refundFilter"
+            className="p-2 border rounded-md"
+            value={refundFilter}
+            onChange={(e) => setRefundFilter(e.target.value as 'all' | 'pending')}
+          >
+            <option value="all">All Refunds</option>
+            <option value="pending">Pending Only</option>
+          </select>
+        </div>
+      </div>
     </CardHeader>
     <CardContent>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Email</TableHead>
-            <TableHead>Order ID</TableHead>
-            <TableHead>Reason</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Date</TableHead>
-            <TableHead>Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {refunds.map((refund) => (
-            <TableRow key={refund.id}>
-              <TableCell>{refund.userEmail}</TableCell>
-              <TableCell>{refund.orderId}</TableCell>
-              <TableCell>{refund.reason}</TableCell>
-              <TableCell>
-                <Badge
-                  variant={
-                    refund.status === 1
-                      ? 'default'
-                      : refund.status === 2
-                      ? 'destructive'
-                      : 'secondary'
-                  }
-                >
-                  {refund.status === 1
-                    ? 'Accepted'
-                    : refund.status === 2
-                    ? 'Rejected'
-                    : 'Pending'}
-                </Badge>
-              </TableCell>
-              <TableCell>{new Date(refund.createdAt).toLocaleString()}</TableCell>
-              <TableCell>
-              <div className="flex gap-2">
-                <Button size="sm" onClick={() => handleRefundAction(refund.id, 'approved')} disabled={refund.status !== 0}>
-                  Accept
-                </Button>
-                <Button size="sm" variant="destructive" onClick={() => handleRefundAction(refund.id, 'rejected')} disabled={refund.status !== 0}>
-                  Decline
-                </Button>
-              </div>
-            </TableCell>
-
+      {isLoadingRefunds ? (
+        <div className="flex items-center justify-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+          <span className="ml-2">Loading refunds...</span>
+        </div>
+      ) : refunds.length === 0 ? (
+        <div className="text-center text-gray-500 py-4">No refund requests found</div>
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Email</TableHead>
+              <TableHead>Order ID</TableHead>
+              <TableHead>Reason</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Date</TableHead>
+              <TableHead>Actions</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {refunds
+              .filter(refund => refundFilter === 'all' || refund.status === 0)
+              .map((refund) => (
+              <TableRow key={refund.id}>
+                <TableCell>{refund.userEmail}</TableCell>
+                <TableCell>{refund.orderId}</TableCell>
+                <TableCell>{refund.reason}</TableCell>
+                <TableCell>
+                  <Badge
+                    variant={
+                      refund.status === 1
+                        ? 'default'
+                        : refund.status === 2
+                        ? 'destructive'
+                        : 'secondary'
+                    }
+                  >
+                    {refund.status === 1
+                      ? 'Accepted'
+                      : refund.status === 2
+                      ? 'Rejected'
+                      : 'Pending'}
+                  </Badge>
+                </TableCell>
+                <TableCell>{new Date(refund.createdAt).toLocaleString()}</TableCell>
+                <TableCell>
+                <div className="flex gap-2">
+                  <Button 
+                    size="sm" 
+                    onClick={() => handleRefundAction(refund.id, 'approved')} 
+                    disabled={refund.status !== 0}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    Accept
+                  </Button>
+                  <Button 
+                    variant="destructive" 
+                    size="sm" 
+                    onClick={() => handleRefundAction(refund.id, 'rejected')} 
+                    disabled={refund.status !== 0}
+                  >
+                    Decline
+                  </Button>
+                </div>
+              </TableCell>
+
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
     </CardContent>
   </Card>
 </TabsContent>
