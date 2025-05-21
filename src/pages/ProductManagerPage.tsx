@@ -57,6 +57,7 @@ interface Comment {
 
 interface OrderProduct {
   id: string;
+  p_id?: string;
   name: string;
   image: string;
   price: number;
@@ -379,6 +380,7 @@ const fetchCategories = async () => {
       const mappedOrders: { mapped: Order, raw: any }[] = (rawOrders || []).map((order: any) => {
         const mappedProducts = (order.product_list || []).map((prod: any) => ({
           id: prod.p_id?.toString() ?? '',
+          p_id: prod.p_id?.toString() ?? '',
           name: prod.name,
           image: prod.image,
           price: parseFloat(prod.total_price),
@@ -1045,7 +1047,7 @@ const fetchCategories = async () => {
                                         {mapped.products && mapped.products.length > 0 ? (
                                           mapped.products.map((prod, idx) => (
                                             <TableRow key={prod.id || idx} className={prod.cancelStatus === 'cancelled' ? 'bg-red-50' : ''}>
-                                              <TableCell>{prod.id}</TableCell>
+                                              <TableCell className="font-medium">{prod.p_id || prod.id}</TableCell>
                                               <TableCell>{prod.name}</TableCell>
                                               <TableCell>{prod.quantity}</TableCell>
                                               <TableCell>${prod.price.toFixed(2)}</TableCell>
