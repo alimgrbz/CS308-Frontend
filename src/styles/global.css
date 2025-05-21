@@ -59,9 +59,21 @@ button {
   border-radius: 2px;
   padding: 1px 0;
   box-shadow: 0 0 0 1px #fef08a;
+  transition: all 0.2s ease;
 }
 
 .search-highlight.active {
   background-color: #fde047;
-  box-shadow: 0 0 0 1px #fde047;
+  box-shadow: 0 0 0 2px #fde047, 0 0 8px rgba(253, 224, 71, 0.8);
+  font-weight: bold;
+  animation: pulse 1s infinite alternate;
+}
+
+@keyframes pulse {
+  from {
+    box-shadow: 0 0 0 2px #fde047, 0 0 8px rgba(253, 224, 71, 0.8);
+  }
+  to {
+    box-shadow: 0 0 0 2px #fde047, 0 0 12px rgba(253, 224, 71, 1);
+  }
 }

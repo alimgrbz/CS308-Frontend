@@ -22,10 +22,23 @@ const SearchBar = () => {
   const searchInputRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
+  const isProductPage = location.pathname === '/products';
 
   // Handle search input change
   const handleInputChange = (e) => {
-    setSearchTerm(e.target.value);
+    const newSearchTerm = e.target.value;
+    setSearchTerm(newSearchTerm);
+    
+    // For non-product pages, perform live search as user types (like Ctrl+F)
+    if (!isProductPage && newSearchTerm.trim()) {
+      setIsSearching(true);
+      searchPage();
+    }
+    
+    // If search term is cleared, close search
+    if (!newSearchTerm.trim() && isSearching) {
+      closeSearch();
+    }
   };
 
   // Handle search form submission
@@ -35,7 +48,7 @@ const SearchBar = () => {
     if (!searchTerm.trim()) return;
     
     // If on products page, use the built-in product filtering
-    if (location.pathname === '/products') {
+    if (isProductPage) {
       // Just trigger the search without opening the global search UI
       return;
     }
@@ -52,6 +65,12 @@ const SearchBar = () => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
         e.preventDefault();
         searchInputRef.current?.focus();
+        
+        // If there's already a search term, trigger search
+        if (searchTerm.trim() && !isProductPage) {
+          setIsSearching(true);
+          searchPage();
+        }
       }
       
       // Escape to close search
@@ -80,7 +99,7 @@ const SearchBar = () => {
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isSearching, searchTerm, closeSearch, nextResult, prevResult]);
+  }, [isSearching, searchTerm, closeSearch, nextResult, prevResult, isProductPage, searchPage]);
 
   return (
     <>
@@ -90,7 +109,7 @@ const SearchBar = () => {
             <input
               ref={searchInputRef}
               type="text"
-              placeholder="Search products..."
+              placeholder={isProductPage ? "Search products..." : "Search on page..."}
               value={searchTerm}
               onChange={handleInputChange}
               onFocus={() => setInputFocused(true)}
@@ -116,8 +135,8 @@ const SearchBar = () => {
         </form>
       </div>
       
-      {/* Search results overlay */}
-      {isSearching && (
+      {/* Search results overlay - only show for non-product pages */}
+      {isSearching && !isProductPage && (
         <div className="search-results-overlay">
           <div className="search-results-container">
             <div className="search-results-header">

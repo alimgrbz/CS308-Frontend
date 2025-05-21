@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 
 const SearchContext = createContext();
 
@@ -15,17 +15,65 @@ export const SearchProvider = ({ children }) => {
       setIsSearching(false);
       setSearchResults([]);
       setCurrentResultIndex(0);
+      clearHighlights();
     };
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
+  // Clear search highlights
+  const clearHighlights = useCallback(() => {
+    document.querySelectorAll('.search-highlight').forEach(el => {
+      const parent = el.parentNode;
+      parent.replaceChild(document.createTextNode(el.textContent), el);
+      parent.normalize();
+    });
+  }, []);
+
+  // Highlight a specific search result
+  const highlightResult = useCallback((result, index) => {
+    // Remove previous highlights
+    clearHighlights();
+    
+    // Create highlight for current result
+    const { node, index: matchIndex, text } = result;
+    const nodeText = node.textContent;
+    
+    // Split the text node into parts
+    const before = nodeText.substring(0, matchIndex);
+    const match = nodeText.substring(matchIndex, matchIndex + text.length);
+    const after = nodeText.substring(matchIndex + text.length);
+    
+    // Create new nodes
+    const beforeNode = document.createTextNode(before);
+    const matchNode = document.createElement('span');
+    matchNode.textContent = match;
+    matchNode.className = 'search-highlight active';
+    matchNode.style.backgroundColor = '#FFFF00';
+    matchNode.style.color = '#000000';
+    const afterNode = document.createTextNode(after);
+    
+    // Replace the original node
+    const parent = node.parentNode;
+    parent.insertBefore(beforeNode, node);
+    parent.insertBefore(matchNode, node);
+    parent.insertBefore(afterNode, node);
+    parent.removeChild(node);
+    
+    // Scroll to the highlighted element
+    matchNode.scrollIntoView({
+      behavior: 'smooth',
+      block: 'center'
+    });
+  }, [clearHighlights]);
+
   // Search the current page for matches
-  const searchPage = () => {
+  const searchPage = useCallback(() => {
     if (!searchTerm.trim()) {
       setSearchResults([]);
       setIsSearching(false);
+      clearHighlights();
       return;
     }
 
@@ -40,16 +88,20 @@ export const SearchProvider = ({ children }) => {
         acceptNode: function(node) {
           // Skip script and style elements
           if (
+            !node.parentNode ||
             node.parentNode.tagName === 'SCRIPT' ||
             node.parentNode.tagName === 'STYLE' ||
             node.parentNode.classList.contains('navbar') ||
-            node.parentNode.classList.contains('footer')
+            node.parentNode.classList.contains('footer') ||
+            node.parentNode.classList.contains('search-bar') ||
+            node.parentNode.classList.contains('search-results-overlay')
           ) {
             return NodeFilter.FILTER_REJECT;
           }
           
-          // Accept only nodes with non-empty text
-          return node.textContent.trim() !== '' 
+          // Accept only nodes with non-empty text that contains the search term
+          const text = node.textContent.trim();
+          return text !== '' && text.toLowerCase().includes(searchTerm.toLowerCase())
             ? NodeFilter.FILTER_ACCEPT 
             : NodeFilter.FILTER_SKIP;
         }
@@ -86,84 +138,34 @@ export const SearchProvider = ({ children }) => {
     if (results.length > 0) {
       highlightResult(results[0], 0);
     }
-  };
+  }, [searchTerm, highlightResult, clearHighlights]);
 
   // Navigate to next search result
-  const nextResult = () => {
+  const nextResult = useCallback(() => {
     if (searchResults.length === 0) return;
     
     const newIndex = (currentResultIndex + 1) % searchResults.length;
     setCurrentResultIndex(newIndex);
     highlightResult(searchResults[newIndex], newIndex);
-  };
+  }, [searchResults, currentResultIndex, highlightResult]);
 
   // Navigate to previous search result
-  const prevResult = () => {
+  const prevResult = useCallback(() => {
     if (searchResults.length === 0) return;
     
     const newIndex = (currentResultIndex - 1 + searchResults.length) % searchResults.length;
     setCurrentResultIndex(newIndex);
     highlightResult(searchResults[newIndex], newIndex);
-  };
-
-  // Highlight a specific search result
-  const highlightResult = (result, index) => {
-    // Remove previous highlights
-    document.querySelectorAll('.search-highlight').forEach(el => {
-      const parent = el.parentNode;
-      parent.replaceChild(document.createTextNode(el.textContent), el);
-      parent.normalize();
-    });
-    
-    // Create highlight for current result
-    const { node, index: matchIndex, text } = result;
-    const nodeText = node.textContent;
-    
-    // Split the text node into parts
-    const before = nodeText.substring(0, matchIndex);
-    const match = nodeText.substring(matchIndex, matchIndex + text.length);
-    const after = nodeText.substring(matchIndex + text.length);
-    
-    // Create new nodes
-    const beforeNode = document.createTextNode(before);
-    const matchNode = document.createElement('span');
-    matchNode.textContent = match;
-    matchNode.className = 'search-highlight';
-    matchNode.style.backgroundColor = '#FFFF00';
-    matchNode.style.color = '#000000';
-    const afterNode = document.createTextNode(after);
-    
-    // Replace the original node
-    const parent = node.parentNode;
-    parent.insertBefore(beforeNode, node);
-    parent.insertBefore(matchNode, node);
-    parent.insertBefore(afterNode, node);
-    parent.removeChild(node);
-    
-    // Scroll to the highlighted element
-    matchNode.scrollIntoView({
-      behavior: 'smooth',
-      block: 'center'
-    });
-  };
-
-  // Clear search highlights
-  const clearHighlights = () => {
-    document.querySelectorAll('.search-highlight').forEach(el => {
-      const parent = el.parentNode;
-      parent.replaceChild(document.createTextNode(el.textContent), el);
-      parent.normalize();
-    });
-  };
+  }, [searchResults, currentResultIndex, highlightResult]);
 
   // Close search and clear highlights
-  const closeSearch = () => {
+  const closeSearch = useCallback(() => {
     setSearchTerm('');
     setIsSearching(false);
     setSearchResults([]);
     setCurrentResultIndex(0);
     clearHighlights();
-  };
+  }, [clearHighlights]);
 
   return (
     <SearchContext.Provider
