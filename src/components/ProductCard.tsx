@@ -215,16 +215,17 @@ return (
             </div>
           )}
           
-          {actualStock && actualStock <= 10 && actualStock > 0 && (
-            <div className="absolute top-12 right-3">
-              <Badge
-                variant="outline"
-                className="bg-yellow-100 border-yellow-300 text-yellow-800 px-2 py-1 text-[10px] font-bold rounded-full"
-              >
-                Only {actualStock} left!
-              </Badge>
-            </div>
-          )}
+          {actualStock !== null && actualStock <= 10 && actualStock > 0 && (
+  <div className="absolute top-12 right-3">
+    <Badge
+      variant="outline"
+      className="bg-yellow-100 border-yellow-300 text-yellow-800 px-2 py-1 text-[10px] font-bold rounded-full"
+    >
+      Only {actualStock} left!
+    </Badge>
+  </div>
+)}
+
           
           {isTopThree && (
             <div className="absolute top-3 -left-8 transform -rotate-45 bg-gradient-to-r from-yellow-400 to-yellow-500 text-white text-[10px] font-extrabold px-8 py-1 shadow-xl overflow-hidden flex justify-center items-center">
