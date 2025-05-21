@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useNavigate } from 'react-router-dom';
 import { getAllCategories } from '@/api/categoryApi';
-import { getAllProducts, getProductsByCategory, setPrice, setDiscount } from '@/api/productApi';
+import { getAllProductsM, getProductsByCategory, setPrice, setDiscount } from '@/api/productApi';
 import { getAllOrders, getOrdersByUser, getOrderInvoiceManager, getRevenueGraph} from '@/api/orderApi';
 import { getAllRefunds, refundDecision } from '@/api/refundsApi';
 
@@ -201,9 +201,13 @@ interface OrderDetails {
         setIsRefreshingProducts(true);
       }
       console.log('🔁 fetchProducts started');
-      const data = await getAllProducts();
+      const data = await getAllProductsM();
       console.log('📦 Received products:', data);
-      setProducts(data);
+      const mapped = data.map((p: any) => ({
+        ...p,
+        discountRate: p.discount || 0  // ← Ensure discount is mapped properly
+      }));
+      setProducts(mapped);
       if (!isPolling) {
         toast.success('Products refreshed successfully');
       }

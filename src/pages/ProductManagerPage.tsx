@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Plus, Trash2, Save, X, Download, ChevronDown, ChevronRight } from "lucide-react";
 import { getAllCategories, addCategoryByProductManager as addCategory, deactivateCategory, activateCategory, getAllCategoriesManager } from '@/api/categoryApi';
-import { getAllProducts, addProductWithToken, updateProduct, deleteProduct, setPrice, setStock, activateProduct } from '@/api/productApi';
+import { getAllProductsM, addProductWithToken, updateProduct, deleteProduct, setPrice, setStock, activateProduct } from '@/api/productApi';
 import { toast } from 'sonner';
 import { getAllCommentsPM, acceptComment, rejectComment } from '@/api/commentApi';
 import { useNavigate } from 'react-router-dom';
@@ -155,7 +155,7 @@ const fetchCategories = async () => {
 
   const fetchProducts = async () => {
     try {
-      const productsData = await getAllProducts();
+      const productsData = await getAllProductsM();
       // Set default status = 1 (active) for all products
       const productsWithStatus = productsData.map(product => ({
         ...product,
