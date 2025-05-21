@@ -308,7 +308,10 @@ interface OrderDetails {
     try {
       const token = localStorage.getItem('token');
       if (!token) throw new Error('No token found');
-      const rawOrders = await getAllOrders(token);
+      
+      // Add date parameters to the API call if they exist
+      const rawOrders = await getAllOrders(token, startDate, endDate);
+      
       const mappedOrders = rawOrders.map((order: any) => ({
         id: order.order_id?.toString() ?? '',
         date: new Date(order.date).toISOString(),
@@ -869,6 +872,40 @@ interface OrderDetails {
               <CardTitle>Deliveries & Invoices</CardTitle>
             </CardHeader>
           <CardContent>
+            {/* Date Filter */}
+            <div className="flex flex-col sm:flex-row gap-4 mb-4 items-center">
+              <div className="flex items-center gap-2">
+                <label htmlFor="start-date" className="text-sm font-medium">From:</label>
+                <Input
+                  id="start-date"
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="w-40"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <label htmlFor="end-date" className="text-sm font-medium">To:</label>
+                <Input
+                  id="end-date"
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="w-40"
+                />
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => fetchOrders()}
+                className="flex items-center gap-1"
+                disabled={isLoadingOrders}
+              >
+                <RefreshCw size={16} className={isLoadingOrders ? "animate-spin" : ""} />
+                {isLoadingOrders ? "Refreshing..." : "Apply Filter"}
+              </Button>
+            </div>
+
             {isLoadingOrders ? (
             <div>Loading orders...</div>
               ) : (
@@ -883,7 +920,15 @@ interface OrderDetails {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {allOrders.map((order) => (
+            {allOrders
+              .filter(order => {
+                const orderDate = new Date(order.date);
+                const start = new Date(startDate);
+                const end = new Date(endDate);
+                end.setHours(23, 59, 59, 999); // Set to end of day
+                return orderDate >= start && orderDate <= end;
+              })
+              .map((order) => (
               <TableRow key={order.id}>
                 <TableCell>{order.id}</TableCell>
                 <TableCell>{new Date(order.date).toLocaleDateString()}</TableCell>
@@ -918,8 +963,14 @@ interface OrderDetails {
                   </div>
                 </TableCell>
                 <TableCell>
-                  <Button size="sm" onClick={() => handleDownloadInvoice(order.id)}>
-                    <Download className="h-4 w-4" />
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => handleDownloadInvoice(order.id)}
+                    className="flex items-center gap-1"
+                  >
+                    <Download size={16} />
+                    Download
                   </Button>
                 </TableCell>
               </TableRow>
