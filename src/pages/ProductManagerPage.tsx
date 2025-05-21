@@ -811,8 +811,8 @@ const fetchCategories = async () => {
                       <div className="mt-8">
                         <h3 className="text-lg font-semibold mb-4">Inactive Products</h3>
                         <p className="text-sm text-gray-500 mb-4">
-                          These products are not visible to customers because their categories have been deleted.
-                          They will become active again when their respective categories are restored.
+                          These products are not visible to customers because their price have not been set.
+                          They will become active  when their prices are set.
                         </p>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                           {getFilteredSortedProducts(true).map((product) => (
@@ -846,7 +846,7 @@ const fetchCategories = async () => {
                                     </div>
                                   </div>
                                   <div className="text-sm text-red-600">
-                                    Category deleted - restore the category to activate this product.
+                                    Inactive product - Please contact sales manager to activate.
                                   </div>
                                 </div>
                               </CardContent>
