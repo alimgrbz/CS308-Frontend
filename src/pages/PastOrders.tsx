@@ -410,12 +410,28 @@ const PastOrders = () => {
         </motion.div>
 
         {orders.length === 0 ? (
-          <div className="text-center py-16">
-            <p className="text-coffee-brown mb-4">You haven't placed any orders yet.</p>
-            <Link to="/shop">
+          <motion.div 
+            className="text-center py-16 bg-white rounded-lg shadow-sm p-8"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+          >
+            <div className="mb-6">
+              <img 
+                src="/images/empty-orders.svg" 
+                alt="No Orders" 
+                className="w-48 h-48 mx-auto opacity-80"
+                onError={(e) => {
+                  e.currentTarget.src = "https://via.placeholder.com/150?text=No+Orders";
+                }}
+              />
+            </div>
+            <h2 className="text-2xl font-serif font-bold mb-3 text-coffee-green">No Orders Yet</h2>
+            <p className="text-coffee-brown mb-6 max-w-md mx-auto">You haven't placed any orders yet. Start exploring our products and find something you'll love!</p>
+            <Link to="/products">
               <ButtonCustom>Browse Products</ButtonCustom>
             </Link>
-          </div>
+          </motion.div>
         ) : (
           <div className="space-y-8">
             {orders.map((order) => (
