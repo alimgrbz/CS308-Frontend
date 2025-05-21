@@ -11,6 +11,7 @@ import { Package, ShoppingBag, UserRound, Settings, LogOut, Star } from 'lucide-
 const Profile = () => {
   const [userName, setUserName] = useState('');
   const [email, setEmail] = useState('');
+  const [userId, setUserId] = useState<number | null>(null);
   const [orders, setOrders] = useState([]);
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
@@ -26,6 +27,7 @@ const Profile = () => {
         const user = await getUserProfile(token);
         setUserName(user.name);
         setEmail(user.email);
+        setUserId(user.userId);
 
         console.log('Fetching orders with token:', token);
         const fetchedOrders = await getOrdersByUser(token);
@@ -105,6 +107,9 @@ const Profile = () => {
                 </div>
                 <CardTitle className="text-xl font-serif text-coffee-green">{userName}</CardTitle>
                 <p className="text-coffee-brown mt-1">{email}</p>
+                {userId !== null && (
+                  <p className="text-gray-400 text-sm mt-1">ID: {userId}</p>
+                )}
               </div>
             </CardHeader>
             <CardContent>
