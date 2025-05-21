@@ -1,33 +1,155 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { Search, X, ChevronUp, ChevronDown } from 'lucide-react';
+import { useSearch } from '../contexts/SearchContext';
 import '../styles/SearchBar.css';
 
 const SearchBar = () => {
-  const [searchTerm, setSearchTerm] = useState('');
+  const {
+    searchTerm,
+    setSearchTerm,
+    isSearching,
+    setIsSearching,
+    searchResults,
+    currentResultIndex,
+    searchPage,
+    nextResult,
+    prevResult,
+    closeSearch
+  } = useSearch();
+  
+  const [inputFocused, setInputFocused] = useState(false);
+  const searchInputRef = useRef(null);
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  const handleSearch = (e) => {
-    e.preventDefault();
-    console.log('Searching for:', searchTerm);
-    // TO DO: Implement search functionality
+  // Handle search input change
+  const handleInputChange = (e) => {
+    setSearchTerm(e.target.value);
   };
 
+  // Handle search form submission
+  const handleSearch = (e) => {
+    e.preventDefault();
+    
+    if (!searchTerm.trim()) return;
+    
+    // If on products page, use the built-in product filtering
+    if (location.pathname === '/products') {
+      // Just trigger the search without opening the global search UI
+      return;
+    }
+    
+    // For other pages, use the global search
+    setIsSearching(true);
+    searchPage();
+  };
+
+  // Handle keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Ctrl+F or Cmd+F to focus search
+      if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+      
+      // Escape to close search
+      if (e.key === 'Escape' && isSearching) {
+        closeSearch();
+      }
+      
+      // Enter to search when input is focused
+      if (e.key === 'Enter' && document.activeElement === searchInputRef.current) {
+        handleSearch(e);
+      }
+      
+      // Navigation between results
+      if (isSearching) {
+        if (e.key === 'F3' || (e.ctrlKey && e.key === 'g')) {
+          e.preventDefault();
+          nextResult();
+        }
+        
+        if ((e.shiftKey && e.key === 'F3') || (e.ctrlKey && e.shiftKey && e.key === 'g')) {
+          e.preventDefault();
+          prevResult();
+        }
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isSearching, searchTerm, closeSearch, nextResult, prevResult]);
+
   return (
-    <div className="search-bar">
-      <form onSubmit={handleSearch}>
-        <input
-          type="text"
-          placeholder="Search products..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-        <button type="submit">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="11" cy="11" r="8"></circle>
-            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-          </svg>
-        </button>
-      </form>
-    </div>
+    <>
+      <div className="search-bar">
+        <form onSubmit={handleSearch}>
+          <div className="search-input-container">
+            <input
+              ref={searchInputRef}
+              type="text"
+              placeholder="Search products..."
+              value={searchTerm}
+              onChange={handleInputChange}
+              onFocus={() => setInputFocused(true)}
+              onBlur={() => setTimeout(() => setInputFocused(false), 200)}
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                className="clear-button"
+                onClick={() => {
+                  setSearchTerm('');
+                  closeSearch();
+                  searchInputRef.current?.focus();
+                }}
+              >
+                <X size={16} />
+              </button>
+            )}
+            <button type="submit" className="search-button">
+              <Search size={20} />
+            </button>
+          </div>
+        </form>
+      </div>
+      
+      {/* Search results overlay */}
+      {isSearching && (
+        <div className="search-results-overlay">
+          <div className="search-results-container">
+            <div className="search-results-header">
+              <span className="results-count">
+                {searchResults.length > 0
+                  ? `${currentResultIndex + 1} of ${searchResults.length} matches`
+                  : 'No matches found'}
+              </span>
+              <div className="search-controls">
+                <button 
+                  onClick={prevResult} 
+                  disabled={searchResults.length === 0}
+                  title="Previous match (Shift+F3)"
+                >
+                  <ChevronUp size={16} />
+                </button>
+                <button 
+                  onClick={nextResult} 
+                  disabled={searchResults.length === 0}
+                  title="Next match (F3)"
+                >
+                  <ChevronDown size={16} />
+                </button>
+                <button onClick={closeSearch} title="Close search (Esc)">
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 

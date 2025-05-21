@@ -1,4 +1,3 @@
-
 * {
   margin: 0;
   padding: 0;
@@ -51,4 +50,18 @@ button {
 
 .button.secondary:hover {
   background-color: var(--light-mint);
+}
+
+/* Global search highlight styles */
+.search-highlight {
+  background-color: #fef08a;
+  color: #000000;
+  border-radius: 2px;
+  padding: 1px 0;
+  box-shadow: 0 0 0 1px #fef08a;
+}
+
+.search-highlight.active {
+  background-color: #fde047;
+  box-shadow: 0 0 0 1px #fde047;
 }

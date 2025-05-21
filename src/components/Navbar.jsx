@@ -7,12 +7,19 @@ import { User, Coffee } from 'lucide-react';
 import CoffeeRain from './CoffeeRain';
 import '../styles/Navbar.css';
 import { Heart } from 'lucide-react';
+import { useSearch } from '../contexts/SearchContext';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [showCoffeeRain, setShowCoffeeRain] = useState(false);
   const location = useLocation();
+  const { closeSearch } = useSearch();
+
+  // Reset search when navigating
+  useEffect(() => {
+    closeSearch();
+  }, [location.pathname, closeSearch]);
 
   const getCartItems = async () => {
     const token = localStorage.getItem('token');

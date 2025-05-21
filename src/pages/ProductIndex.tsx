@@ -10,6 +10,7 @@ import { getRatingsByProduct } from '@/api/rateApi';
 import Logo from '@/components/Logo';
 import { Link } from 'react-router-dom';
 import { useSearchParams } from 'react-router-dom';
+import { useSearch } from '@/contexts/SearchContext';
 
 
 interface Category {
@@ -19,7 +20,7 @@ interface Category {
 
 const ProductIndex = () => {
   
-  const [searchTerm, setSearchTerm] = useState('');
+  const { searchTerm, setSearchTerm } = useSearch();
   
   const [searchParams] = useSearchParams();
   const initialCategory = searchParams.get('category');
