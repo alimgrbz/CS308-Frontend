@@ -58,12 +58,27 @@ export const getRefundsByUser = async (token) => {
 
 // 4. Get all refund requests (sales manager view)
 export const getAllRefunds = async (token) => {
-  const response = await axiosInstance.get('http://localhost:5000/api/refunds/all', {
-    token,
-  }, {
-    headers: {
-      'Authorization': `Bearer ${token}`
+  try {
+    const response = await axiosInstance.get('http://localhost:5000/api/refunds/all', {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    
+    console.log('Raw refunds API response:', response.data);
+    
+    // Log the structure of the first refund to help debug
+    if (response.data && Array.isArray(response.data) && response.data.length > 0) {
+      console.log('First refund structure:', JSON.stringify(response.data[0], null, 2));
+      console.log('First refund keys:', Object.keys(response.data[0]));
+    } else if (response.data && response.data.refunds && Array.isArray(response.data.refunds) && response.data.refunds.length > 0) {
+      console.log('First refund structure (nested):', JSON.stringify(response.data.refunds[0], null, 2));
+      console.log('First refund keys (nested):', Object.keys(response.data.refunds[0]));
     }
-  });
-  return response.data;
+    
+    return response.data;
+  } catch (error) {
+    console.error("Error getting all refunds:", error);
+    return { refunds: [] }; // Return a safe default value
+  }
 };
