@@ -1034,6 +1034,7 @@ const fetchCategories = async () => {
                                     <Table className="mb-0">
                                       <TableHeader>
                                         <TableRow>
+                                          <TableHead>Product ID</TableHead>
                                           <TableHead>Product Name</TableHead>
                                           <TableHead>Quantity</TableHead>
                                           <TableHead>Price</TableHead>
@@ -1044,6 +1045,7 @@ const fetchCategories = async () => {
                                         {mapped.products && mapped.products.length > 0 ? (
                                           mapped.products.map((prod, idx) => (
                                             <TableRow key={prod.id || idx} className={prod.cancelStatus === 'cancelled' ? 'bg-red-50' : ''}>
+                                              <TableCell>{prod.id}</TableCell>
                                               <TableCell>{prod.name}</TableCell>
                                               <TableCell>{prod.quantity}</TableCell>
                                               <TableCell>${prod.price.toFixed(2)}</TableCell>
@@ -1058,7 +1060,7 @@ const fetchCategories = async () => {
                                           ))
                                         ) : (
                                           <TableRow>
-                                            <TableCell colSpan={4} className="text-center text-gray-400">No products found</TableCell>
+                                            <TableCell colSpan={5} className="text-center text-gray-400">No products found</TableCell>
                                           </TableRow>
                                         )}
                                       </TableBody>
