@@ -282,6 +282,7 @@ const ProductIndex = () => {
                     key={product.productId} 
                     product={product} 
                     isTopThree={topThreeProductIds.includes(product.productId)}
+                    
                   />
                 ))}
               </div>

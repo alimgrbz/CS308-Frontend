@@ -79,10 +79,18 @@ useEffect(() => {
     if (token) fetchWishlistIds(token);
   };
 
-
   window.addEventListener("wishlist-updated", handleUpdate);
-  return () => window.removeEventListener("wishlist-updated", handleUpdate);
+
+  // ✅ FETCH THE ACTUAL STOCK RIGHT AWAY
+  getStockById(productId)
+    .then(setActualStock)
+    .catch(() => setActualStock(0)); // fallback if API fails
+
+  return () => {
+    window.removeEventListener("wishlist-updated", handleUpdate);
+  };
 }, []);
+
 
   
   
