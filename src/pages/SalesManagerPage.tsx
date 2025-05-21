@@ -119,6 +119,7 @@ interface OrderDetails {
   const [isRefreshingProducts, setIsRefreshingProducts] = useState(false);
   const [refundFilter, setRefundFilter] = useState<'all' | 'pending'>('all');
   const [isLoadingRefunds, setIsLoadingRefunds] = useState(false);
+  const [pendingDiscounts, setPendingDiscounts] = useState<{ [productId: string]: number }>({});
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -161,84 +162,21 @@ interface OrderDetails {
       
       console.log('Refund data received:', refundsData);
       
-      // Debug: Log the first refund object to inspect its structure
-      if (refundsData.length > 0) {
-        console.log('First refund object structure:', JSON.stringify(refundsData[0], null, 2));
-        
-        // Check specifically for u.email field
-        const firstRefund = refundsData[0];
-        console.log('Direct email field:', firstRefund.email);
-        console.log('user_email field:', firstRefund.user_email);
-        console.log('userEmail field:', firstRefund.userEmail);
-        console.log('u object:', firstRefund.u);
-        if (firstRefund.u) {
-          console.log('u.email field:', firstRefund.u.email);
-        }
-      }
-      
       // Map the refund data to match our interface
-      const mappedRefunds = refundsData.map((refund: any) => {
-        console.log('Processing refund:', refund);
-        
-        // Check for email in various formats
-        let email = '';
-        
-        // Based on the backend structure from the query, try direct access first
-        if (typeof refund.email === 'string' && refund.email) {
-          email = refund.email;
-          console.log('Found email directly in refund.email:', email);
-        } 
-        // Try other common patterns
-        else if (typeof refund.user_email === 'string' && refund.user_email) {
-          email = refund.user_email;
-          console.log('Found email in refund.user_email:', email);
-        }
-        else if (typeof refund.userEmail === 'string' && refund.userEmail) {
-          email = refund.userEmail;
-          console.log('Found email in refund.userEmail:', email);
-        }
-        // Check for nested objects
-        else if (refund.u && typeof refund.u.email === 'string' && refund.u.email) {
-          email = refund.u.email;
-          console.log('Found email in refund.u.email:', email);
-        }
-        else if (refund.user && typeof refund.user.email === 'string' && refund.user.email) {
-          email = refund.user.email;
-          console.log('Found email in refund.user.email:', email);
-        }
-        
-        // Log all properties of the refund object to find where email might be
-        console.log('All refund properties:', Object.keys(refund));
-        
-        // If still no email found, try to parse the entire object as JSON and look for email
-        if (!email) {
-          try {
-            const stringified = JSON.stringify(refund);
-            const emailMatch = stringified.match(/"email":"([^"]+)"/);
-            if (emailMatch && emailMatch[1]) {
-              email = emailMatch[1];
-              console.log('Found email through JSON parsing:', email);
-            }
-          } catch (e) {
-            console.error('Error parsing refund object:', e);
-          }
-        }
-        
-        return {
-          id: refund.refund_id || refund.id,
-          userName: refund.name || refund.user_name || refund.userName || '',
-          userEmail: email,
-          orderId: refund.order_id?.toString() || refund.orderId || '',
-          reason: refund.reason || 'No reason provided',
-          // Map backend status values to our numeric status
-          status: refund.status === 'pending' ? 0 : 
-                  refund.status === 'approved' ? 1 : 
-                  refund.status === 'rejected' ? 2 : 0,
-          createdAt: refund.created_at || refund.createdAt || new Date().toISOString(),
-          productId: refund.product_id?.toString() || refund.productId || '',
-          quantity: refund.quantity || 1
-        };
-      });
+      const mappedRefunds = refundsData.map((refund: any) => ({
+        id: refund.refund_id || refund.id,
+        userName: refund.user_name || refund.userName || '',
+        userEmail: refund.user_email || refund.userEmail || '',
+        orderId: refund.order_id?.toString() || refund.orderId || '',
+        reason: refund.reason || 'No reason provided',
+        // Map backend status values to our numeric status
+        status: refund.status === 'pending' ? 0 : 
+                refund.status === 'approved' ? 1 : 
+                refund.status === 'rejected' ? 2 : 0,
+        createdAt: refund.created_at || refund.createdAt || new Date().toISOString(),
+        productId: refund.product_id?.toString() || refund.productId || '',
+        quantity: refund.quantity || 1
+      }));
       
       setRefunds(mappedRefunds);
     } catch (error) {
@@ -642,17 +580,46 @@ interface OrderDetails {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Input
-                            type="number"
-                            value={product.discountRate}
-                            onChange={(e) => handleDiscountChange(product.id, Number(e.target.value))}
-                            className="w-24"
-                            disabled={product.price === 0 || product.status === 0}
-                          />
-                          <span>%</span>
-                        </div>
-                      </TableCell>
+  <div className="flex items-center gap-2">
+    <Input
+      type="number"
+      value={
+        pendingDiscounts[product.id] !== undefined
+          ? pendingDiscounts[product.id]
+          : product.discountRate
+      }
+      onChange={(e) => {
+        const newDiscount = Number(e.target.value);
+        setPendingDiscounts((prev) => ({
+          ...prev,
+          [product.id]: newDiscount
+        }));
+      }}
+      className="w-24"
+      disabled={product.price === 0 || product.status === 0}
+    />
+    <span>%</span>
+    <Button
+      size="sm"
+      variant="outline"
+      disabled={
+        pendingDiscounts[product.id] === undefined ||
+        pendingDiscounts[product.id] === product.discountRate
+      }
+      onClick={() => {
+        const newDiscount = pendingDiscounts[product.id];
+        handleDiscountChange(product.id, newDiscount);
+        setPendingDiscounts((prev) => {
+          const { [product.id]: _, ...rest } = prev;
+          return rest;
+        });
+      }}
+    >
+      Set
+    </Button>
+  </div>
+</TableCell>
+
                       <TableCell>
                         {product.price === 0 ? (
                           <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300">
@@ -831,6 +798,7 @@ interface OrderDetails {
             <TableRow>
               <TableHead>Email</TableHead>
               <TableHead>Order ID</TableHead>
+              <TableHead>Reason</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Date</TableHead>
               <TableHead>Actions</TableHead>
@@ -841,14 +809,9 @@ interface OrderDetails {
               .filter(refund => refundFilter === 'all' || refund.status === 0)
               .map((refund) => (
               <TableRow key={refund.id}>
-                <TableCell className="font-medium">
-                  {refund.userEmail || (
-                    <span className="text-red-500">
-                      Missing email (ID: {refund.id})
-                    </span>
-                  )}
-                </TableCell>
+                <TableCell>{refund.userEmail}</TableCell>
                 <TableCell>{refund.orderId}</TableCell>
+                <TableCell>{refund.reason}</TableCell>
                 <TableCell>
                   <Badge
                     variant={
@@ -887,6 +850,7 @@ interface OrderDetails {
                   </Button>
                 </div>
               </TableCell>
+
               </TableRow>
             ))}
           </TableBody>
